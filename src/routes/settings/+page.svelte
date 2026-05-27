@@ -10,7 +10,7 @@
   import { openUrl } from '@tauri-apps/plugin-opener';
   import { onMount } from 'svelte';
 
-  const SOURCE_URL = 'https://github.com/TODO/notchkeep';
+  const SOURCE_URL = 'https://github.com/flo-zollner/notchkeep';
   async function openSource() {
     try { await openUrl(SOURCE_URL); } catch { window.open(SOURCE_URL, '_blank'); }
   }
