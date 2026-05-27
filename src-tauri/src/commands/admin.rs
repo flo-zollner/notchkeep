@@ -49,7 +49,7 @@ pub struct DeviceInfo {
     pub hostname: String,
 }
 
-/// Liefert den `app_local_data_dir` für die App.
+/// Returns the `app_local_data_dir` for the app.
 fn data_dir(app: &AppHandle) -> Result<PathBuf, CommandError> {
     app.path()
         .app_local_data_dir()
@@ -109,12 +109,11 @@ pub async fn check_target_path(target_dir: String) -> Result<PathCheckResult, Co
     })
 }
 
-/// Schließt den aktuellen Pool sauber (via Dummy-Memory-Pool als Zwischen-
-/// station, damit Windows-File-Handles freigegeben sind), führt `action`
-/// auf dem Filesystem aus, öffnet neuen Pool und replact ihn im DbState.
-/// Bei Fehler in fs_action oder beim Öffnen des neuen Pools wird versucht,
-/// den alten Pool (old_db_path) wiederherzustellen, um einen Zombie-Dummy-
-/// Pool im DbState zu vermeiden.
+/// Cleanly closes the current pool (via a dummy in-memory pool as an intermediate
+/// step so that Windows file handles are released), executes `action` on the
+/// filesystem, opens a new pool and replaces it in DbState.
+/// If fs_action or opening the new pool fails, the function attempts to restore
+/// the old pool (old_db_path) to avoid leaving a zombie dummy pool in DbState.
 async fn swap_pool_around<F>(
     state: &DbState,
     device: &DeviceInfo,
@@ -125,30 +124,30 @@ async fn swap_pool_around<F>(
 where
     F: FnOnce() -> Result<(), CommandError>,
 {
-    // 1. Sync-Lock auf altem Pool releasen (best-effort).
+    // 1. Release sync lock on old pool (best-effort).
     let old_pool_clone = state.pool();
     let _ = release(&old_pool_clone, &device.device_id).await;
     drop(old_pool_clone);
 
-    // 2. Aktuellen Pool durch Dummy-Memory-Pool ersetzen, alten schließen.
+    // 2. Replace current pool with a dummy in-memory pool, then close the old one.
     let dummy = sqlx::SqlitePool::connect("sqlite::memory:")
         .await
         .map_err(|e| CommandError { message: format!("dummy pool: {e}") })?;
     let old_pool = state.swap(dummy);
     old_pool.close().await;
 
-    // 3. FS-Action ausführen — bei Fehler Recovery auf alte DB versuchen.
+    // 3. Execute FS action — on failure attempt recovery to the old DB.
     if let Err(e) = fs_action() {
         if let Ok(recovery_pool) = crate::db::connect_file(old_db_path).await {
             let _ = acquire(&recovery_pool, &device.device_id, &device.hostname).await;
             let dummy = state.swap(recovery_pool);
             dummy.close().await;
         }
-        // Falls Recovery scheitert: Dummy bleibt im State. Seltenster Fall.
+        // If recovery also fails: dummy stays in state. Extremely rare case.
         return Err(e);
     }
 
-    // 4. Neuen echten Pool an new_db_path öffnen — bei Fehler ebenfalls Recovery.
+    // 4. Open new real pool at new_db_path — also attempt recovery on failure.
     let new_pool = match crate::db::connect_file(new_db_path).await {
         Ok(p) => p,
         Err(e) => {
@@ -161,10 +160,10 @@ where
         }
     };
 
-    // 5. Sync-Lock auf neuem Pool acquiren (silently, ignore HeldByOther für jetzt).
+    // 5. Acquire sync lock on new pool (silently, ignore HeldByOther for now).
     let _ = acquire(&new_pool, &device.device_id, &device.hostname).await;
 
-    // 6. Dummy durch new ersetzen, Dummy schließen.
+    // 6. Replace dummy with new pool, close dummy.
     let dummy = state.swap(new_pool);
     dummy.close().await;
 
@@ -182,7 +181,7 @@ pub async fn change_data_path(
     let target_dir_path = PathBuf::from(&target_dir);
     if !target_dir_path.is_dir() {
         return Err(CommandError {
-            message: format!("target_dir ist kein Verzeichnis: {target_dir}"),
+            message: format!("target_dir is not a directory: {target_dir}"),
         });
     }
     let target_db = target_dir_path.join("budget.sqlite");
@@ -191,20 +190,20 @@ pub async fn change_data_path(
         .map_err(|e| CommandError { message: format!("load config: {e}") })?;
     let current_db_path = PathBuf::from(&current_cfg.db_path);
 
-    // Verfügbarkeits-Check
+    // Availability check
     let target_existed = target_db.exists();
     match (&action, target_existed) {
         (ChangePathAction::UseExisting, false)
         | (ChangePathAction::OverwriteCopy, false) => {
             return Err(CommandError {
-                message: "Action setzt vorhandene DB am Target voraus".into(),
+                message: "Action requires an existing DB at the target path".into(),
             });
         }
         (ChangePathAction::Move, true)
         | (ChangePathAction::Copy, true)
         | (ChangePathAction::StartFresh, true) => {
             return Err(CommandError {
-                message: "Action setzt leeres Target voraus".into(),
+                message: "Action requires an empty target path".into(),
             });
         }
         _ => {}
@@ -281,7 +280,7 @@ pub async fn restore_database(
     let report = db_validate_backup(&source).await;
     if !report.ok {
         return Err(CommandError {
-            message: report.error.unwrap_or_else(|| "Backup ungültig".into()),
+            message: report.error.unwrap_or_else(|| "backup invalid".into()),
         });
     }
 
@@ -339,7 +338,7 @@ pub async fn retry_startup(
     let parent_ok = target.parent().map(|p| p.is_dir()).unwrap_or(false);
     if !parent_ok {
         return Err(CommandError {
-            message: format!("Parent-Folder fehlt: {}", cfg.db_path),
+            message: format!("parent folder missing: {}", cfg.db_path),
         });
     }
     let fs = || -> Result<(), CommandError> { Ok(()) };
@@ -356,7 +355,7 @@ pub async fn set_path_and_init(
     let target_path = PathBuf::from(&target_dir);
     if !target_path.is_dir() {
         return Err(CommandError {
-            message: format!("kein Verzeichnis: {target_dir}"),
+            message: format!("not a directory: {target_dir}"),
         });
     }
     let target_db = target_path.join("budget.sqlite");
@@ -406,8 +405,8 @@ pub struct SyncConflictFile {
     pub modified_unix: i64,
 }
 
-/// Scannt das DB-Verzeichnis nach Syncthing-Conflict-Files
-/// (Pattern: `*.sync-conflict-*`).
+/// Scans the DB directory for Syncthing conflict files
+/// (pattern: `*.sync-conflict-*`).
 pub(crate) async fn check_sync_conflicts_impl(
     dir: &std::path::Path,
 ) -> std::io::Result<Vec<SyncConflictFile>> {
@@ -435,8 +434,8 @@ pub(crate) async fn check_sync_conflicts_impl(
     Ok(entries)
 }
 
-/// Verschiebt alle Conflict-Files in einen `conflict-trash`-Subordner
-/// und behält die aktuelle `budget.sqlite` unverändert.
+/// Moves all conflict files into a `conflict-trash` subdirectory
+/// and leaves the current `budget.sqlite` unchanged.
 pub(crate) async fn resolve_conflict_keep_current_impl(
     dir: &std::path::Path,
 ) -> std::io::Result<()> {
@@ -453,10 +452,10 @@ pub(crate) async fn resolve_conflict_keep_current_impl(
     Ok(())
 }
 
-/// Macht die übergebene Conflict-Datei zur neuen `budget.sqlite`,
-/// die alte `budget.sqlite` und alle übrigen Conflict-Files wandern
-/// in den `conflict-trash`-Subordner mit Timestamp-Suffix für
-/// Eindeutigkeit.
+/// Promotes the given conflict file to the new `budget.sqlite`.
+/// The old `budget.sqlite` and all remaining conflict files are moved
+/// into the `conflict-trash` subdirectory with a timestamp suffix for
+/// uniqueness.
 pub(crate) async fn resolve_conflict_use_other_impl(
     dir: &std::path::Path,
     other: &std::path::Path,
@@ -472,7 +471,7 @@ pub(crate) async fn resolve_conflict_use_other_impl(
     if current.exists() {
         std::fs::rename(&current, trash.join(format!("budget.sqlite.replaced-{now}")))?;
     }
-    // Kopiere other → budget.sqlite (damit other anschließend noch für den trash-Move existiert)
+    // Copy other → budget.sqlite (so other still exists for the trash move afterwards)
     std::fs::copy(other, &current)?;
     // Alle Conflict-Files (inkl. other selbst) → trash
     for ent in std::fs::read_dir(dir)? {
@@ -486,7 +485,7 @@ pub(crate) async fn resolve_conflict_use_other_impl(
     Ok(())
 }
 
-/// Zentrale data-dir-Resolution für Conflict-Commands (dieselbe cfg-Logik wie in lib.rs setup).
+/// Central data-dir resolution for conflict commands (same config logic as in lib.rs setup).
 fn resolve_data_dir_for_conflict(app: &tauri::AppHandle) -> Result<std::path::PathBuf, CommandError> {
     use tauri::Manager;
     let r = {
@@ -620,7 +619,7 @@ mod tests {
             Ok(())
         };
         swap_pool_around(&state, &device, &src, &dst_db, fs).await.unwrap();
-        assert!(src.exists(), "Original-Source muss bleiben");
+        assert!(src.exists(), "original source must remain");
         assert!(dst_db.exists());
     }
 
@@ -668,7 +667,7 @@ mod tests {
         let (name,): (String,) = sqlx::query_as(
             "SELECT name FROM accounts ORDER BY id LIMIT 1",
         ).fetch_one(&pool).await.unwrap();
-        assert_eq!(name, "Target", "UseExisting muss Target-DB-Daten behalten");
+        assert_eq!(name, "Target", "UseExisting must retain target DB data");
     }
 
     #[tokio::test]
@@ -701,7 +700,7 @@ mod tests {
         let (name,): (String,) = sqlx::query_as(
             "SELECT name FROM accounts ORDER BY id LIMIT 1",
         ).fetch_one(&pool).await.unwrap();
-        assert_eq!(name, "Original", "OverwriteCopy muss Source-DB-Daten haben");
+        assert_eq!(name, "Original", "OverwriteCopy must have source DB data");
     }
 
     #[tokio::test]
@@ -776,7 +775,7 @@ mod tests {
         let state = setup_state_with_db(&src).await;
         let device = setup_device();
 
-        // fs_action die immer scheitert
+        // fs_action that always fails
         let fs = || -> Result<(), CommandError> {
             Err(CommandError { message: "simulated fail".into() })
         };
@@ -784,12 +783,12 @@ mod tests {
         let result = swap_pool_around(&state, &device, &src, &dst_db, fs).await;
         assert!(result.is_err());
 
-        // Nach Fehler: DbState muss wieder auf alte DB zeigen
+        // After failure: DbState must point back to the old DB
         let pool = state.pool();
         let (name,): (String,) = sqlx::query_as(
             "SELECT name FROM accounts ORDER BY id LIMIT 1",
         ).fetch_one(&pool).await.unwrap();
-        assert_eq!(name, "Original", "Recovery muss alte DB wiederherstellen");
+        assert_eq!(name, "Original", "recovery must restore the old DB");
     }
 
     #[tokio::test]
@@ -807,16 +806,16 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         let dir = tmp.path();
 
-        // Setup: Haupt-DB + zwei Conflict-Files
+        // Setup: main DB + two conflict files
         std::fs::write(dir.join("budget.sqlite"), b"main").unwrap();
         std::fs::write(dir.join("budget.sqlite.sync-conflict-20260524-103045-AB12C.db"), b"a").unwrap();
         std::fs::write(dir.join("budget.sqlite.sync-conflict-20260525-091500-XY99Z.db"), b"b").unwrap();
-        // unrelated file — darf nicht in Liste landen
+        // unrelated file — must not end up in the list
         std::fs::write(dir.join("readme.txt"), b"x").unwrap();
 
         let result = check_sync_conflicts_impl(dir).await.unwrap();
 
-        assert_eq!(result.len(), 2, "Erwartet 2 conflict files, gefunden: {result:?}");
+        assert_eq!(result.len(), 2, "expected 2 conflict files, found: {result:?}");
         let names: Vec<&str> = result.iter().map(|f| f.name.as_str()).collect();
         assert!(names.iter().any(|n| n.contains("AB12C")));
         assert!(names.iter().any(|n| n.contains("XY99Z")));
@@ -839,12 +838,12 @@ mod tests {
 
         resolve_conflict_keep_current_impl(dir).await.unwrap();
 
-        // budget.sqlite unverändert (still "main")
+        // budget.sqlite unchanged (still "main")
         assert_eq!(std::fs::read(dir.join("budget.sqlite")).unwrap(), b"main");
-        // Conflict-Files weg aus dem Haupt-Dir
+        // Conflict files gone from the main dir
         assert!(!dir.join("budget.sqlite.sync-conflict-A.db").exists());
         assert!(!dir.join("budget.sqlite.sync-conflict-B.db").exists());
-        // Conflict-Files in trash-Subdir
+        // Conflict files in trash subdirectory
         let trash = dir.join("conflict-trash");
         assert!(trash.exists());
         assert!(trash.join("budget.sqlite.sync-conflict-A.db").exists());
@@ -861,17 +860,17 @@ mod tests {
 
         resolve_conflict_use_other_impl(dir, &other).await.unwrap();
 
-        // Neue budget.sqlite hat den "other"-Inhalt
+        // New budget.sqlite has the "other" content
         assert_eq!(std::fs::read(dir.join("budget.sqlite")).unwrap(), b"other");
-        // Conflict-File ist weg (in trash)
+        // Conflict file is gone (in trash)
         assert!(!other.exists());
-        // Alte budget.sqlite ist in trash mit Original-Inhalt
+        // Old budget.sqlite is in trash with original content
         let trash = dir.join("conflict-trash");
         assert!(trash.exists());
         let entries: Vec<String> = std::fs::read_dir(&trash).unwrap()
             .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
             .collect();
-        // Mindestens 2 Files im trash: alte budget.sqlite + die conflict-X
+        // At least 2 files in trash: old budget.sqlite + the conflict-X
         assert!(entries.len() >= 2);
     }
 }

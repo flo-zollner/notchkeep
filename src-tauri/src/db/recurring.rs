@@ -199,10 +199,10 @@ pub async fn delete_recurring(pool: &SqlitePool, id: i64) -> DbResult<bool> {
     Ok(res.rows_affected() > 0)
 }
 
-/// Normalisiert Counterparty-Strings für Fuzzy-Match.
+/// Normalises counterparty strings for fuzzy matching.
 /// - lowercase (ASCII)
-/// - alphanumerische + Whitespace bewahren, alles andere entfernen
-/// - Whitespace kollabieren + trimmen
+/// - preserve alphanumerics + whitespace, remove everything else
+/// - collapse + trim whitespace
 pub fn normalize_counterparty(s: &str) -> String {
     s.chars()
         .filter_map(|c| {
@@ -220,9 +220,9 @@ pub fn normalize_counterparty(s: &str) -> String {
         .join(" ")
 }
 
-/// Liefert die Approximation in Tagen für eine Frequency. Wird für
-/// Auto-Detect (intervall-clustering) und für `project_due_dates` genutzt.
-/// `None` bei unbekannter frequency.
+/// Returns the approximate number of days for a frequency. Used for
+/// auto-detect (interval clustering) and for `project_due_dates`.
+/// Returns `None` for an unknown frequency.
 pub fn period_days(freq: &str) -> Option<i64> {
     match freq {
         "weekly" => Some(7),
@@ -233,11 +233,11 @@ pub fn period_days(freq: &str) -> Option<i64> {
     }
 }
 
-/// Generiert alle Due-Dates für eine Recurring im Fenster `[today − 5d, cutoff]`.
-/// Die untere Grenze ist `today − 5` damit Fälligkeiten, die heute noch im
-/// Match-Fenster liegen, mit angezeigt werden („heute fällig").
+/// Generates all due dates for a recurring payment in the window `[today − 5d, cutoff]`.
+/// The lower bound is `today − 5` so that due dates still within the match
+/// window today are also shown ("due today").
 ///
-/// Iteration: `anchor + N × period_days` für N = 0, 1, 2, ... bis cutoff erreicht.
+/// Iteration: `anchor + N × period_days` for N = 0, 1, 2, ... until cutoff is reached.
 pub fn project_due_dates(
     anchor: chrono::NaiveDate,
     frequency: &str,
@@ -264,10 +264,10 @@ pub fn project_due_dates(
     out
 }
 
-/// Tx-Match-Heuristik (pure):
+/// Tx-match heuristic (pure):
 /// - normalize(tx_counterparty) contains normalize(rec_counterparty)
 /// - |tx_amount - rec_amount| ≤ |rec_amount| × 10%
-/// - |tx_date - due_date| ≤ 5 Tage
+/// - |tx_date - due_date| ≤ 5 days
 pub fn tx_matches_recurring(
     tx_counterparty: &str,
     tx_amount_cents: i64,
@@ -297,12 +297,12 @@ pub fn tx_matches_recurring(
     true
 }
 
-/// Lädt alle non-archivierten Recurring-Definitionen und projiziert
-/// Fälligkeiten in den nächsten `months_ahead` Monaten. Pro Fälligkeit wird
-/// die Tx-Match-Heuristik gegen die Transactions-Tabelle gefahren.
+/// Loads all non-archived recurring definitions and projects due dates into
+/// the next `months_ahead` months. For each due date the tx-match heuristic
+/// is run against the transactions table.
 ///
-/// Tx werden einmalig pro Range geladen (today-10..cutoff+10), dann linearer
-/// Match-Loop in Rust.
+/// Transactions are loaded once per range (today-10..cutoff+10), then a
+/// linear match loop runs in Rust.
 pub async fn recurring_overview(
     pool: &SqlitePool,
     months_ahead: u32,
@@ -355,9 +355,9 @@ pub async fn recurring_overview(
 
         let mut occurrences: Vec<Occurrence> = Vec::with_capacity(dues.len());
         for due in dues {
-            // Suche besten Tx-Match: gleiches account, contains-Counterparty,
-            // ±10% Amount, ±5 Tage. Sortiere matches nach |date-diff| ASC und
-            // nimm den nächsten.
+            // Find the best tx match: same account, contains-counterparty,
+            // ±10% amount, ±5 days. Sort matches by |date-diff| ASC and
+            // take the closest.
             let mut best: Option<(i64, i64, i64)> = None;
             for tx in &txs {
                 if tx.account_id != rec.account_id {
@@ -392,7 +392,7 @@ pub async fn recurring_overview(
         out.push(RecurringOverview { recurring: rec, occurrences });
     }
 
-    // Sortiere: erste pending Due-Date ASC, dann Name.
+    // Sort: first pending due date ASC, then by name.
     out.sort_by(|a, b| {
         let a_first_pending = a.occurrences.iter()
             .find(|o| o.status == "pending")
@@ -411,18 +411,18 @@ pub async fn recurring_overview(
     Ok(out)
 }
 
-/// Auto-Detect aus den letzten 12 Monaten Tx-Historie.
+/// Auto-detect from the last 12 months of transaction history.
 ///
-/// 1. SQL: lade alle Tx mit non-empty counterparty der letzten 12 Monate.
+/// 1. SQL: load all txs with non-empty counterparty from the last 12 months.
 /// 2. Group by (account_id, normalize(counterparty)).
-/// 3. Für Cluster mit ≥ 3 Tx:
-///    - Sortiere nach booking_date ASC, berechne consecutive day-Δ.
-///    - Median + StdDev. Variationskoeffizient σ/μ. Wenn > 0.25 → skip.
-///    - Frequency = nearest match in {7,30,91,365}-Set.
+/// 3. For clusters with ≥ 3 txs:
+///    - Sort by booking_date ASC, compute consecutive day-Δ.
+///    - Median + StdDev. Coefficient of variation σ/μ. If > 0.25 → skip.
+///    - Frequency = nearest match in {7,30,91,365} set.
 ///    - Median amount.
-///    - Anchor = letzte Tx-Datum.
-///    - Counterparty = original (unnormalized) der letzten Tx.
-/// 4. Pre-Filter: matches eine existierende recurring? → drop.
+///    - Anchor = date of the last tx.
+///    - Counterparty = original (unnormalized) of the last tx.
+/// 4. Pre-filter: does it match an existing recurring? → drop.
 pub async fn detect_recurring(pool: &SqlitePool) -> DbResult<Vec<DetectedRecurring>> {
     use chrono::NaiveDate;
     use std::collections::HashMap;
@@ -727,18 +727,18 @@ mod tests {
         use chrono::NaiveDate;
         let due = NaiveDate::parse_from_str("2026-06-01", "%Y-%m-%d").unwrap();
 
-        // Tx: gleicher Counterparty, gleicher Betrag, due-Tag → match
+        // Tx: same counterparty, same amount, due date → match
         let tx_date = NaiveDate::parse_from_str("2026-06-01", "%Y-%m-%d").unwrap();
         assert!(tx_matches_recurring("Vermieter GmbH", -100_000, tx_date, "Vermieter", -100_000, due));
 
         // Counterparty case-insensitive contains
         assert!(tx_matches_recurring("vermieter", -100_000, tx_date, "Vermieter GmbH", -100_000, due));
 
-        // Betrag ±10% — 100_000 ± 10_000
+        // Amount ±10% — 100_000 ± 10_000
         assert!(tx_matches_recurring("Vermieter", -109_999, tx_date, "Vermieter", -100_000, due));
         assert!(!tx_matches_recurring("Vermieter", -111_000, tx_date, "Vermieter", -100_000, due));
 
-        // Datum ±5 Tage
+        // Date ±5 days
         let tx_5 = NaiveDate::parse_from_str("2026-06-06", "%Y-%m-%d").unwrap();
         assert!(tx_matches_recurring("Vermieter", -100_000, tx_5, "Vermieter", -100_000, due));
         let tx_6 = NaiveDate::parse_from_str("2026-06-07", "%Y-%m-%d").unwrap();

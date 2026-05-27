@@ -10,7 +10,7 @@
     children: Account[];
     childrenByParent: Map<number | null, Account[]>;
     balances: Map<number, number>;
-    trends?: Map<number, number[]>;  // categoryId → 6-Monats-Netto-Cents-Array (ASC)
+    trends?: Map<number, number[]>;  // categoryId → 6-month net cents array (ASC)
     depth?: number;
     onOpen: (id: number) => void;
     onEdit?: (account: Account) => void;

@@ -3,24 +3,24 @@ use super::csv_bank_statement::{
 };
 use super::{ImportResult, Importer, ParseResult};
 
-/// Reshape-Preprocessor für nicht-RFC-konforme Sparkasse-George-CSV.
+/// Reshape preprocessor for non-RFC-compliant Sparkasse George CSV.
 ///
-/// Das Format existiert in mindestens zwei Varianten:
-/// - 11-col (Girokonto): Own IBAN, Booking Date, Partner Name, Partner IBAN, BIC/SWIFT,
+/// The format exists in at least two variants:
+/// - 11-col (current account): Own IBAN, Booking Date, Partner Name, Partner IBAN, BIC/SWIFT,
 ///   Partner Account Number, Bank code, Amount, Currency, Booking details, Payment Reference
-/// - 13-col (Sparkonto): Own account name, Own IBAN, Booking Date, Partner Name, Partner IBAN,
+/// - 13-col (savings account): Own account name, Own IBAN, Booking Date, Partner Name, Partner IBAN,
 ///   BIC/SWIFT, Partner Account Number, Bank code, Amount, Currency, Booking details,
 ///   Verification of Payee, This IBAN is registered to
 ///
-/// Amount-Felder mit Tausender-Komma und Booking-Details-Felder mit deutschen Cent-Kommas
-/// sind UNQUOTED. Naives `,`-Splitting liefert dadurch zu viele Felder.
+/// Amount fields with a thousands-comma and Booking-details fields with German cent-commas
+/// are UNQUOTED. Naive `,` splitting therefore yields too many fields.
 ///
-/// Strategie: Header zuerst parsen, Positionen der Schlüsselspalten dynamisch ermitteln,
-/// dann per Currency-Anchor + Amount-Back-Resolution die Zeilen normalisieren.
+/// Strategy: parse the header first, dynamically determine key column positions,
+/// then normalise each row using a currency anchor + amount back-resolution.
 fn reshape_sparkasse_rows(text: &str) -> String {
     let mut lines = text.split_inclusive('\n');
 
-    // Header parsen
+    // Parse header
     let Some(header_line) = lines.next() else { return text.to_string(); };
     let (header_content, header_terminator) = match header_line.find(|c: char| c == '\n' || c == '\r') {
         Some(i) => (&header_line[..i], &header_line[i..]),
@@ -33,36 +33,36 @@ fn reshape_sparkasse_rows(text: &str) -> String {
         header_parts.iter().position(|h| normalize(h) == normalize(name))
     };
 
-    // Pflicht-Spalten per Name finden — fehlt eine, passthrough
+    // Locate required columns by name — if any are missing, pass through unchanged
     let Some(partner_name_idx) = find_col("Partner Name") else { return text.to_string(); };
     let Some(amount_idx) = find_col("Amount") else { return text.to_string(); };
     let Some(currency_idx_in_header) = find_col("Currency") else { return text.to_string(); };
     let Some(booking_idx_in_header) = find_col("Booking details") else { return text.to_string(); };
 
-    // Sanity: genau 4 simple Spalten zwischen Partner Name und Amount
+    // Sanity: exactly 4 simple columns between Partner Name and Amount
     // (Partner IBAN, BIC/SWIFT, Partner Account Number, Bank code)
     if amount_idx <= partner_name_idx + 4 || amount_idx - partner_name_idx != 5 {
         return text.to_string();
     }
-    // Currency muss direkt nach Amount kommen
+    // Currency must immediately follow Amount
     if currency_idx_in_header != amount_idx + 1 {
         return text.to_string();
     }
-    // Booking details muss direkt nach Currency kommen
+    // Booking details must immediately follow Currency
     if booking_idx_in_header != currency_idx_in_header + 1 {
         return text.to_string();
     }
 
     let expected_cols = header_parts.len();
-    // Anzahl einfacher (kommafreier) Felder nach Booking details
+    // Number of simple (comma-free) fields after Booking details
     let simple_tail_count = expected_cols - booking_idx_in_header - 1;
 
     let mut out = String::with_capacity(text.len());
-    // Header unverändert ausgeben
+    // Emit header unchanged
     out.push_str(header_content);
     out.push_str(header_terminator);
 
-    // Rest des Inputs (nach dem Header) iterieren
+    // Iterate the rest of the input (after the header)
     for line in lines {
         let (content, terminator) = match line.find(|c: char| c == '\n' || c == '\r') {
             Some(i) => (&line[..i], &line[i..]),
@@ -77,13 +77,13 @@ fn reshape_sparkasse_rows(text: &str) -> String {
         let parts: Vec<&str> = content.split(',').collect();
         let n = parts.len();
         if n <= expected_cols {
-            // Saubere Zeile oder zu wenige Felder — durchreichen (csv-Reader handhabt).
+            // Clean row or too few fields — pass through (csv reader handles it).
             out.push_str(content);
             out.push_str(terminator);
             continue;
         }
 
-        // 1. Currency-Anchor: erstes 3-Buchstaben-ASCII-Alpha-Feld ab amount_idx
+        // 1. Currency anchor: first 3-letter ASCII-alpha field at or after amount_idx
         let currency_idx_found = (amount_idx..n).find(|&i| {
             parts[i].len() == 3 && parts[i].chars().all(|c| c.is_ascii_alphabetic())
         });
@@ -91,12 +91,12 @@ fn reshape_sparkasse_rows(text: &str) -> String {
             out.push_str(content); out.push_str(terminator); continue;
         };
         if currency_idx_found == amount_idx {
-            // Amount-Spalte leer → bail
+            // Amount column empty → bail
             out.push_str(content); out.push_str(terminator); continue;
         }
 
-        // 2. Amount greedy backward: längster Merge der parts[k..currency_idx_found]
-        // der is_valid_amount erfüllt. k=1..=4 (max 4 parts für X,YYY,YYY,YYY.YY).
+        // 2. Amount greedy backward: longest merge of parts[k..currency_idx_found]
+        // that satisfies is_valid_amount. k=1..=4 (max 4 parts for X,YYY,YYY,YYY.YY).
         let mut amount_start_idx: Option<usize> = None;
         for k in (1..=4usize).rev() {
             if currency_idx_found < k { continue; }
@@ -111,15 +111,15 @@ fn reshape_sparkasse_rows(text: &str) -> String {
             out.push_str(content); out.push_str(terminator); continue;
         };
 
-        // 3. Head per Back-Anchor: 4 einfache Felder direkt vor amount_start_idx
+        // 3. Head via back-anchor: 4 simple fields directly before amount_start_idx
         // (Partner IBAN, BIC/SWIFT, Partner Account Number, Bank code)
         if amount_start_idx < partner_name_idx + 4 {
             out.push_str(content); out.push_str(terminator); continue;
         }
         let partner_iban_data_idx = amount_start_idx - 4;
 
-        // Felder vor Partner Name (Own account name, Own IBAN, Booking Date, ...) — keine Kommas
-        // Partner Name absorbiert alle überschüssigen Splits zwischen partner_name_idx und partner_iban_data_idx
+        // Fields before Partner Name (Own account name, Own IBAN, Booking Date, ...) — no commas
+        // Partner Name absorbs all excess splits between partner_name_idx and partner_iban_data_idx
         let partner_name = parts[partner_name_idx..partner_iban_data_idx].join(",");
         let partner_iban = parts[partner_iban_data_idx];
         let bic = parts[partner_iban_data_idx + 1];
@@ -129,16 +129,16 @@ fn reshape_sparkasse_rows(text: &str) -> String {
         let amount = parts[amount_start_idx..currency_idx_found].join(",");
         let currency = parts[currency_idx_found];
 
-        // 4. Tail: simple_tail_count einfache Felder am Ende; Booking details absorbiert den Rest
+        // 4. Tail: simple_tail_count simple fields at the end; Booking details absorbs the rest
         if n < simple_tail_count + currency_idx_found + 2 {
-            // Nicht genug Felder für Tail — bail
+            // Not enough fields for the tail — bail
             out.push_str(content); out.push_str(terminator); continue;
         }
         let booking_end = n - simple_tail_count;
         let booking_details = parts[currency_idx_found + 1..booking_end].join(",");
         let tail_simple: Vec<&str> = parts[booking_end..].to_vec();
 
-        // 5. Reassemble
+        // 5. Reassemble the row
         let mut out_fields: Vec<String> = Vec::with_capacity(expected_cols);
         for i in 0..partner_name_idx {
             out_fields.push(parts[i].to_string());
@@ -231,7 +231,7 @@ mod tests {
         let row = "AT01,11.05.2026,Max Mustermann,AT37,BICTESTX,99999999,20815,2,000.00,EUR,,Own transfer\n";
         let input = format!("{}{}", header, row);
         let out = reshape_sparkasse_rows(&input);
-        // Amount soll als quoted "2,000.00" im Output stehen
+        // Amount should appear as quoted "2,000.00" in the output
         assert!(out.contains(r#""2,000.00""#), "expected quoted amount, got: {}", out);
     }
 
@@ -241,7 +241,7 @@ mod tests {
         let row = "AT01,03.05.2026,CONTINENTALE,DE95,,,,-19.54,EUR,544323411 BU 19,54,\n";
         let input = format!("{}{}", header, row);
         let out = reshape_sparkasse_rows(&input);
-        // booking details "544323411 BU 19,54" soll quoted sein
+        // booking details "544323411 BU 19,54" should be quoted
         assert!(out.contains(r#""544323411 BU 19,54""#), "expected quoted booking details, got: {}", out);
     }
 

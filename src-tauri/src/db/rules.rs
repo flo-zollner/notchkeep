@@ -63,8 +63,8 @@ fn combinator_from_str(s: &str) -> DbResult<Combinator> {
     }
 }
 
-/// `(op_string, value_string)` für die DB-Spalten `op` / `value`.
-/// Range wird als `"min..max"` (Cent als Integer) in `value` kodiert.
+/// Returns `(op_string, value_string)` for the DB columns `op` / `value`.
+/// Range is encoded as `"min..max"` (cents as integer) in `value`.
 fn op_to_db(op: &MatchOp) -> (&'static str, String) {
     match op {
         MatchOp::Contains(v) => (OP_CONTAINS, v.clone()),

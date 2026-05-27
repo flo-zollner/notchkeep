@@ -8,7 +8,7 @@
     header?: Snippet;
     footer?: Snippet;
     children: Snippet;
-    /** Erlaubt Drag-down-to-dismiss auf Phone. Default: true. */
+    /** Enables drag-down-to-dismiss on phone. Default: true. */
     dismissable?: boolean;
   }
   let { open, onClose, title, header, footer, children, dismissable = true }: Props = $props();

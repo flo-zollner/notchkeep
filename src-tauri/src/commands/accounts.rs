@@ -18,14 +18,14 @@ impl<E: std::fmt::Display> From<E> for CommandError {
 pub struct DbState(pub std::sync::RwLock<sqlx::SqlitePool>);
 
 impl DbState {
-    /// Liefert einen geclonten Pool-Handle (cheap, sqlx::SqlitePool ist intern Arc).
-    /// Read-Lock wird für die Dauer des Clones gehalten (mikrosekunden).
+    /// Returns a cloned pool handle (cheap, sqlx::SqlitePool is internally Arc).
+    /// The read lock is held only for the duration of the clone (microseconds).
     pub fn pool(&self) -> sqlx::SqlitePool {
         self.0.read().expect("DbState RwLock poisoned").clone()
     }
 
-    /// Tauscht den internen Pool atomar aus und returnt den alten Pool zum Schließen.
-    /// Aufrufer muss `old_pool.close().await` von außen aufrufen.
+    /// Atomically swaps the internal pool and returns the old pool for closing.
+    /// The caller must call `old_pool.close().await` from the outside.
     pub fn swap(&self, new_pool: sqlx::SqlitePool) -> sqlx::SqlitePool {
         let mut guard = self.0.write().expect("DbState RwLock poisoned");
         std::mem::replace(&mut *guard, new_pool)
@@ -98,7 +98,7 @@ pub async fn update_account(
     Ok(())
 }
 
-/// Trimt + uppercaset IBAN. Leer → None. Format-Check (`^[A-Z]{2}\d{2}[A-Z0-9]{11,30}$`).
+/// Trims and uppercases an IBAN. Empty → None. Format check (`^[A-Z]{2}\d{2}[A-Z0-9]{11,30}$`).
 fn normalize_iban(raw: Option<&str>) -> Result<Option<String>, CommandError> {
     let Some(s) = raw else { return Ok(None) };
     let cleaned: String = s.chars().filter(|c| !c.is_whitespace()).collect::<String>().to_uppercase();

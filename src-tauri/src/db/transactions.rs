@@ -16,9 +16,9 @@ pub struct InsertCounts {
     pub skipped: usize,
 }
 
-/// Fügt eine `RawTransaction` ein. Konflikt auf `idx_transactions_dedup`
+/// Inserts a `RawTransaction`. Conflict on `idx_transactions_dedup`
 /// (account_id, booking_date, amount_cents, counterparty, source_file_hash)
-/// → `Skipped` statt Fehler.
+/// → `Skipped` instead of an error.
 pub async fn insert_raw_transaction(
     pool: &SqlitePool,
     account_id: i64,
@@ -61,7 +61,7 @@ pub async fn insert_raw_transaction(
     })
 }
 
-/// Bulk-Insert mit Dedup-Counter.
+/// Bulk insert with dedup counter.
 pub async fn insert_raw_transactions(
     pool: &SqlitePool,
     account_id: i64,

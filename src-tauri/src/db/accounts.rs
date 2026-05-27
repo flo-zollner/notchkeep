@@ -30,8 +30,8 @@ pub async fn list_accounts_by_institution(
     Ok(q.fetch_all(pool).await?)
 }
 
-/// Findet das einzige nicht-archivierte broker-Konto im Institut.
-/// Liefert None wenn 0 oder >1 Broker-Konten existieren (mehrdeutig).
+/// Finds the sole non-archived broker account within the institution.
+/// Returns None when 0 or >1 broker accounts exist (ambiguous).
 pub async fn find_broker_account_for_institution(
     pool: &SqlitePool,
     institution_id: i64,
@@ -52,13 +52,13 @@ pub async fn find_broker_account_for_institution(
     }
 }
 
-/// Bestimmt das Ziel-Konto für eine securities_trades-Detail-Zeile (Variante B).
+/// Determines the target account for a securities_trades detail row (variant B).
 ///
-/// Wenn `current_account` selbst ein Broker ist → `Ok(None)` (kein Routing nötig,
-/// `portfolio_*`-Queries fallen über COALESCE auf `tx.account_id` zurück).
-/// Wenn `current_account.institution_id` gesetzt ist UND im Institut genau ein
-/// nicht-archiviertes Broker-Konto existiert → `Ok(Some(broker_id))`.
-/// Sonst → `Ok(None)`.
+/// If `current_account` is itself a broker → `Ok(None)` (no routing needed,
+/// `portfolio_*` queries fall back via COALESCE to `tx.account_id`).
+/// If `current_account.institution_id` is set AND the institution has exactly one
+/// non-archived broker account → `Ok(Some(broker_id))`.
+/// Otherwise → `Ok(None)`.
 pub async fn resolve_trade_account(
     pool: &SqlitePool,
     current_account: i64,
@@ -73,9 +73,9 @@ pub async fn resolve_trade_account(
     find_broker_account_for_institution(pool, inst_id).await
 }
 
-/// Findet das einzige nicht-archivierte Nicht-Broker-Konto im Institut —
-/// das „Cashkonto"/Verrechnungskonto, über das Wertpapier-Zahlungen laufen.
-/// Liefert None wenn 0 oder >1 solcher Konten existieren (mehrdeutig).
+/// Finds the sole non-archived non-broker account within the institution —
+/// the cash/settlement account through which securities payments flow.
+/// Returns None when 0 or >1 such accounts exist (ambiguous).
 pub async fn find_cash_settlement_account_for_institution(
     pool: &SqlitePool,
     institution_id: i64,
@@ -96,18 +96,18 @@ pub async fn find_cash_settlement_account_for_institution(
     }
 }
 
-/// Symmetrische Gegenrichtung zu `resolve_trade_account`: bestimmt das
-/// Cashkonto für eine Tx aus einem Depot-Statement-Import (Flatex-PDFs).
+/// Symmetric counterpart to `resolve_trade_account`: determines the cash account
+/// for a tx from a depot-statement import (Flatex PDFs).
 ///
-/// Hintergrund: Bei Flatex laufen ALLE Cash-Bewegungen über das
-/// Verrechnungskonto, im Depot liegen nur Wertpapiere/BTC. Wenn der User
-/// beim PDF-Import das Depot wählt, soll die Tx automatisch zur Verrechnung
-/// umgeroutet werden — die Trade-Detail-Zeile bleibt am Depot
-/// (`securities_trades.account_id` explizit gesetzt durch den Import-Flow).
+/// Background: at Flatex ALL cash movements run through the settlement account;
+/// the depot holds only securities/BTC. When the user selects the depot during
+/// a PDF import, the tx should be auto-routed to the settlement account — the
+/// trade detail row stays on the depot
+/// (`securities_trades.account_id` explicitly set by the import flow).
 ///
-/// Liefert `Some(cash_id)` wenn `current_account` ein Broker mit institution_id
-/// ist UND im Institut genau ein Nicht-Broker-Konto existiert. Sonst `None`
-/// (kein Re-Route, der User hat selbst gewählt).
+/// Returns `Some(cash_id)` when `current_account` is a broker with an
+/// institution_id AND the institution has exactly one non-broker account.
+/// Otherwise `None` (no re-route; the user chose correctly).
 pub async fn resolve_cash_settlement_account(
     pool: &SqlitePool,
     current_account: i64,
@@ -188,9 +188,9 @@ pub async fn update_account(pool: &SqlitePool, account: &Account) -> DbResult<()
     Ok(())
 }
 
-/// Gibt alle Account-IDs im Subtree (inkl. root) zurück. Recursive CTE.
-/// Aktuell nur in Tests genutzt — `account_balance` und `aggregates.rs` haben
-/// die CTE inline (siehe Kommentare dort), damit Queries sich nicht aufteilen.
+/// Returns all account IDs in the subtree (including root). Recursive CTE.
+/// Currently only used in tests — `account_balance` and `aggregates.rs` keep
+/// the CTE inline (see comments there) so queries stay self-contained.
 ///
 /// # Precondition
 /// The `parent_id` graph must be acyclic. Cycles are prevented by
@@ -229,9 +229,9 @@ pub async fn account_balance(pool: &SqlitePool, id: i64) -> DbResult<i64> {
     Ok(sum)
 }
 
-/// Stellt sicher, dass `new_parent_id` keinen Cycle mit `account_id` erzeugt.
-/// Trifft die Traversierung der Ancestors von `new_parent_id` auf `account_id`,
-/// gibt es einen Cycle.
+/// Ensures that `new_parent_id` does not create a cycle with `account_id`.
+/// If the ancestor traversal of `new_parent_id` reaches `account_id`,
+/// a cycle would exist.
 pub async fn validate_no_cycle(
     pool: &SqlitePool,
     account_id: i64,
@@ -288,7 +288,7 @@ mod tests {
 
         let resolved = resolve_cash_settlement_account(&pool, broker.id).await.unwrap();
         assert_eq!(resolved, Some(cash.id),
-            "Broker in Institut mit genau einem Cashkonto muss umgeroutet werden");
+            "Broker in institution with exactly one cash account must be re-routed");
     }
 
     #[tokio::test]
@@ -302,13 +302,13 @@ mod tests {
 
         let resolved = resolve_cash_settlement_account(&pool, cash.id).await.unwrap();
         assert!(resolved.is_none(),
-            "Cashkonto braucht kein Re-Route — User hat schon richtig gewählt");
+            "Cash account needs no re-route — user already chose correctly");
     }
 
     #[tokio::test]
     async fn resolve_cash_settlement_returns_none_when_no_institution() {
         let pool = connect_memory().await.unwrap();
-        // Broker ohne institution_id — kein Sibling-Lookup möglich
+        // Broker without institution_id — no sibling lookup possible
         let broker = create_account(&pool, "Standalone-Depot", "broker", "EUR", None, None, None)
             .await.unwrap();
         let resolved = resolve_cash_settlement_account(&pool, broker.id).await.unwrap();
@@ -319,7 +319,7 @@ mod tests {
     async fn resolve_cash_settlement_returns_none_when_multiple_cash_siblings() {
         let pool = connect_memory().await.unwrap();
         let inst = seed_inst(&pool, "MultiCash").await;
-        // 2 Nicht-Broker-Konten → mehrdeutig → kein Auto-Routing
+        // 2 non-broker accounts → ambiguous → no auto-routing
         let _cash1 = create_account(&pool, "Giro", "bank", "EUR", None, None, Some(inst))
             .await.unwrap();
         let _cash2 = create_account(&pool, "Sparkonto", "savings", "EUR", None, None, Some(inst))
@@ -328,7 +328,7 @@ mod tests {
             .await.unwrap();
         let resolved = resolve_cash_settlement_account(&pool, broker.id).await.unwrap();
         assert!(resolved.is_none(),
-            "Mehrdeutig (>1 Cash-Konten) — User muss selbst entscheiden");
+            "Ambiguous (>1 cash accounts) — user must decide");
     }
 
     #[tokio::test]
@@ -346,7 +346,7 @@ mod tests {
 
         let resolved = resolve_cash_settlement_account(&pool, broker.id).await.unwrap();
         assert_eq!(resolved, Some(new_cash.id),
-            "Archivierte Cash-Konten zählen nicht mit");
+            "Archived cash accounts must not be counted");
     }
 
     #[tokio::test]
@@ -548,7 +548,7 @@ mod tests {
 
     #[tokio::test]
     async fn validate_no_cycle_rejects_indirect_cycle() {
-        // A -> B -> C. Versuch: A.parent = C → würde Cycle A->B->C->A erzeugen.
+        // A -> B -> C. Attempt: A.parent = C → would create cycle A->B->C->A.
         let pool = connect_memory().await.unwrap();
         let a = create_account(&pool, "a", "bank", "EUR", None, None, None).await.unwrap();
         let b = create_account(&pool, "b", "bank", "EUR", Some(a.id), None, None).await.unwrap();
@@ -562,13 +562,13 @@ mod tests {
         let pool = connect_memory().await.unwrap();
         let a = create_account(&pool, "a", "bank", "EUR", None, None, None).await.unwrap();
         let b = create_account(&pool, "b", "bank", "EUR", None, None, None).await.unwrap();
-        // b.parent = a ist ok (kein Cycle).
+        // b.parent = a is fine (no cycle).
         validate_no_cycle(&pool, b.id, a.id).await.unwrap();
     }
 
     #[tokio::test]
     async fn validate_no_cycle_unknown_parent_is_ok() {
-        // Orphan-parent (existiert nicht) → fetch_optional liefert None → Ok.
+        // Orphan parent (does not exist) → fetch_optional returns None → Ok.
         let pool = connect_memory().await.unwrap();
         let a = create_account(&pool, "a", "bank", "EUR", None, None, None).await.unwrap();
         validate_no_cycle(&pool, a.id, 9_999).await.unwrap();
@@ -595,7 +595,7 @@ mod tests {
     #[tokio::test]
     async fn iban_invalid_format_rejected_by_check() {
         let pool = connect_memory().await.unwrap();
-        // Kleinbuchstaben → CHECK schlägt fehl (GLOB '[A-Z][A-Z][0-9][0-9]*').
+        // Lowercase → CHECK fails (GLOB '[A-Z][A-Z][0-9][0-9]*').
         let err = create_account(&pool, "x", "bank", "EUR", None, Some("de89370400440532013000"), None)
             .await
             .unwrap_err();

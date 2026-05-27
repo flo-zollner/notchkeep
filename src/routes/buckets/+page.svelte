@@ -32,7 +32,7 @@
       buckets = bs;
       progressMap = new Map(p.map((x) => [x.bucketId, x]));
 
-      // Parallel-fetch der allokierten Wertpapier-Summen pro Bucket.
+      // Parallel-fetch the allocated securities totals per bucket.
       const holdingsArr = await Promise.all(
         bs.map(async (b) => {
           const rows = await api.bucketHoldings(b.id);
@@ -42,7 +42,7 @@
       );
       securitiesValueMap = new Map(holdingsArr);
 
-      // Trend-Sparkline: 6-Monats-Netto-Cashflow pro Bucket.
+      // Trend sparkline: 6-month net cashflow per bucket.
       const now = new Date();
       const trendArr = await Promise.all(
         bs.map(async (b) => {
@@ -74,7 +74,7 @@
   const funded = $derived(buckets.filter(isFunded));
   const funding = $derived(buckets.filter((b) => !isFunded(b)));
 
-  // ─── Auto-Allokations-Regeln ───
+  // ─── Auto-Allocation Rules ───
   let bucketRules = $state<BucketRule[]>([]);
   let editingRule = $state<BucketRule | null>(null);
   let ruleSaving = $state(false);
@@ -103,7 +103,7 @@
     ruleSaving = true;
     ruleError = null;
     try {
-      // Empty-strings auf null normalisieren
+      // Normalize empty strings to null
       const r = { ...editingRule };
       if (r.counterpartyContains === '') r.counterpartyContains = null;
       if (r.targetBucketId === 0) {
@@ -133,7 +133,7 @@
   }
 
   async function deleteRuleConfirm(id: number) {
-    if (!confirm('Regel wirklich löschen?')) return;
+    if (!confirm('Really delete this rule?')) return;
     try {
       await api.deleteBucketRule(id);
       await reloadRules();
@@ -144,7 +144,7 @@
     applyBusy = true;
     try {
       applyResult = await api.applyBucketRulesNow(30);
-      // Reload buckets/progress um die neuen Zuordnungen zu zeigen
+      // Reload buckets/progress to show the new assignments
       void reload(showArchived);
     } catch (e) { applyResult = -1; console.error(e); }
     finally { applyBusy = false; }
@@ -343,7 +343,7 @@
   .empty button { margin-top: 14px; }
   .muted { color: var(--text-muted); }
 
-  /* ─── Auto-Allokations-Regeln ─── */
+  /* ─── Auto-Allocation Rules ─── */
   .card {
     background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
   }

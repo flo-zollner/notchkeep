@@ -31,8 +31,8 @@ pub async fn clear_budget(
     Ok(res.rows_affected() > 0)
 }
 
-/// Forward-Fill: liefert den letzten Override <= (year, month).
-/// Liefert None wenn kein Override existiert.
+/// Forward-fill: returns the latest override <= (year, month).
+/// Returns None when no override exists.
 pub async fn effective_budget(
     pool: &SqlitePool,
     category_id: i64,
@@ -84,9 +84,9 @@ pub async fn set_budget(
     Ok(())
 }
 
-/// Batch-Variante für /budgets-Monatsansicht: liefert für jede Kategorie mit
-/// mindestens einem Override <= (year, month) den effektiven Wert. Kategorien
-/// ohne Override tauchen NICHT auf.
+/// Batch variant for the /budgets monthly view: returns for every category with
+/// at least one override <= (year, month) its effective value. Categories
+/// without an override do NOT appear.
 pub async fn effective_budgets_for_month(
     pool: &SqlitePool,
     year: i32,
@@ -125,17 +125,17 @@ pub async fn list_budget_overrides(
     Ok(rows)
 }
 
-/// Pure Rollover-Berechnung: Σ(effective_budget_i − spent_i) über alle Monate i
-/// im Bereich [first_override, target − 1]. Liefert 0, wenn die Kategorie noch
-/// keinen Override hat oder das Ziel vor dem ersten Override liegt.
-/// Kann negativ werden (Defizit).
+/// Pure rollover calculation: Σ(effective_budget_i − spent_i) over all months i
+/// in the range [first_override, target − 1]. Returns 0 when the category has
+/// no override yet or the target lies before the first override.
+/// Can be negative (deficit).
 pub async fn rollover_for_month(
     pool: &SqlitePool,
     category_id: i64,
     year: i32,
     month: i32,
 ) -> DbResult<i64> {
-    // 1. Alle Overrides für die Kategorie ASC.
+    // 1. All overrides for the category, ASC.
     let overrides: Vec<(i32, i32, i64)> = sqlx::query_as(
         "SELECT year, month, amount_cents FROM category_budgets
           WHERE category_id = ?1
@@ -153,22 +153,22 @@ pub async fn rollover_for_month(
     let first = &overrides[0];
     let first_key = first.0 * 12 + first.1;
     if target_key <= first_key {
-        // Ziel liegt vor oder im ersten Override → kein Rollover.
+        // Target is at or before the first override → no rollover.
         return Ok(0);
     }
 
-    // 2. Forward-Fill je Monat im Bereich [first_key, target_key - 1].
+    // 2. Forward-fill per month in the range [first_key, target_key - 1].
     let mut current_budget = first.2;
     let mut idx = 1usize;
     let mut sum: i64 = 0;
     for key in first_key..target_key {
-        // Override-Update, wenn vorhanden.
+        // Apply override if present.
         while idx < overrides.len() && overrides[idx].0 * 12 + overrides[idx].1 == key {
             current_budget = overrides[idx].2;
             idx += 1;
         }
-        // key zu (year, month) decodieren: key = y*12 + m, m in 1..=12.
-        // y_raw = key / 12, m_raw = key % 12. Wenn m_raw == 0 → m=12, y=y_raw-1.
+        // Decode key to (year, month): key = y*12 + m, m in 1..=12.
+        // y_raw = key / 12, m_raw = key % 12. If m_raw == 0 → m=12, y=y_raw-1.
         let y_raw = key / 12;
         let m_raw = key % 12;
         let (y, m) = if m_raw == 0 { (y_raw - 1, 12) } else { (y_raw, m_raw) };
@@ -180,7 +180,7 @@ pub async fn rollover_for_month(
     Ok(sum)
 }
 
-/// Helper: summiert negative Tx-Beträge der Kategorie im Kalendermonat (Cents als positiv).
+/// Helper: sums the negative transaction amounts for the category in the calendar month (cents as positive).
 async fn monthly_spent_for_category(
     pool: &SqlitePool,
     category_id: i64,
@@ -423,13 +423,13 @@ mod tests {
     #[tokio::test]
     async fn migration_copies_existing_budget_cents_into_overrides() {
         let pool = connect_memory().await.unwrap();
-        // Migration 0010 ist beim connect_memory schon gelaufen.
-        // Standard-Kategorien aus 0003 hatten NULL budget_cents → keine Overrides erwartet.
+        // Migration 0010 has already run on connect_memory.
+        // Default categories from 0003 had NULL budget_cents → no overrides expected.
         let (count,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM category_budgets")
             .fetch_one(&pool).await.unwrap();
         assert_eq!(
             count, 0,
-            "Standard-Kategorien hatten NULL budget_cents, kein Override erwartet"
+            "Default categories had NULL budget_cents, no override expected"
         );
     }
 
@@ -438,12 +438,12 @@ mod tests {
         let pool = connect_memory().await.unwrap();
         let cat = seed_category(&pool, "Lebensmittel").await;
 
-        // April 2026: Budget 50000, Spent 35000 → Übertrag +15000
+        // April 2026: budget 50000, spent 35000 → carry +15000
         set_budget(&pool, cat, 2026, 4, 50000).await.unwrap();
         seed_spent(&pool, cat, "2026-04-15", -35000).await;
 
         let r = rollover_for_month(&pool, cat, 2026, 5).await.unwrap();
-        assert_eq!(r, 15000, "Mai sollte 15000 Rollover aus April erben");
+        assert_eq!(r, 15000, "May should inherit 15000 rollover from April");
     }
 
     #[tokio::test]
@@ -455,7 +455,7 @@ mod tests {
         seed_spent(&pool, cat, "2026-04-10", -58000).await;
 
         let r = rollover_for_month(&pool, cat, 2026, 5).await.unwrap();
-        assert_eq!(r, -8000, "April Defizit −8000 muss in den Mai-Rollover");
+        assert_eq!(r, -8000, "April deficit -8000 must carry into May rollover");
     }
 
     #[tokio::test]
@@ -465,7 +465,7 @@ mod tests {
 
         set_budget(&pool, cat, 2026, 2, 50000).await.unwrap();
         seed_spent(&pool, cat, "2026-02-15", -40000).await; // +10000
-        // März: kein neuer Override → erbt 50000.
+        // March: no new override → inherits 50000.
         seed_spent(&pool, cat, "2026-03-15", -45000).await; // +5000
         set_budget(&pool, cat, 2026, 4, 30000).await.unwrap();
         seed_spent(&pool, cat, "2026-04-15", -32000).await; // -2000
@@ -483,11 +483,11 @@ mod tests {
         set_budget(&pool, cat, 2026, 5, 50000).await.unwrap();
         seed_spent(&pool, cat, "2026-04-15", -10000).await;
 
-        // Mai selbst → kein Rollover.
+        // May itself → no rollover.
         let r = rollover_for_month(&pool, cat, 2026, 5).await.unwrap();
         assert_eq!(r, 0);
 
-        // April (vor dem Override) → 0.
+        // April (before the override) → 0.
         let r2 = rollover_for_month(&pool, cat, 2026, 4).await.unwrap();
         assert_eq!(r2, 0);
     }

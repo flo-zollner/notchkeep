@@ -2,81 +2,80 @@
 
 **Simple Personal Networth.**
 
-Lokales Haushaltsbuch (Tauri 2 + SvelteKit + TypeScript + SQLite/sqlx).
+Local personal finance tracker (Tauri 2 + SvelteKit + TypeScript + SQLite/sqlx).
 
-## Konzept
+## Concept
 
-Daten werden lokal in SQLite gehalten; optional via Syncthing zwischen Geräten
-synchronisiert. Trade-Republic-CSVs werden direkt importiert; weitere Banken
-sind über das `Importer`-Trait andockbar.
+Data is stored locally in SQLite and optionally synced between devices via Syncthing.
+Trade Republic CSVs are imported directly; additional banks can be plugged in via the
+`Importer` trait.
 
-**Kontomodell:**
+**Account model:**
 
-- **Institute** (Banken/Broker): Container mit Name, Icon, Farbe, optional
-  BIC und Land. Ein Institut kann 0–N Konten verschiedener Typen tragen
-  (z. B. Trade Republic: ein Verrechnungskonto + ein Depot).
-- **Konten** (`accounts`): Giro (`bank`), Tagesgeld (`savings`), Depot
-  (`broker`), Kredit (`credit`), Bargeld (`cash`), Schuld (`loan`). Optional
-  einem Institut zugeordnet (`institution_id`); Bargeld/Schuld bleiben
-  typischerweise ohne Institut.
-- **Subkonten-Hierarchie** über `parent_id` orthogonal zum Institut, für
-  virtuelle Aufteilungen unterhalb eines Kontos.
-- **Töpfe** (`buckets`) für projektbezogene Sparziele, unabhängig von
-  Kategorien.
-- **Wertpapiere & Trades** an Broker-Konten (FIFO-Cost-Basis,
-  Online-Kurse via Yahoo Finance).
+- **Institutions** (banks/brokers): containers with a name, icon, color, and optional
+  BIC and country. An institution can hold 0–N accounts of different types
+  (e.g. Trade Republic: one settlement account + one brokerage account).
+- **Accounts** (`accounts`): checking (`bank`), savings (`savings`), brokerage
+  (`broker`), credit (`credit`), cash (`cash`), loan (`loan`). Optionally assigned
+  to an institution (`institution_id`); cash and loan accounts typically remain
+  without an institution.
+- **Sub-account hierarchy** via `parent_id` orthogonal to the institution, for
+  virtual splits below an account.
+- **Buckets** (`buckets`) for project-based savings goals, independent of categories.
+- **Securities & trades** on brokerage accounts (FIFO cost basis,
+  live prices via Yahoo Finance).
 
-Alle Beträge in Cent (Integer); Konvertierung erst an der UI-Grenze.
+All amounts in cents (integer); conversion to decimals only at the UI boundary.
 
-## Build aus dem Quellcode
+## Building from source
 
-### Voraussetzungen
+### Prerequisites
 
-| Komponente   | Version                                                   |
+| Component    | Version                                                   |
 | ------------ | --------------------------------------------------------- |
 | Node.js      | ≥ 20 (LTS)                                                |
 | pnpm         | ≥ 9 (`corepack enable pnpm`)                              |
-| Rust         | aktuelle Stable-Toolchain via [rustup](https://rustup.rs) |
-| Tauri 2 deps | Plattform-Abhängigkeiten siehe https://tauri.app/start/prerequisites |
+| Rust         | current stable toolchain via [rustup](https://rustup.rs) |
+| Tauri 2 deps | platform dependencies: https://tauri.app/start/prerequisites |
 
-### Entwicklung
+### Development
 
 ```bash
 pnpm install
 pnpm tauri dev
 ```
 
-### Release-Build
+### Release build
 
 ```bash
 pnpm install --frozen-lockfile
-pnpm gen:licenses                  # generiert static/licenses.html
-pnpm tauri build                   # bundelt Binaries unter src-tauri/target/release/bundle/
+pnpm gen:licenses                  # generates static/licenses.html
+pnpm tauri build                   # bundles binaries under src-tauri/target/release/bundle/
 ```
 
-Der Befehl `pnpm tauri build` erzeugt plattform-spezifische Bundles (`.deb`,
-`.AppImage`, `.dmg`, `.msi`, …). Die generierte `licenses.html` ist Teil des
-SvelteKit-Builds (`static/`) und wird in jedes Bundle eingebettet.
+`pnpm tauri build` produces platform-specific bundles (`.deb`, `.AppImage`,
+`.dmg`, `.msi`, …). The generated `licenses.html` is part of the SvelteKit
+build (`static/`) and is embedded in every bundle.
 
-## Lizenz
+## License
 
 Copyright © 2026 Florian Zollner
 
-Dieses Programm ist freie Software: Du darfst es weitergeben und/oder modifizieren
-unter den Bedingungen der **GNU General Public License**, wie von der
-Free Software Foundation veröffentlicht — Version 3 der Lizenz oder (nach
-deiner Wahl) jede spätere Version.
+This program is free software: you can redistribute it and/or modify it under
+the terms of the **GNU General Public License** as published by the Free Software
+Foundation — either version 3 of the License, or (at your option) any later
+version.
 
-Dieses Programm wird in der Hoffnung verteilt, dass es nützlich sein wird,
-jedoch **OHNE JEDE GEWÄHRLEISTUNG**; auch ohne die implizite Gewährleistung
-der MARKTGÄNGIGKEIT oder EIGNUNG FÜR EINEN BESTIMMTEN ZWECK.
-Siehe die GNU General Public License für Details.
+This program is distributed in the hope that it will be useful, but
+**WITHOUT ANY WARRANTY**; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+See the GNU General Public License for more details.
 
-Der vollständige Lizenztext liegt in [`COPYING`](COPYING).
-Lizenz-Audit und Drittabhängigkeiten:
+The full license text is in [`COPYING`](COPYING).
+License audit and third-party dependencies:
 [`THIRD_PARTY_LICENSES.md`](THIRD_PARTY_LICENSES.md).
-Der vollständige Notice-Bericht (Volltext aller Dep-Lizenzen) wird beim
-Release in `static/licenses.html` gebaut und ist in der App unter
-*Einstellungen → Über* erreichbar.
+The complete notice report (full text of all dependency licenses) is built at
+release time into `static/licenses.html` and is accessible in the app under
+*Settings → About*.
 
 SPDX-License-Identifier: `GPL-3.0-or-later`

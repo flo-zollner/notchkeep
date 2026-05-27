@@ -66,8 +66,8 @@
   const editing = $derived(tx !== null);
   const isManual = $derived(tx?.source === 'manual' || tx === null);
 
-  // Account-Dropdown: archivierte Accounts ausblenden, aber den aktuell verwendeten Account
-  // weiterhin anzeigen, falls die zu bearbeitende Tx auf einen archivierten Account zeigt.
+  // Account dropdown: hide archived accounts, but keep the currently used account
+  // visible if the transaction being edited references an archived account.
   const accountOptions = $derived(
     accounts.filter((a) => !a.archived || a.id === tx?.account_id),
   );
@@ -97,8 +97,8 @@
   /* svelte-ignore state_referenced_locally */
   let counterpartyIban = $state<string>(tx?.counterparty_iban ?? '');
   let ibanError = $state<string | null>(null);
-  // kind: nur Cash-Kinds editierbar. Bei neuer Tx Default 'expense' (wird beim
-  // Save für Trade-Tx ohnehin via isTradeTx-Check gefiltert).
+  // kind: only cash kinds are editable. Default 'expense' for new transactions
+  // (filtered via the isTradeTx check on save anyway for trade transactions).
   /* svelte-ignore state_referenced_locally */
   let kind = $state<string>(tx?.kind ?? 'expense');
 
@@ -194,10 +194,10 @@
     saving = true;
     try {
       if (editing && tx) {
-        // Trade-Tx erlauben nur partial-updates (Kategorie + Topf + Konto);
-        // Stücke/Preis/Datum/Betrag laufen über die Trade-Commands. IBAN-Update
-        // wird hier ignoriert. isTradeTx-Helper aus api.ts ist Single-Source-
-        // of-Truth — deckt buy/sell/dividend/corporate_action/tax/fee ab.
+        // Trade transactions allow only partial updates (category + bucket + account);
+        // shares/price/date/amount go through the trade commands. IBAN updates
+        // are ignored here. isTradeTx helper from api.ts is the single source of
+        // truth — covers buy/sell/dividend/corporate_action/tax/fee.
         if (isTradeTx(tx)) {
           if (categoryId !== (tx.category_id ?? null)) {
             await api.assignCategory(tx.id, categoryId);
@@ -242,8 +242,8 @@
           bucketId,
           manualNote: note.trim() || null,
           counterpartyIban: ibanToSave,
-          // Nur explizit setzen wenn vom Default 'expense' abgewichen; sonst
-          // soll Backend's Auto-Logik income/expense aus Amount-Vorzeichen ableiten.
+          // Only set explicitly when deviating from the default 'expense'; otherwise
+          // the backend's auto logic should derive income/expense from the amount sign.
           kind: kind === 'expense' ? undefined : kind,
         });
         onSaved(created);

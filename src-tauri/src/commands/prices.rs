@@ -90,7 +90,7 @@ pub async fn fetch_security_history(
             }
             Ok(None) => {
                 return Err(CommandError {
-                    message: format!("Symbol für ISIN {isin} bei Yahoo nicht gefunden"),
+                    message: format!("symbol for ISIN {isin} not found on Yahoo"),
                 });
             }
             Err(e) => {

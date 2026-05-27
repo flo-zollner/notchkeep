@@ -18,8 +18,8 @@ pub struct NewInstitutionPayload {
     pub note: Option<String>,
 }
 
-/// Deserializer-Helfer: wandelt ein vorhandenes JSON-Feld (auch wenn es `null` ist)
-/// in `Some(T::deserialize(...))` um.  Fehlende Felder bleiben `None` (via `#[serde(default)]`).
+/// Deserializer helper: converts a present JSON field (even if it is `null`)
+/// into `Some(T::deserialize(...))`.  Missing fields remain `None` (via `#[serde(default)]`).
 fn deserialize_some<'de, T, D>(deserializer: D) -> Result<Option<T>, D::Error>
 where
     T: serde::Deserialize<'de>,
@@ -28,12 +28,12 @@ where
     T::deserialize(deserializer).map(Some)
 }
 
-/// PATCH-Payload für `update_institution`.
+/// PATCH payload for `update_institution`.
 ///
-/// Semantik der optionalen `Option<Option<String>>`-Felder:
-/// - `None` (Feld in JSON absent)  → alten Wert beibehalten
-/// - `Some(None)` (Feld ist JSON `null`) → Feld explizit löschen
-/// - `Some(Some(value))` (Feld hat einen Wert) → Feld auf `value` setzen
+/// Semantics of the optional `Option<Option<String>>` fields:
+/// - `None` (field absent in JSON)  → keep the old value
+/// - `Some(None)` (field is JSON `null`) → explicitly clear the field
+/// - `Some(Some(value))` (field has a value) → set field to `value`
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UpdateInstitutionPayload {
@@ -391,7 +391,7 @@ mod tests {
             note: None,
         }).await.unwrap();
 
-        // None = Feld nicht mitgeschickt → alter Wert bleibt erhalten.
+        // None = field not sent → old value is preserved.
         let updated = update_institution(&pool, inst.id, UpdateInstitutionPayload {
             name: Some("neu".into()),
             icon: None, color: None, bic: None, country: None, note: None,
@@ -423,15 +423,15 @@ mod tests {
         }).await.unwrap();
         assert_eq!(inst.icon.as_deref(), Some("bank"));
 
-        // Some(None) = Feld explizit auf null gesetzt → Feld wird gelöscht.
-        // None = Feld nicht mitgeschickt → alter Wert bleibt.
+        // Some(None) = field explicitly set to null → field is cleared.
+        // None = field not sent → old value is preserved.
         let cleared = update_institution(&pool, inst.id, UpdateInstitutionPayload {
             name: None,
-            icon: Some(None),    // explizit löschen
-            color: None,         // beibehalten
-            bic: Some(None),     // explizit löschen
-            country: None,       // beibehalten
-            note: Some(None),    // explizit löschen
+            icon: Some(None),    // explicitly clear
+            color: None,         // keep
+            bic: Some(None),     // explicitly clear
+            country: None,       // keep
+            note: Some(None),    // explicitly clear
             archived: None,
         }).await.unwrap();
         assert!(cleared.icon.is_none(), "icon should be cleared");
@@ -531,8 +531,8 @@ mod tests {
         let second = upsert_institution_by_name(
             &pool, "Trade Republic", Some("other-icon"), Some("red"), None, Some("AT"),
         ).await.unwrap();
-        assert_eq!(first.id, second.id, "kein Duplikat");
-        // Felder werden NICHT überschrieben (idempotent, kein update):
+        assert_eq!(first.id, second.id, "no duplicate");
+        // Fields are NOT overwritten (idempotent, no update):
         assert_eq!(second.icon.as_deref(), Some("bank"));
     }
 

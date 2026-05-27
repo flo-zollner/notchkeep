@@ -78,9 +78,9 @@ pub async fn apply_rule_to_existing(
     Ok(n)
 }
 
-/// Match-Preview-Counter für ungespeicherte Regeln: nimmt eine
-/// (noch nicht persistierte) Regel-Definition und liefert, wie viele
-/// bestehende Transaktionen sie matchen würde.
+/// Match-preview counter for unsaved rules: takes a rule definition that has
+/// not yet been persisted and returns how many existing transactions it would
+/// match.
 #[tauri::command]
 pub async fn preview_rule_match(
     state: State<'_, DbState>,
@@ -100,7 +100,7 @@ pub async fn preview_rule_match(
     Ok(n)
 }
 
-// ─── Serializer/Deserializer zwischen Domain und DTO ───
+// ─── Serializer/Deserializer between domain and DTO ───
 
 fn rule_to_dto(rule: Rule) -> RuleDto {
     RuleDto {

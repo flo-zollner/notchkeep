@@ -17,7 +17,7 @@ pub enum MatchOp {
     StartsWith(String),
     EndsWith(String),
     Regex(String),
-    /// Beträge in Cent, inklusiv beidseitig.
+    /// Amounts in cents, inclusive on both sides.
     Range { min_cents: i64, max_cents: i64 },
 }
 
@@ -44,9 +44,9 @@ pub struct Rule {
     pub enabled: bool,
 }
 
-/// Kontext für das Matching. `tx.purpose` trägt für die UI-Sicht „Beschreibung"
-/// den anzeigbaren Text; Aufrufer aus dem Import-Flow setzen die `purpose` aus
-/// dem CSV-Feld, Bulk-Reassign setzt `manual_note ?? purpose` aus der DB.
+/// Context for rule matching. `tx.purpose` carries the human-readable description
+/// for the UI; callers from the import flow set `purpose` from the CSV field,
+/// bulk-reassign sets `manual_note ?? purpose` from the database.
 #[derive(Debug, Clone, Copy)]
 pub struct MatchContext<'a> {
     pub tx: &'a RawTransaction,
@@ -59,8 +59,8 @@ impl<'a> MatchContext<'a> {
     }
 }
 
-/// Sucht aus einer Regelmenge die passende Regel mit der niedrigsten
-/// `priority` (kleinere Zahl gewinnt). Disabled-Regeln werden übersprungen.
+/// Finds the matching rule with the lowest `priority` from a rule set
+/// (lower number wins). Disabled rules are skipped.
 pub fn first_matching_rule<'a>(rules: &'a [Rule], ctx: &MatchContext) -> Option<&'a Rule> {
     rules
         .iter()
@@ -89,9 +89,9 @@ fn match_condition(cond: &RuleCondition, ctx: &MatchContext) -> bool {
 }
 
 fn match_string(op: &MatchOp, haystack: &str) -> bool {
-    // Contains/Equals/StartsWith/EndsWith sind case-insensitiv — User-Erwartung
-    // bei Bank-Counterparties (z.B. "Spar Dankt" vs "SPAR DANKT").
-    // Regex bleibt case-sensitive; User kann `(?i)` selbst voranstellen.
+    // Contains/Equals/StartsWith/EndsWith are case-insensitive — expected behaviour
+    // for bank counterparties (e.g. "Spar Dankt" vs "SPAR DANKT").
+    // Regex remains case-sensitive; the user can prepend `(?i)` themselves.
     match op {
         MatchOp::Contains(needle) => {
             haystack.to_lowercase().contains(&needle.to_lowercase())

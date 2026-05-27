@@ -7,7 +7,7 @@
     bucket: Bucket;
     progress?: BucketProgress;
     securitiesValueCents?: number;
-    trend?: number[];  // 6-Monats-Netto-Cents
+    trend?: number[];  // 6-month net cents
     onEdit: () => void;
   }
   let { bucket, progress, securitiesValueCents = 0, trend, onEdit }: Props = $props();
@@ -17,7 +17,7 @@
 
   const cashCents = $derived(progress?.currentCents ?? 0);
   const txCount = $derived(progress?.txCount ?? 0);
-  /** Topf-Gesamtwert: Cash-Flows + Wertpapier-Marktwert der allokierten Anteile. */
+  /** Bucket total value: cash flows + securities market value of allocated shares. */
   const totalCents = $derived(cashCents + securitiesValueCents);
   const target = $derived(bucket.targetCents);
   const ratio = $derived(
@@ -29,7 +29,7 @@
   const iconName = $derived(bucket.icon ?? 'wallet');
   const color = $derived(bucket.color ?? 'var(--accent)');
 
-  /** Funded = Target gesetzt UND erreicht. Sonst Funding. */
+  /** Funded = target set AND reached. Otherwise still funding. */
   const isFunded = $derived(target !== null && target > 0 && totalCents >= target);
 </script>
 

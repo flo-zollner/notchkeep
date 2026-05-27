@@ -6,9 +6,9 @@
     min?: string;
     max?: string;
     disabled?: boolean;
-    /** Optional extra CSS class fürs Outer-Wrapper. */
+    /** Optional extra CSS class for the outer wrapper. */
     class?: string;
-    /** Callback bei Wert-Änderung (analog zu native onchange). */
+    /** Callback on value change (analogous to native onchange). */
     onChange?: (value: string) => void;
   }
   let {

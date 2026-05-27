@@ -16,7 +16,7 @@
   let forceBusy = $state(false);
 
   async function forceLock() {
-    if (!confirm('Lock von einem anderen Gerät übernehmen? Wenn das andere Gerät noch läuft, kann das zu Sync-Konflikten führen.')) return;
+    if (!confirm('Take over the lock from another device? If the other device is still running, this can cause sync conflicts.')) return;
     forceBusy = true;
     try {
       await api.forceAcquireSyncLock();

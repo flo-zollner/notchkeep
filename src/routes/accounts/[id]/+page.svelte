@@ -20,7 +20,7 @@
   import DepotTxModal from '$lib/components/DepotTxModal.svelte';
   import { settings, t } from '$lib/settings.svelte';
 
-  // i18n-Lookup ohne typed Property-Access — fehlende Keys fallen via ?? auf den Default zurück.
+  // i18n lookup without typed property access — missing keys fall back to the default via ??.
   const tx = () => t().common as unknown as Record<string, string | undefined>;
 
   function kindLabel(k: string): string {

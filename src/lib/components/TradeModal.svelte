@@ -45,11 +45,11 @@
   let saving = $state(false);
   let error = $state<string | null>(null);
 
-  // Account-Listen pro Kind, gefiltert auf Aktiv
+  // Account lists per kind, filtered to active only
   const cashAccounts = $derived(accounts.filter((a) => a.kind !== 'broker'));
   const depotAccounts = $derived(accounts.filter((a) => a.kind === 'broker'));
 
-  // Institute für Counterparty-Default ableiten
+  // Derive institutions for counterparty default
   let institutions = $state<Institution[]>([]);
   const institutionsById = $derived(new Map(institutions.map((i) => [i.id, i])));
 
@@ -58,10 +58,9 @@
     void listInstitutions(false).then((list) => { institutions = list; });
   });
 
-  // Smart-Default für counterparty: wenn das Depot ein Institut hat, nimm
-  // dessen Namen. Bei Depot-Wechsel synct's automatisch — typed der User
-  // einen custom Wert und wechselt DANN das Depot, wird der custom Wert
-  // bewusst überschrieben (Switch = expliziter Intent).
+  // Smart default for counterparty: if the depot has an institution, use its name.
+  // Syncs automatically on depot change — if the user types a custom value and THEN
+  // switches the depot, the custom value is intentionally overwritten (switch = explicit intent).
   $effect(() => {
     const depot = accounts.find((a) => a.id === depotAccountId);
     if (!depot?.institution_id) return;
@@ -71,11 +70,11 @@
 
   async function loadAccounts() {
     accounts = (await api.listAccounts()).filter((a) => !a.archived);
-    // Defaults: ein Cash + ein Depot vom selben Institut, falls eindeutig.
+    // Defaults: one cash + one depot from the same institution, if unambiguous.
     const broker = accounts.find((a) => a.kind === 'broker');
     if (broker) {
       depotAccountId = broker.id;
-      // Cash-Konto im selben Institut (falls eindeutig)
+      // Cash account in the same institution (if unambiguous)
       const siblings = accounts.filter(
         (a) => a.kind !== 'broker' && a.institution_id === broker.institution_id,
       );
@@ -101,7 +100,7 @@
     if (!/^\d{4}-\d{2}-\d{2}$/.test(bookingDate)) { error = tt.errDateInvalid; return; }
 
     if (isTaxSide) {
-      // WP-Steuer: kein Stück/Preis. Cash-Betrag = Steuer-Belastung.
+      // Securities tax: no shares/price. Cash amount = tax charge.
       const feeNum = parseNum(feeStr, 100) ?? 0;
       saving = true;
       try {

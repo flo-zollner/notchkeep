@@ -149,8 +149,8 @@ pub async fn update_security(
         .await?)
 }
 
-/// Helper für den CSV-Import: lookup security by ISIN, oder lege sie an.
-/// Returnt die security_id. Pures DB-Layer, kein UI-Feedback.
+/// Helper for CSV import: look up a security by ISIN, or create it.
+/// Returns the security_id. Pure DB layer, no UI feedback.
 pub async fn resolve_or_create_security(
     pool: &SqlitePool,
     isin: &str,
@@ -328,7 +328,7 @@ mod tests {
             note: Some("note".into()),
         }).await.unwrap();
 
-        // Nur name ändern, andere bleiben.
+        // Change name only, other fields stay.
         let updated = update_security(&pool, s.id, UpdateSecurityPayload {
             name: Some("neu".into()),
             isin: None, symbol: None, currency: None, asset_type: None,
@@ -340,7 +340,7 @@ mod tests {
         assert_eq!(updated.note.as_deref(), Some("note"));
         assert!(!updated.archived);
 
-        // archived = true setzen.
+        // Set archived = true.
         let archived = update_security(&pool, s.id, UpdateSecurityPayload {
             archived: Some(true),
             isin: None, symbol: None, name: None, currency: None,

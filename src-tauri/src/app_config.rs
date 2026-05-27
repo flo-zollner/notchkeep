@@ -9,13 +9,13 @@ pub struct AppConfig {
 }
 
 impl AppConfig {
-    /// Liefert den Default-DB-Pfad: `<app_local_data_dir>/budget.sqlite`.
+    /// Returns the default DB path: `<app_local_data_dir>/budget.sqlite`.
     pub fn default_db_path(data_dir: &Path) -> PathBuf {
         data_dir.join("budget.sqlite")
     }
 
-    /// Lädt Config aus `<data_dir>/app-config.json`. Bei fehlendem File:
-    /// Default mit `default_db_path` zurück.
+    /// Loads config from `<data_dir>/app-config.json`. If the file is missing,
+    /// returns the default built from `default_db_path`.
     pub fn load(data_dir: &Path) -> std::io::Result<Self> {
         let path = data_dir.join("app-config.json");
         if !path.exists() {
@@ -27,7 +27,7 @@ impl AppConfig {
         Ok(cfg)
     }
 
-    /// Speichert Config nach `<data_dir>/app-config.json` (atomic via tmp+rename).
+    /// Saves config to `<data_dir>/app-config.json` (atomic via tmp+rename).
     pub fn save(&self, data_dir: &Path) -> std::io::Result<()> {
         std::fs::create_dir_all(data_dir)?;
         let target = data_dir.join("app-config.json");

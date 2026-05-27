@@ -1,6 +1,6 @@
-// Mock-Daten für die noch nicht backend-gestützten Screens (Budgets-Preview).
-// Beträge in Euro (nicht Cent), nur für Visualisierung. Sobald entsprechende
-// Backend-Tabellen existieren, werden die Mocks ersetzt.
+// Mock data for screens not yet backed by the backend (budgets preview).
+// Amounts in euros (not cents), for visualisation only. Once the corresponding
+// backend tables exist, the mocks will be replaced.
 
 export interface MockBudget {
   categoryId: string;

@@ -68,7 +68,7 @@ export function setShowCents(v: boolean) {
   persistAll();
 }
 
-/** Decimals für fmtEur, abhängig vom showCents-Setting. Reaktiv. */
+/** Decimal places for fmtEur, depending on the showCents setting. Reactive. */
 export function eurDecimals(): 0 | 2 {
   return settings.showCents ? 2 : 0;
 }

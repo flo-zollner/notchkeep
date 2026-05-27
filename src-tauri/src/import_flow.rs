@@ -19,8 +19,8 @@ pub struct ImportReport {
     pub warnings: Vec<String>,
 }
 
-/// Orchestriert den Import-Flow: Rules + History laden, kategorisieren, mit
-/// Dedup einfügen.
+/// Orchestrates the import flow: load rules and history, categorize, insert
+/// with deduplication.
 pub async fn import_raw_transactions(
     pool: &SqlitePool,
     account_id: i64,
@@ -32,9 +32,9 @@ pub async fn import_raw_transactions(
     let rules = list_rules(pool).await?;
     let history = load_history(pool).await?;
 
-    // Wertpapier-Tx (buy/sell oder mit Trade-Detail) bekommen als Fallback
-    // automatisch die Standard-Kategorie "Investitionen" zugewiesen, wenn
-    // weder Rule noch Fuzzy gegriffen haben.
+    // Securities Tx (buy/sell or with trade detail) automatically receive the
+    // default "Investitionen" category as a fallback when neither a rule nor
+    // fuzzy matching fires.
     let invest_cat_id: Option<i64> = sqlx::query_scalar(
         "SELECT id FROM categories WHERE parent_id IS NULL AND name = 'Investitionen' LIMIT 1"
     ).fetch_optional(pool).await?;
@@ -67,15 +67,15 @@ pub async fn import_raw_transactions(
                     CategorizationOutcome::None => {}
                 }
 
-                // 6d: trade-row anhängen wenn die Row eine Wertpapier-Transaktion ist.
+                // 6d: append trade row when the row is a securities transaction.
                 if let Some(trade) = &raw.trade {
                     let sec_id = crate::db::securities::resolve_or_create_security(
                         pool, &trade.isin, &trade.name, &trade.asset_class_raw,
                     ).await?;
 
-                    // Variante B: Trade-Detail dem Depot des Instituts zuordnen, wenn der Tx
-                    // aktuell am Verrechnungs-/Tagesgeld-Konto hängt UND im selben Institut
-                    // genau ein nicht-archiviertes Broker-Konto existiert.
+                    // Variant B: assign the trade detail to the institution's depot account
+                    // when the Tx currently belongs to the settlement/overnight account AND
+                    // exactly one non-archived broker account exists in the same institution.
                     let target_account_id = crate::db::accounts::resolve_trade_account(pool, account_id).await.ok().flatten();
 
                     crate::db::trades::insert_trade_row(
@@ -97,11 +97,10 @@ pub async fn import_raw_transactions(
     Ok(report)
 }
 
-/// Wendet alle aktiven Regeln auf alle bisher uncategorized Transaktionen an.
-/// Liefert die Anzahl der frisch kategorisierten Zeilen. Sinnvoll als
-/// Post-Import-Schritt (nach CSV-Re-Import bleiben skipped-Tx ihre alten
-/// category_ids; neu erstellte Regeln werden auf existierende uncategorized
-/// Tx so nachträglich angewandt).
+/// Applies all active rules to all previously uncategorized transactions.
+/// Returns the number of newly categorized rows. Useful as a post-import step
+/// (after a CSV re-import, skipped Tx retain their old category_ids; newly
+/// created rules are retroactively applied to existing uncategorized Tx).
 pub async fn apply_rules_to_uncategorized(pool: &SqlitePool) -> DbResult<usize> {
     let rules = list_rules(pool).await?;
     let rules: Vec<_> = rules.into_iter().filter(|r| r.enabled).collect();
@@ -150,15 +149,15 @@ pub async fn apply_rules_to_uncategorized(pool: &SqlitePool) -> DbResult<usize> 
     Ok(updated)
 }
 
-/// Wendet eine bestehende Regel auf alle bereits gespeicherten Transaktionen
-/// an und überschreibt deren `category_id` mit dem Ziel der Regel. Liefert die
-/// Anzahl der tatsächlich geänderten Zeilen.
+/// Applies an existing rule to all stored transactions and overwrites their
+/// `category_id` with the rule target. Returns the number of actually changed
+/// rows.
 ///
-/// Reuses die In-Memory-Matchlogik (`match_rule`), damit Regex und Range-Ops
-/// identisch zum Import-Pfad funktionieren — kein SQL-Übersetzungs-Mismatch.
+/// Reuses the in-memory match logic (`match_rule`) so that regex and range ops
+/// behave identically to the import path — no SQL-translation mismatch.
 ///
-/// Beschreibungs-Matching nutzt `manual_note ?? purpose`, damit auch manuell
-/// erfasste Einträge mit Notiz erreichbar bleiben.
+/// Description matching uses `manual_note ?? purpose` so that manually entered
+/// entries with a note remain reachable.
 pub async fn bulk_assign_category_by_rule(
     pool: &SqlitePool,
     rule_id: i64,
@@ -186,8 +185,8 @@ pub async fn bulk_assign_category_by_rule(
     Ok(affected as usize)
 }
 
-/// Zählt, wie viele bestehende Transaktionen eine (ggf. noch ungespeicherte)
-/// Regel matchen würden. Wird vom UI-Editor als Live-Preview-Counter genutzt.
+/// Counts how many existing transactions a (possibly not yet saved) rule would
+/// match. Used by the UI editor as a live-preview counter.
 pub async fn count_matching_transactions(
     pool: &SqlitePool,
     rule: &Rule,
@@ -229,8 +228,8 @@ async fn matching_transaction_ids(
         .collect())
 }
 
-/// Lädt für jede counterparty die zuletzt vergebene category_id als
-/// History-Datensatz für das Fuzzy-Matching.
+/// Loads the most recently assigned category_id for each counterparty as a
+/// history record for fuzzy matching.
 async fn load_history(pool: &SqlitePool) -> DbResult<Vec<HistoryEntry>> {
     let rows: Vec<(String, i64)> = sqlx::query_as(
         "SELECT counterparty, category_id FROM transactions t1
@@ -251,25 +250,24 @@ async fn load_history(pool: &SqlitePool) -> DbResult<Vec<HistoryEntry>> {
         .collect())
 }
 
-/// Erkennt Inter-Account-Transfers (counterparty_iban matched ein eigenes
-/// Konto) und paart sie mit der Gegenbuchung auf dem Ziel-Konto.
+/// Detects inter-account transfers (counterparty_iban matches a known account)
+/// and pairs them with the counter-entry on the target account.
 ///
-/// Pro Kandidaten-Tx:
-/// 1. Set kind='transfer' (falls nicht schon)
-/// 2. Suche existierende Tx auf Ziel mit (date, -amount, paired_tx_id IS NULL)
-///    → wenn gefunden: beide via paired_tx_id verlinken, beide kind='transfer'.
-/// 3. Sonst: Mirror-Tx erzeugen (source='auto_pair') und verlinken.
+/// Per candidate Tx:
+/// 1. Set kind='transfer' (if not already).
+/// 2. Search for an existing Tx on the target with (date, -amount, paired_tx_id IS NULL)
+///    → if found: link both via paired_tx_id, both kind='transfer'.
+/// 3. Otherwise: create a mirror Tx (source='auto_pair') and link it.
 ///
-/// Idempotent: Tx mit paired_tx_id IS NOT NULL werden geskipt. kind='transfer'
-/// ist KEIN Exclude-Kriterium mehr (bestehende, vor Auto-Pair markierte
-/// Transfer-Tx werden re-processed). Trade-Sides (buy/sell/dividend/...)
-/// bleiben ausgeschlossen.
+/// Idempotent: Tx with paired_tx_id IS NOT NULL are skipped. kind='transfer'
+/// is NO LONGER an exclude criterion (existing transfer Tx that were marked
+/// before auto-pair will be re-processed). Trade sides (buy/sell/dividend/...)
+/// remain excluded.
 ///
-/// Returnt die Anzahl der Tx, die einen neuen oder verknüpften Mirror bekommen
-/// haben (= Anzahl Pairs).
+/// Returns the number of Tx that received a new or linked mirror (= number of pairs).
 pub async fn detect_inter_account_transfers(pool: &SqlitePool) -> DbResult<usize> {
-    // Kandidaten: paired_tx_id IS NULL + counterparty_iban set + IBAN match.
-    // kind NOT IN trade-sides (transfer NICHT mehr ausschließen).
+    // Candidates: paired_tx_id IS NULL + counterparty_iban set + IBAN match.
+    // kind NOT IN trade-sides (transfer is NO LONGER excluded).
     let candidates: Vec<(i64, i64, String, i64, String, Option<String>, Option<String>)> = sqlx::query_as(
         "SELECT t.id, t.account_id, t.booking_date, t.amount_cents, t.currency,
                 t.counterparty_iban, t.purpose
@@ -288,8 +286,8 @@ pub async fn detect_inter_account_transfers(pool: &SqlitePool) -> DbResult<usize
     for (orig_id, orig_account_id, booking_date, amount_cents, currency,
          counterparty_iban, purpose) in candidates {
 
-        // Re-check: wenn diese Tx bereits von einer früheren Iteration gepaart
-        // wurde (z.B. weil beide Seiten als Kandidaten im Vec waren), skippen.
+        // Re-check: if this Tx was already paired by an earlier iteration
+        // (e.g. because both sides appeared as candidates in the Vec), skip it.
         let (already_paired,): (bool,) = sqlx::query_as(
             "SELECT paired_tx_id IS NOT NULL FROM transactions WHERE id = ?1"
         )
@@ -300,7 +298,7 @@ pub async fn detect_inter_account_transfers(pool: &SqlitePool) -> DbResult<usize
             continue;
         }
 
-        // Target-Konto via normalisierter IBAN
+        // Target account via normalized IBAN
         let target: Option<(i64, String, Option<String>)> = sqlx::query_as(
             "SELECT id, name, iban FROM accounts
               WHERE iban IS NOT NULL
@@ -316,9 +314,9 @@ pub async fn detect_inter_account_transfers(pool: &SqlitePool) -> DbResult<usize
         };
 
         if target_account_id == orig_account_id {
-            // Self-Transfer: gleicher Account auf beiden Seiten (z.B. Sparkasse
-            // Smart-Sparen-Bucket-Umbuchung). Markiere Original als transfer und
-            // suche die Gegenbuchung auf demselben Account.
+            // Self-transfer: same account on both sides (e.g. Sparkasse
+            // smart-saving bucket reallocation). Mark the original as transfer
+            // and search for the counter-entry on the same account.
             sqlx::query("UPDATE transactions SET kind = 'transfer' WHERE id = ?1")
                 .bind(orig_id)
                 .execute(pool)
@@ -361,7 +359,7 @@ pub async fn detect_inter_account_transfers(pool: &SqlitePool) -> DbResult<usize
             continue;
         }
 
-        // Source-Konto Info
+        // Source account info
         let source: Option<(String, Option<String>)> = sqlx::query_as(
             "SELECT name, iban FROM accounts WHERE id = ?1"
         )
@@ -372,16 +370,16 @@ pub async fn detect_inter_account_transfers(pool: &SqlitePool) -> DbResult<usize
             continue;
         };
 
-        // Original auf kind='transfer' setzen (no-op wenn schon)
+        // Set original to kind='transfer' (no-op if already set)
         sqlx::query("UPDATE transactions SET kind = 'transfer' WHERE id = ?1")
             .bind(orig_id)
             .execute(pool)
             .await?;
 
-        // SMART-DEDUP: existierende Match auf Ziel-Konto suchen
-        // Kriterien: same target, ±3 Tage booking_date (Bank-Wertstellungslag!),
-        // inverted amount, currency, paired_tx_id IS NULL, NICHT der Source-Tx selbst.
-        // Tie-break: nächstes Datum, dann niedrigste id.
+        // SMART-DEDUP: search for an existing match on the target account.
+        // Criteria: same target, ±3 days booking_date (bank value-date lag!),
+        // inverted amount, currency, paired_tx_id IS NULL, NOT the source Tx itself.
+        // Tie-break: nearest date, then lowest id.
         let existing: Option<(i64,)> = sqlx::query_as(
             "SELECT id FROM transactions
               WHERE account_id = ?1
@@ -402,7 +400,7 @@ pub async fn detect_inter_account_transfers(pool: &SqlitePool) -> DbResult<usize
         .await?;
 
         if let Some((existing_id,)) = existing {
-            // VERLINKEN statt erzeugen
+            // LINK instead of creating a new mirror
             sqlx::query("UPDATE transactions SET kind='transfer', paired_tx_id=?1 WHERE id=?2")
                 .bind(orig_id)
                 .bind(existing_id)
@@ -414,7 +412,7 @@ pub async fn detect_inter_account_transfers(pool: &SqlitePool) -> DbResult<usize
                 .execute(pool)
                 .await?;
         } else {
-            // NEU ERZEUGEN
+            // CREATE a new mirror
             let mirror: Option<(i64,)> = sqlx::query_as(
                 "INSERT INTO transactions
                     (account_id, booking_date, amount_cents, currency,
@@ -436,7 +434,7 @@ pub async fn detect_inter_account_transfers(pool: &SqlitePool) -> DbResult<usize
             .await?;
 
             let Some((mirror_id,)) = mirror else {
-                continue;  // dedup-konflikt mit anderem Eintrag — selten
+                continue;  // dedup conflict with another entry — rare
             };
             sqlx::query("UPDATE transactions SET paired_tx_id=?1 WHERE id=?2")
                 .bind(mirror_id)
@@ -957,7 +955,7 @@ mod tests {
         assert_eq!(r2.inserted, 0);
         assert_eq!(r2.skipped, 1);
 
-        // genau 1 Trade-Row trotz Doppel-Import
+        // exactly 1 trade row despite double import
         let (count,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM securities_trades")
             .fetch_one(&pool).await.unwrap();
         assert_eq!(count, 1);
@@ -1041,8 +1039,8 @@ mod tests {
         let acc = seed_account(&pool, "Broker").await;
         seed_account_with_iban(&pool, "OtherAccount", "DE89370400440532013000").await;
 
-        // Trade-Side-Kinds werden ausgeschlossen. kind='transfer' mit
-        // paired_tx_id IS NULL wird jetzt RE-PROCESSED (Bug 1 fix).
+        // Trade-side kinds are excluded. kind='transfer' with
+        // paired_tx_id IS NULL is now RE-PROCESSED (Bug 1 fix).
         for kind in ["buy", "sell", "dividend", "corporate_action", "tax"] {
             insert_tx_with_iban(&pool, acc, Some("DE89370400440532013000"), kind).await;
         }
@@ -1208,8 +1206,8 @@ mod tests {
 
     #[tokio::test]
     async fn import_routes_trade_to_depot_when_tx_at_verrechnung() {
-        // Setup: TR-Institut mit Verrechnungskonto + Depot.
-        // Import einer Trade-Row in Verrechnung → securities_trades.account_id = Depot.
+        // Setup: TR institution with settlement account + depot.
+        // Importing a trade row into the settlement account → securities_trades.account_id = depot.
         let pool = connect_memory().await.unwrap();
         sqlx::query("INSERT INTO institutions (name) VALUES ('TR')")
             .execute(&pool).await.unwrap();
@@ -1248,16 +1246,16 @@ mod tests {
             .await.unwrap();
         assert_eq!(report.inserted, 1);
 
-        // securities_trades.account_id sollte aufs Depot zeigen
+        // securities_trades.account_id should point to the depot
         let (st_acc,): (Option<i64>,) = sqlx::query_as(
             "SELECT account_id FROM securities_trades LIMIT 1"
         ).fetch_one(&pool).await.unwrap();
-        assert_eq!(st_acc, Some(depot.id), "Trade sollte aufs Depot geroutet werden");
+        assert_eq!(st_acc, Some(depot.id), "trade should be routed to the depot");
     }
 
     #[tokio::test]
     async fn import_leaves_trade_account_null_when_no_broker_in_institution() {
-        // Institut hat nur ein Bank-Konto, kein Broker → kein Routing, account_id NULL.
+        // Institution has only a bank account, no broker → no routing, account_id NULL.
         let pool = connect_memory().await.unwrap();
         sqlx::query("INSERT INTO institutions (name) VALUES ('BankOnly')")
             .execute(&pool).await.unwrap();
@@ -1297,12 +1295,12 @@ mod tests {
         let (st_acc,): (Option<i64>,) = sqlx::query_as(
             "SELECT account_id FROM securities_trades LIMIT 1"
         ).fetch_one(&pool).await.unwrap();
-        assert_eq!(st_acc, None, "Ohne Broker im Institut: account_id bleibt NULL");
+        assert_eq!(st_acc, None, "no broker in institution: account_id stays NULL");
     }
 
     #[tokio::test]
     async fn import_leaves_trade_account_null_when_already_at_broker() {
-        // Tx schon am Broker → securities_trades.account_id NULL (Fallback auf tx.account_id).
+        // Tx already at broker → securities_trades.account_id NULL (falls back to tx.account_id).
         let pool = connect_memory().await.unwrap();
         sqlx::query("INSERT INTO institutions (name) VALUES ('TR')")
             .execute(&pool).await.unwrap();
@@ -1330,7 +1328,7 @@ mod tests {
         let (st_acc,): (Option<i64>,) = sqlx::query_as(
             "SELECT account_id FROM securities_trades LIMIT 1"
         ).fetch_one(&pool).await.unwrap();
-        assert_eq!(st_acc, None, "Tx schon am Broker: kein redundantes Routing");
+        assert_eq!(st_acc, None, "Tx already at broker: no redundant routing");
     }
 
     #[tokio::test]
@@ -1346,7 +1344,7 @@ mod tests {
             "INSERT INTO accounts (name, kind, currency, iban) VALUES ('Cash', 'bank', 'EUR', 'AT000000000000000011') RETURNING id"
         ).fetch_one(&pool).await.unwrap();
 
-        // Source-Tx mit counterparty_iban auf target
+        // Source Tx with counterparty_iban pointing to target
         let orig_id: i64 = sqlx::query_scalar(
             "INSERT INTO transactions (account_id, booking_date, amount_cents, currency, counterparty, counterparty_iban, kind, source)
              VALUES (?1, '2026-05-15', -10000, 'EUR', 'Max Mustermann', 'AT000000000000000011', 'expense', 'sparkasse_csv') RETURNING id"
@@ -1355,14 +1353,14 @@ mod tests {
         let paired = detect_inter_account_transfers(&pool).await.unwrap();
         assert_eq!(paired, 1);
 
-        // Original ist jetzt kind='transfer' und hat paired_tx_id
+        // Original is now kind='transfer' and has paired_tx_id
         let (orig_kind, orig_paired): (String, Option<i64>) = sqlx::query_as(
             "SELECT kind, paired_tx_id FROM transactions WHERE id = ?1"
         ).bind(orig_id).fetch_one(&pool).await.unwrap();
         assert_eq!(orig_kind, "transfer");
         assert!(orig_paired.is_some());
 
-        // Mirror existiert auf target, inverted amount, source='auto_pair'
+        // Mirror exists on target, inverted amount, source='auto_pair'
         let mirror_id = orig_paired.unwrap();
         let (m_acc, m_amount, m_kind, m_source, m_paired, m_cp): (i64, i64, String, String, Option<i64>, Option<String>) = sqlx::query_as(
             "SELECT account_id, amount_cents, kind, source, paired_tx_id, counterparty FROM transactions WHERE id = ?1"
@@ -1419,16 +1417,16 @@ mod tests {
         ).bind(src).fetch_one(&pool).await.unwrap();
 
         let paired = detect_inter_account_transfers(&pool).await.unwrap();
-        assert_eq!(paired, 1, "self-transfer ohne partner zählt als 1 processed");
+        assert_eq!(paired, 1, "self-transfer without partner counts as 1 processed");
 
         let (kind,): (String,) = sqlx::query_as("SELECT kind FROM transactions WHERE id=?1")
             .bind(tx_id).fetch_one(&pool).await.unwrap();
-        assert_eq!(kind, "transfer", "self-transfer ohne partner als transfer markiert");
+        assert_eq!(kind, "transfer", "self-transfer without partner marked as transfer");
 
         // No mirror should be created
         let (cnt,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM transactions WHERE source='auto_pair'")
             .fetch_one(&pool).await.unwrap();
-        assert_eq!(cnt, 0, "kein Mirror für self-transfer");
+        assert_eq!(cnt, 0, "no mirror for self-transfer");
     }
 
     #[tokio::test]
@@ -1501,8 +1499,8 @@ mod tests {
 
     #[tokio::test]
     async fn auto_pair_processes_existing_unpaired_transfer_tx() {
-        // Tx das früher schon kind='transfer' war (von alter Detection) aber
-        // paired_tx_id NULL — soll trotzdem re-processed werden.
+        // Tx that already had kind='transfer' (from old detection) but
+        // paired_tx_id NULL — should still be re-processed.
         use crate::import_flow::detect_inter_account_transfers;
         let pool = connect_memory().await.unwrap();
 
@@ -1513,14 +1511,14 @@ mod tests {
             "INSERT INTO accounts (name, kind, currency, iban) VALUES ('Other', 'bank', 'EUR', 'AT000000000000000011') RETURNING id"
         ).fetch_one(&pool).await.unwrap();
 
-        // kind ist schon 'transfer', paired_tx_id NULL
+        // kind is already 'transfer', paired_tx_id NULL
         sqlx::query(
             "INSERT INTO transactions (account_id, booking_date, amount_cents, currency, counterparty_iban, kind, source)
              VALUES (?1, '2026-05-15', -10000, 'EUR', 'AT000000000000000011', 'transfer', 'sparkasse_csv')"
         ).bind(src).execute(&pool).await.unwrap();
 
         let paired = detect_inter_account_transfers(&pool).await.unwrap();
-        assert_eq!(paired, 1, "kind=transfer + paired_tx_id NULL muss processed werden");
+        assert_eq!(paired, 1, "kind=transfer + paired_tx_id NULL must be processed");
 
         let (cnt,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM transactions WHERE source='auto_pair'")
             .fetch_one(&pool).await.unwrap();
@@ -1529,9 +1527,9 @@ mod tests {
 
     #[tokio::test]
     async fn auto_pair_smart_dedup_doesnt_match_already_paired_tx() {
-        // Wenn existierende Tx auf Ziel schon paired_tx_id hat (gehört zu anderem
-        // Pair), darf sie nicht für neue Verlinkung verwendet werden — Mirror wird
-        // dann doch erzeugt.
+        // If an existing Tx on the target already has a paired_tx_id (belongs to
+        // another pair), it must not be used for the new link — a mirror is
+        // created instead.
         use crate::import_flow::detect_inter_account_transfers;
         let pool = connect_memory().await.unwrap();
 
@@ -1542,19 +1540,19 @@ mod tests {
             "INSERT INTO accounts (name, kind, currency, iban) VALUES ('Other', 'bank', 'EUR', 'AT000000000000000011') RETURNING id"
         ).fetch_one(&pool).await.unwrap();
 
-        // Dummy-Tx als FK-Ziel für paired_tx_id
+        // Dummy Tx as FK target for paired_tx_id
         let dummy_id: i64 = sqlx::query_scalar(
             "INSERT INTO transactions (account_id, booking_date, amount_cents, currency, kind, source)
              VALUES (?1, '2026-01-01', 1, 'EUR', 'transfer', 'manual') RETURNING id"
         ).bind(tgt).fetch_one(&pool).await.unwrap();
 
-        // Existing Tx auf Ziel ist schon einem ANDEREN Pair zugeordnet
+        // Existing Tx on target is already assigned to ANOTHER pair
         sqlx::query(
             "INSERT INTO transactions (account_id, booking_date, amount_cents, currency, kind, source, paired_tx_id)
              VALUES (?1, '2026-05-15', 10000, 'EUR', 'transfer', 'tr_csv', ?2)"
         ).bind(tgt).bind(dummy_id).execute(&pool).await.unwrap();
 
-        // Neue Source-Tx, die "passen würde"
+        // New source Tx that "would match"
         sqlx::query(
             "INSERT INTO transactions (account_id, booking_date, amount_cents, currency, counterparty_iban, kind, source)
              VALUES (?1, '2026-05-15', -10000, 'EUR', 'AT000000000000000011', 'expense', 'sparkasse_csv')"
@@ -1562,10 +1560,10 @@ mod tests {
 
         let paired = detect_inter_account_transfers(&pool).await.unwrap();
         assert_eq!(paired, 1);
-        // Es gibt jetzt 3 Tx auf tgt: die already-paired + neue mirror
+        // Now 3 Tx on tgt: the already-paired one + new mirror
         let (auto_count,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM transactions WHERE source='auto_pair'")
             .fetch_one(&pool).await.unwrap();
-        assert_eq!(auto_count, 1, "neuer mirror muss erzeugt werden weil die existing Tx already-paired ist");
+        assert_eq!(auto_count, 1, "new mirror must be created because the existing Tx is already paired");
     }
 
     #[tokio::test]
@@ -1623,13 +1621,13 @@ mod tests {
             "INSERT INTO accounts (name, kind, currency, iban) VALUES ('Sparkonto', 'savings', 'EUR', 'AT000000000000000010') RETURNING id"
         ).fetch_one(&pool).await.unwrap();
 
-        // Outgoing mit Self-IBAN
+        // Outgoing with self-IBAN
         let out_id: i64 = sqlx::query_scalar(
             "INSERT INTO transactions (account_id, booking_date, amount_cents, currency, counterparty_iban, kind, purpose, source)
              VALUES (?1, '2026-05-13', -500000, 'EUR', 'AT000000000000000010', 'expense', 'Umbuchung Studyfund', 'sparkasse_csv') RETURNING id"
         ).bind(acc).fetch_one(&pool).await.unwrap();
 
-        // Incoming ohne IBAN, gleicher Tag, gleicher |Betrag|
+        // Incoming without IBAN, same day, same |amount|
         let in_id: i64 = sqlx::query_scalar(
             "INSERT INTO transactions (account_id, booking_date, amount_cents, currency, kind, purpose, source)
              VALUES (?1, '2026-05-13', 500000, 'EUR', 'income', 'von \"Studyfund\"', 'sparkasse_csv') RETURNING id"
@@ -1638,7 +1636,7 @@ mod tests {
         let paired = detect_inter_account_transfers(&pool).await.unwrap();
         assert_eq!(paired, 1, "self-transfer counted as 1 pair");
 
-        // Beide sind jetzt kind=transfer, verlinkt
+        // Both are now kind=transfer, linked
         let (out_kind, out_paired): (String, Option<i64>) = sqlx::query_as(
             "SELECT kind, paired_tx_id FROM transactions WHERE id=?1"
         ).bind(out_id).fetch_one(&pool).await.unwrap();
@@ -1650,7 +1648,7 @@ mod tests {
         assert_eq!(out_paired, Some(in_id));
         assert_eq!(in_paired, Some(out_id));
 
-        // Keine Mirror-Tx erzeugt
+        // No mirror Tx created
         let (auto_count,): (i64,) = sqlx::query_as(
             "SELECT COUNT(*) FROM transactions WHERE source='auto_pair'"
         ).fetch_one(&pool).await.unwrap();
@@ -1700,7 +1698,7 @@ mod tests {
             "INSERT INTO accounts (name, kind, currency, iban) VALUES ('S', 'savings', 'EUR', 'AT000000000000000010') RETURNING id"
         ).fetch_one(&pool).await.unwrap();
 
-        // Nur outgoing, kein incoming
+        // Outgoing only, no incoming
         let id: i64 = sqlx::query_scalar(
             "INSERT INTO transactions (account_id, booking_date, amount_cents, currency, counterparty_iban, kind, source)
              VALUES (?1, '2026-05-13', -100, 'EUR', 'AT000000000000000010', 'expense', 'sparkasse_csv') RETURNING id"
@@ -1709,6 +1707,6 @@ mod tests {
         detect_inter_account_transfers(&pool).await.unwrap();
         let (kind,): (String,) = sqlx::query_as("SELECT kind FROM transactions WHERE id=?1")
             .bind(id).fetch_one(&pool).await.unwrap();
-        assert_eq!(kind, "transfer", "self-transfer ohne partner trotzdem als transfer markiert");
+        assert_eq!(kind, "transfer", "self-transfer without partner still marked as transfer");
     }
 }

@@ -1,8 +1,8 @@
 use std::path::Path;
 
-/// Lädt die persistente Geräte-ID aus `<dir>/device_id.txt` oder erzeugt sie.
-/// Wird beim ersten Start einmal gesetzt und danach unverändert weiterverwendet
-/// — damit der Sync-Lock dasselbe Gerät über App-Neustarts hinweg erkennt.
+/// Loads the persistent device ID from `<dir>/device_id.txt`, or creates it.
+/// Set once on first launch and kept unchanged thereafter — so that the
+/// sync lock can recognize the same device across app restarts.
 pub fn load_or_create(dir: &Path) -> std::io::Result<String> {
     let path = dir.join("device_id.txt");
     if let Ok(s) = std::fs::read_to_string(&path) {

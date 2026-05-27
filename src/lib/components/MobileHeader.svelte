@@ -3,7 +3,7 @@
   import { t } from '$lib/settings.svelte';
   import { navMain, navManage } from '$lib/nav-config';
 
-  /** Page-Titel: erstes Match aus navMain/navManage, sonst Brand-Name */
+  /** Page title: first match from navMain/navManage, otherwise brand name. */
   const title = $derived.by(() => {
     const all = [...navMain, ...navManage];
     const path = page.url.pathname;

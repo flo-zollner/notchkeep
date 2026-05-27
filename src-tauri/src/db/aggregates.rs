@@ -5,12 +5,11 @@ use sqlx::SqlitePool;
 
 use super::{DbError, DbResult};
 
-/// SQL-Fragment für `WHERE`-Klauseln, das Tx aus Cashflow-Aggregationen
-/// ausschließt:
-/// - `transfer`: Auto-Pair-Mirror zwischen eigenen Konten, beidseitig 0-summig.
-/// - `corporate_action`: Splits/Mergers ohne Cashflow (typisch amount=0).
-/// `buy`/`sell` zählen mit als Ausgabe/Einnahme — der User behandelt
-/// Wertpapierkäufe wie reguläre Ausgaben des Cash-Kontos.
+/// SQL fragment for `WHERE` clauses that excludes transactions from cashflow aggregations:
+/// - `transfer`: auto-paired mirror between own accounts, net-zero on both sides.
+/// - `corporate_action`: splits/mergers with no cashflow (typically amount=0).
+/// `buy`/`sell` are included as expense/income — the user treats
+/// securities purchases like regular expenses on the cash account.
 pub(crate) const EXCLUDED_KINDS_SQL: &str =
     "kind NOT IN ('transfer', 'corporate_action')";
 
@@ -38,7 +37,7 @@ pub struct CashflowSlice {
     pub sum_abs_cents: i64,
 }
 
-/// Summiert Ausgaben (negative `amount_cents`) pro Kategorie im gegebenen Monat.
+/// Aggregates expenses (negative `amount_cents`) per category for the given month.
 pub async fn monthly_spending(
     pool: &SqlitePool,
     year: i32,
@@ -48,9 +47,9 @@ pub async fn monthly_spending(
     category_breakdown(pool, &from, &to).await
 }
 
-/// Summiert Ausgaben pro Kategorie im halboffenen Intervall `[from, to)`
-/// (Daten im Format `YYYY-MM-DD`). Einkommen und Tx ohne `category_id`
-/// werden ignoriert; `spent_cents` ist positiv.
+/// Aggregates expenses per category in the half-open interval `[from, to)`
+/// (dates in `YYYY-MM-DD` format). Income and transactions without a `category_id`
+/// are ignored; `spent_cents` is positive.
 pub async fn category_breakdown(
     pool: &SqlitePool,
     from: &str,
@@ -76,9 +75,9 @@ pub async fn category_breakdown(
     Ok(rows)
 }
 
-/// Einnahmen vs. Ausgaben pro Monat für die letzten `months` Monate
-/// (inklusive `end_year`/`end_month`). Fehlende Monate werden mit 0 aufgefüllt,
-/// sortiert chronologisch.
+/// Income vs. expenses per month for the last `months` months
+/// (inclusive of `end_year`/`end_month`). Missing months are zero-filled,
+/// sorted chronologically.
 pub async fn monthly_cashflow(
     pool: &SqlitePool,
     end_year: i32,
@@ -88,8 +87,8 @@ pub async fn monthly_cashflow(
     monthly_cashflow_filtered(pool, None, end_year, end_month, months, false).await
 }
 
-/// Wie `monthly_cashflow`, aber buy/sell werden zusätzlich aus dem
-/// Cashflow herausgerechnet (für "Sparquote ohne Investitionen"-Sicht).
+/// Like `monthly_cashflow`, but buy/sell are additionally excluded from the
+/// cashflow (for a "savings rate excluding investments" view).
 pub async fn monthly_cashflow_excl_invest(
     pool: &SqlitePool,
     end_year: i32,
@@ -99,7 +98,7 @@ pub async fn monthly_cashflow_excl_invest(
     monthly_cashflow_filtered(pool, None, end_year, end_month, months, true).await
 }
 
-/// Wie `monthly_cashflow`, aber nur Transaktionen des angegebenen Kontos.
+/// Like `monthly_cashflow`, but restricted to transactions of the given account.
 pub async fn account_monthly_cashflow(
     pool: &SqlitePool,
     account_id: i64,
@@ -110,8 +109,8 @@ pub async fn account_monthly_cashflow(
     monthly_cashflow_filtered(pool, Some(account_id), end_year, end_month, months, false).await
 }
 
-/// Monatlicher Cashflow (Einnahmen + Ausgaben) gefiltert auf einen Bucket.
-/// Same Bucket-Layout wie monthly_cashflow_filtered, aber WHERE bucket_id = ?.
+/// Monthly cashflow (income + expenses) filtered to a bucket.
+/// Same bucket layout as monthly_cashflow_filtered, but WHERE bucket_id = ?.
 pub async fn bucket_monthly_flow(
     pool: &SqlitePool,
     bucket_id: i64,
@@ -235,9 +234,9 @@ async fn monthly_cashflow_filtered(
         .collect())
 }
 
-/// Ausgaben (positive Cents) je Tag des Monats. Index 0 = Tag 1,
-/// Länge = Tage im Monat. Einnahmen (positive `amount_cents`) werden ignoriert,
-/// unkategorisierte Tx zählen mit.
+/// Expenses (positive cents) per day of the month. Index 0 = day 1,
+/// length = days in month. Income (positive `amount_cents`) is ignored;
+/// uncategorized transactions are counted.
 pub async fn daily_spending(pool: &SqlitePool, year: i32, month: u32) -> DbResult<Vec<i64>> {
     let (from, to) = month_range(year, month);
     let daily_sql = format!(
@@ -308,10 +307,10 @@ pub(super) fn month_buckets(end_year: i32, end_month: u32, months: u32) -> Vec<(
     out
 }
 
-/// Gruppiert Tx im halboffenen Intervall `[from, to)` nach `(category_id, sign)`
-/// und liefert die Summe der absoluten Beträge. Eine Kategorie kann sowohl
-/// Income- (sign=+1) als auch Expense-Rows (sign=-1) produzieren.
-/// Tx mit `amount_cents = 0` werden ausgefiltert (z.B. Stock-Splits).
+/// Groups transactions in the half-open interval `[from, to)` by `(category_id, sign)`
+/// and returns the sum of absolute amounts. A category can produce both
+/// income rows (sign=+1) and expense rows (sign=-1).
+/// Transactions with `amount_cents = 0` are filtered out (e.g. stock splits).
 pub async fn cashflow_breakdown(
     pool: &SqlitePool,
     from: &str,
@@ -703,7 +702,7 @@ mod tests {
             vec![MonthlyFlow { year: 2026, month: 5, in_cents: 999_999, out_cents: 50_000 }]
         );
 
-        // Ungefilterte monthly_cashflow sieht beide.
+        // Unfiltered monthly_cashflow sees both.
         let combined = monthly_cashflow(&pool, 2026, 5, 1).await.unwrap();
         assert_eq!(
             combined,
@@ -817,7 +816,7 @@ mod tests {
         .bind(acc).execute(&pool).await.unwrap();
 
         let result = cashflow_breakdown(&pool, "2026-05-01", "2026-06-01").await.unwrap();
-        assert!(result.is_empty(), "amount=0 Tx muss ausgefiltert sein");
+        assert!(result.is_empty(), "amount=0 tx must be filtered out");
     }
 
     // --- Transfer-exclusion tests ---
@@ -931,7 +930,7 @@ mod tests {
         let acc: i64 = sqlx::query_scalar(
             "INSERT INTO accounts (name, kind, currency) VALUES ('TR', 'broker', 'EUR') RETURNING id"
         ).fetch_one(&pool).await.unwrap();
-        // expense + buy + fee + transfer (exkludiert)
+        // expense + buy + fee + transfer (excluded)
         sqlx::query(
             "INSERT INTO transactions (account_id, booking_date, amount_cents, currency, kind, source)
              VALUES (?1, '2026-05-15', -1000, 'EUR', 'expense', 'manual'),
@@ -943,8 +942,8 @@ mod tests {
 
         let flows = monthly_cashflow(&pool, 2026, 5, 1).await.unwrap();
         assert_eq!(flows.len(), 1);
-        // buy zählt jetzt als expense, sell als income; transfer bleibt raus.
-        assert_eq!(flows[0].in_cents, 50000, "sell soll als income zählen");
+        // buy now counts as expense, sell as income; transfer stays excluded.
+        assert_eq!(flows[0].in_cents, 50000, "sell should count as income");
         assert_eq!(flows[0].out_cents, 101100, "expense+buy+fee = 1000+100000+100");
     }
 }

@@ -44,18 +44,18 @@ export interface Transaction {
   bucket_id: number | null;
   kind: string;
   counterparty_iban: string | null;
-  /** Depot/Holding-Konto bei Trade-Tx (buy/sell/corp_action/fusion).
-   *  Cash-only Tx + Dividenden/KESt liefern null. Wird vom Account-Filter
-   *  zusätzlich zu `account_id` ausgewertet → eine Buy-Tx erscheint in
-   *  beiden Account-Views (Cash und Depot). */
+  /** Depot/holding account for trade transactions (buy/sell/corp_action/fusion).
+   *  Cash-only transactions and dividends/withholding tax return null. Evaluated
+   *  by the account filter in addition to `account_id` → a buy transaction appears
+   *  in both account views (cash and depot). */
   holding_account_id: number | null;
-  /** `securities_trades.side` der Trade-Detail-Zeile. Erlaubt es dem UI,
-   *  Fusion-Ausbuchung (`fusion_out`) und Einbuchung (`fusion_in`) zu
-   *  unterscheiden — beide haben `kind='corporate_action'`, aber
-   *  unterschiedliche Richtung. `null` für Cash-Tx ohne Trade-Row. */
+  /** `securities_trades.side` of the trade detail row. Allows the UI to
+   *  distinguish merger debit (`fusion_out`) from merger credit (`fusion_in`) —
+   *  both have `kind='corporate_action'` but different directions.
+   *  `null` for cash transactions without a trade row. */
   trade_side: string | null;
-  /** Pointer auf die gepaarte Tx (Inter-Account-Transfer-Auto-Pair).
-   *  Null wenn die Tx kein Pair hat. */
+  /** Pointer to the paired tx (inter-account transfer auto-pair).
+   *  Null when the tx has no pair. */
   paired_tx_id: number | null;
 }
 
@@ -72,7 +72,7 @@ export type RuleCombinator = 'and' | 'or';
 export interface RuleCondition {
   field: MatchFieldId;
   op: MatchOpId;
-  /** Range: `"<min_cents>..<max_cents>"`. Account: `"<account_id>"`. Sonst Klartext. */
+  /** Range: `"<min_cents>..<max_cents>"`. Account: `"<account_id>"`. Otherwise plain text. */
   value: string;
 }
 
@@ -131,17 +131,17 @@ export interface TxFilter {
   categoryId?: number;
   bucketId?: number;
   search?: string;
-  /** Inklusiv (YYYY-MM-DD). Tx mit booking_date >= from. */
+  /** Inclusive (YYYY-MM-DD). Transactions with booking_date >= from. */
   from?: string;
-  /** Inklusiv (YYYY-MM-DD). Tx mit booking_date <= to. */
+  /** Inclusive (YYYY-MM-DD). Transactions with booking_date <= to. */
   to?: string;
-  /** Nur Tx ohne Kategorie. */
+  /** Only transactions without a category. */
   uncategorized?: boolean;
   /** abs(amount_cents) >= min. */
   minAmountCents?: number;
-  /** Page-Größe; default 200, clamp [1, 5000]. */
+  /** Page size; default 200, clamped to [1, 5000]. */
   limit?: number;
-  /** Opaker Cursor 'YYYY-MM-DD|<id>'. */
+  /** Opaque cursor 'YYYY-MM-DD|<id>'. */
   cursor?: string;
 }
 
@@ -168,8 +168,8 @@ export interface NewTransactionPayload {
   bucketId?: number | null;
   manualNote?: string | null;
   counterpartyIban?: string | null;
-  /** Optional. Erlaubt: income, expense, transfer, fee. Trade-Kinds laufen
-   *  über createTrade. None = Auto aus Amount-Vorzeichen. */
+  /** Optional. Allowed values: income, expense, transfer, fee. Trade kinds go
+   *  through createTrade. Omitted = auto-derived from amount sign. */
   kind?: string;
 }
 
@@ -185,7 +185,7 @@ export interface UpdateTransactionPayload {
   bucketId: number | null;
   manualNote: string | null;
   counterpartyIban: string | null;
-  /** Optional override. None = unverändert lassen. */
+  /** Optional override. Omitted = leave unchanged. */
   kind?: string;
 }
 
@@ -521,7 +521,7 @@ export interface SecurityTrade {
   kestCents: number;
   withholdingTaxCents: number;
   fxRateMicro: number | null;
-  /** Optional explizites Depot-Konto. Null = fällt zurück auf tx.account_id. */
+  /** Optional explicit depot account. Null = falls back to tx.account_id. */
   accountId: number | null;
 }
 
@@ -531,7 +531,7 @@ export interface TradeWithTx {
 }
 
 export interface NewTradePayload {
-  /** transactions.account_id (= Cashkonto). Wo der Cashflow gebucht wird. */
+  /** transactions.account_id (= cash account). Where the cash flow is recorded. */
   accountId: number;
   securityId: number;
   bookingDate: string;
@@ -545,9 +545,9 @@ export interface NewTradePayload {
   currency: string | null;
   counterparty: string | null;
   manualNote: string | null;
-  /** Optionaler Override für securities_trades.account_id (= Depot).
-   *  Wenn null/undefined: Backend leitet automatisch ab (= einziges Broker-
-   *  Konto desselben Instituts via resolve_trade_account). */
+  /** Optional override for securities_trades.account_id (= depot).
+   *  If null/undefined: backend derives automatically (= sole broker account
+   *  of the same institution via resolve_trade_account). */
   holdingAccountId?: number | null;
 }
 
@@ -557,14 +557,14 @@ export interface UpdateTradePayload {
   feeCents?: number;
   taxCents?: number;
   fxRateMicro?: number | null;
-  // NEU für Depot-Dialog:
+  // Added for depot dialog:
   kestCents?: number;
   withholdingTaxCents?: number;
-  /** securities_trades.account_id (= Depot, wenn explizit gesetzt). */
+  /** securities_trades.account_id (= depot, when explicitly set). */
   accountId?: number;
   securityId?: number;
   amountCents?: number;
-  /** transactions.account_id (= Cashkonto). Disambiguiert vom obigen accountId. */
+  /** transactions.account_id (= cash account). Disambiguates from accountId above. */
   txAccountId?: number;
 }
 
@@ -719,11 +719,11 @@ export interface DetectedRecurring {
   sampleCount: number;
 }
 
-/** True wenn die Tx eine Wertpapier-Transaktion mit Trade-Detail-Row ist
- *  (Buy/Sell/Dividend/Corp-Action/Tax-Thesaurierung). Routing-Entscheidung
- *  für UI: Cash-Tx → TxModal, Trade-Tx → DepotTxModal.
- *  `fee` ist bewusst NICHT drin — eine reine Gebühren-Tx ist Cash-Editing
- *  und läuft über TxModal. */
+/** Returns true when the transaction is a security trade with a trade detail row
+ *  (buy/sell/dividend/corp-action/tax accumulation). Routing decision for the UI:
+ *  cash transaction → TxModal, trade transaction → DepotTxModal.
+ *  `fee` is intentionally excluded — a pure fee transaction is cash editing
+ *  and goes through TxModal. */
 export function isTradeTx(tx: Transaction): boolean {
   return ['buy', 'sell', 'dividend', 'corporate_action', 'tax'].includes(tx.kind);
 }
@@ -976,7 +976,7 @@ export const api = {
   refreshCurrencyRate: (currency: string) =>
     invoke<CurrencyStatus>('refresh_currency_rate', { currency }),
 
-  // Datenverwaltung (7c)
+  // Data management (7c)
   getDataPathInfo: () => invoke<AppConfigInfo>('get_data_path_info'),
   checkTargetPath: (targetDir: string) =>
     invoke<PathCheckResult>('check_target_path', { targetDir }),
@@ -1072,9 +1072,9 @@ export function deleteInstitution(id: number): Promise<void> {
 // ─── Formatters ───
 
 /**
- * Extrahiert eine lesbare Fehlermeldung aus einem Tauri-invoke-Reject.
- * Backend wirft `CommandError { message }` als Objekt — `String(e)` würde
- * `[object Object]` ergeben. Diese Funktion holt `e.message` raus.
+ * Extracts a readable error message from a Tauri invoke rejection.
+ * The backend throws `CommandError { message }` as an object — `String(e)` would
+ * produce `[object Object]`. This function extracts `e.message`.
  */
 export function errMsg(e: unknown): string {
   if (typeof e === 'string') return e;
@@ -1101,9 +1101,9 @@ export function fmtEur(cents: number, opts: { hide?: boolean; signed?: boolean; 
 }
 
 /**
- * Parst einen Eur-String aus Eingabefeldern. Akzeptiert beide Locale-Formate
- * tolerant: '1.234,56', '1,234.56', '1234.56', '1234,56', '-12,5', '5'.
- * Liefert NaN bei ungültiger Eingabe (Callers prüfen selbst).
+ * Parses a Euro string from input fields. Tolerantly accepts both locale formats:
+ * '1.234,56', '1,234.56', '1234.56', '1234,56', '-12,5', '5'.
+ * Returns NaN for invalid input (callers check themselves).
  */
 export function parseEur(input: string): number {
   if (input == null) return NaN;
@@ -1113,34 +1113,34 @@ export function parseEur(input: string): number {
   const lastDot = trimmed.lastIndexOf('.');
   let normalized: string;
   if (lastComma > lastDot) {
-    // Komma ist Dezimaltrenner → Punkte sind Tausender (entfernen).
+    // Comma is decimal separator → dots are thousands separators (remove).
     normalized = trimmed.replace(/\./g, '').replace(',', '.');
   } else if (lastDot > lastComma) {
-    // Punkt ist Dezimaltrenner → Kommas sind Tausender (entfernen).
+    // Dot is decimal separator → commas are thousands separators (remove).
     normalized = trimmed.replace(/,/g, '');
   } else {
-    // Kein Trennzeichen — Eingabe ist ganzzahlig.
+    // No separator — input is an integer.
     normalized = trimmed;
   }
   return parseFloat(normalized);
 }
 
-/** Lokal-spezifischer Dezimal-Separator (für Placeholders / Hilfetexte). */
+/** Locale-specific decimal separator (for placeholders / help texts). */
 export function decimalSep(): string {
   return settings.lang === 'en' ? '.' : ',';
 }
 
-/** Variante von `parseEur`, die direkt Cents als gerundeten Integer liefert.
- *  Bei ungültiger Eingabe wird 0 zurückgegeben. */
+/** Variant of `parseEur` that directly returns cents as a rounded integer.
+ *  Returns 0 for invalid input. */
 export function parseEurCents(input: string): number {
   const n = parseEur(input);
   return Number.isFinite(n) ? Math.round(n * 100) : 0;
 }
 
 /**
- * Formatiert einen Cent-Betrag als Plain-Number-String für Eingabefelder
- * (Locale-Dezimal-Separator, ohne Tausender-Gruppierung, ohne Währungs-Symbol).
- * Beispiel: 12345 → "123,45" (de) bzw. "123.45" (en).
+ * Formats a cent amount as a plain-number string for input fields
+ * (locale decimal separator, no thousands grouping, no currency symbol).
+ * Example: 12345 → "123,45" (de) or "123.45" (en).
  */
 export function fmtEurInput(cents: number, decimals = 2): string {
   const value = Math.abs(cents) / 100;
@@ -1153,9 +1153,9 @@ export function fmtEurInput(cents: number, decimals = 2): string {
 }
 
 /**
- * Formatiert einen beliebigen Float als Locale-aware Plain-Number-String
- * (z. B. für Anteile/Mengen mit variabler Decimal-Stelligkeit).
- * `decimals` weggelassen → natürliche Stelligkeit (wie Number.toString()).
+ * Formats an arbitrary float as a locale-aware plain-number string
+ * (e.g. for shares/quantities with variable decimal precision).
+ * `decimals` omitted → natural precision (like Number.toString()).
  */
 export function fmtNumInput(value: number, decimals?: number): string {
   if (!Number.isFinite(value)) return '';

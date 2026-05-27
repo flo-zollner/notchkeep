@@ -19,20 +19,20 @@
   type Tab = 'positions' | 'dividends' | 'allocation' | 'securities';
   let activeTab = $state<Tab>('positions');
 
-  // Securities (für „Wertpapiere"-Tab und Edit)
+  // Securities (for the "Securities" tab and editing)
   let securities = $state<Security[]>([]);
   let showArchived = $state(false);
   let editing = $state<Security | null>(null);
   let addingNew = $state(false);
   let addingTrade = $state(false);
 
-  // Portfolio-Daten
+  // Portfolio data
   let kpis = $state<PortfolioKpis | null>(null);
   let holdings = $state<Holding[]>([]);
   let dividends = $state<DividendEntry[]>([]);
   let loading = $state(true);
 
-  // Allocation-Daten (lazy)
+  // Allocation data (lazy)
   let allocAssetType = $state<AllocationSlice[]>([]);
   let allocCountry = $state<AllocationSlice[]>([]);
   let allocSector = $state<AllocationSlice[]>([]);
@@ -91,8 +91,8 @@
     }
   });
 
-  // Nach Background-FX-/Kurs-Refresh: Holdings + KPIs neu laden, da deren
-  // EUR-Werte FX-abhängig sind. Aktiver Allocation-Tab wird ebenfalls neu geholt.
+  // After a background FX/price refresh: reload holdings + KPIs, since their
+  // EUR values are FX-dependent. The active allocation tab is also refreshed.
   $effect(() => {
     type Status = { stage: 'started' | 'completed' | 'failed' };
     const unlisten = listen<Status>('price_refresh_status', (e) => {

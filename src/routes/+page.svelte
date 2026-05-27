@@ -145,7 +145,7 @@
   }
 
   $effect(() => {
-    void savingsExclInv;  // re-load wenn Toggle wechselt
+    void savingsExclInv;  // reload when toggle changes
     void loadCashflow();
   });
 
@@ -157,9 +157,9 @@
     return rates.reduce((s, r) => s + r, 0) / rates.length;
   });
 
-  // Static-Daten (Konten/Kategorien/Buckets/Net-Worth-Inputs) werden einmal geladen,
-  // `transactions` wird dagegen serverseitig nach aktuellem Range gefiltert nachgeladen.
-  // `recentTx` ist eine separate "Top 6 neueste"-Liste unabhängig vom Range.
+  // Static data (accounts/categories/buckets/net-worth inputs) is loaded once;
+  // `transactions` is reloaded server-side filtered to the current range.
+  // `recentTx` is a separate "top 6 most recent" list independent of the range.
   let recentTx = $state<Transaction[]>([]);
 
   async function loadStatic() {
@@ -201,7 +201,7 @@
     void loadStatic();
   });
 
-  // Range-Change → range-spezifische Tx serverseitig nachladen.
+  // Range change → reload range-specific transactions server-side.
   $effect(() => {
     void range.from;
     void range.to;
@@ -243,8 +243,8 @@
     }
   }
 
-  // Nach Background-FX-/Kurs-Refresh (Startup oder Import) Daten neu laden,
-  // damit Kontosalden + Institutions-Summen mit frischen FX-Raten gerechnet werden.
+  // After a background FX/price refresh (on startup or import), reload data
+  // so account balances and institution totals use up-to-date FX rates.
   $effect(() => {
     type Status = { stage: 'started' | 'completed' | 'failed' };
     const unlisten = listen<Status>('price_refresh_status', (e) => {
@@ -275,9 +275,9 @@
   const net = $derived(income - expenses);
   const savingsRate = $derived(income > 0 ? (net / income) * 100 : 0);
 
-  // Investitionsquote: wieviel von den Einnahmen netto in Anlagen geflossen ist.
-  // buys (amount_cents negativ) → absolute Summe; sells (amount_cents positiv) → direkt;
-  // dividends sind passive Erträge, NICHT Teil der Umschichtung (zählen schon im income).
+  // Investment rate: what share of income flowed net into investments.
+  // buys (amount_cents negative) → absolute sum; sells (amount_cents positive) → direct;
+  // dividends are passive income, NOT part of the reallocation (already counted in income).
   const investBuysCents = $derived(
     -txInRange.filter((x) => x.kind === 'buy').reduce((s, x) => s + x.amount_cents, 0)
   );
@@ -287,9 +287,9 @@
   const netInvestedCents = $derived(investBuysCents - investSellsCents);
   const investmentRate = $derived(income > 0 ? (netInvestedCents / income) * 100 : 0);
 
-  // Sparquote ohne Investitionen: rechnet buy/sell aus income/expenses raus.
-  // Logik: Wenn man 1000 € verdient und 500 € in ETFs investiert, ist das
-  // "500 € gespart", nicht "1000 € verdient & 500 € ausgegeben → 50%".
+  // Savings rate excluding investments: strips buy/sell from income/expenses.
+  // Logic: if you earn 1000 € and invest 500 € in ETFs, that is
+  // "500 € saved", not "1000 € earned & 500 € spent → 50%".
   const incomeExclInv = $derived(income - investSellsCents);
   const expensesExclInv = $derived(expenses - investBuysCents);
   const netExclInv = $derived(incomeExclInv - expensesExclInv);
@@ -317,7 +317,7 @@
     modalOpen = false;
   }
   function onSaved(_saved: Transaction) {
-    // Pragmatisch: nach Edit beides neu laden (range-Tx + recent).
+    // Pragmatic: reload both after edit (range transactions + recent).
     void loadRangeTx();
     void api.listTransactions({ limit: 6 }).then((p) => (recentTx = p.rows));
   }

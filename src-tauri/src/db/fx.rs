@@ -36,13 +36,13 @@ pub async fn upsert_rate(
     Ok(())
 }
 
-/// Letzte FX-Rate ≤ `on_date` für die Foreign-Currency. EUR liefert immer 1_000_000.
+/// Latest FX rate ≤ `on_date` for the foreign currency. EUR always returns 1_000_000.
 ///
-/// Fallback: wenn keine Rate ≤ `on_date` existiert, wird die früheste Rate
-/// DANACH genommen. Hintergrund: yahoo liefert Preise oft mit Markt-close-
-/// Datum (z. B. Freitag), aber FX-Rates mit dem aktuellen Refresh-Datum
-/// (z. B. Samstag). Ohne diesen Fallback würde der Caller auf 1.0 zurück-
-/// fallen und einen HKD-Betrag fälschlich als EUR anzeigen.
+/// Fallback: when no rate ≤ `on_date` exists, the earliest rate
+/// AFTER `on_date` is used instead. Background: Yahoo often delivers prices with
+/// the market-close date (e.g. Friday) but FX rates with the current refresh date
+/// (e.g. Saturday). Without this fallback the caller would fall back to 1.0 and
+/// display an HKD amount incorrectly as EUR.
 pub async fn rate_on_date(
     pool: &SqlitePool,
     currency: &str,
@@ -52,7 +52,7 @@ pub async fn rate_on_date(
     if cur == "EUR" {
         return Ok(Some(1_000_000));
     }
-    // 1) Bevorzugt: jüngste Rate ≤ on_date
+    // 1) Preferred: latest rate ≤ on_date
     let row: Option<(i64,)> = sqlx::query_as(
         "SELECT rate_micro FROM fx_rates
           WHERE currency = ?1 AND date <= ?2
@@ -66,7 +66,7 @@ pub async fn rate_on_date(
     if let Some((r,)) = row {
         return Ok(Some(r));
     }
-    // 2) Fallback: früheste Rate > on_date
+    // 2) Fallback: earliest rate > on_date
     let row2: Option<(i64,)> = sqlx::query_as(
         "SELECT rate_micro FROM fx_rates
           WHERE currency = ?1 AND date > ?2
@@ -80,7 +80,7 @@ pub async fn rate_on_date(
     Ok(row2.map(|(r,)| r))
 }
 
-/// Aktuellste FX-Rate. EUR liefert None (Caller behandelt).
+/// Most recent FX rate. EUR returns None (caller handles it).
 pub async fn latest_rate(pool: &SqlitePool, currency: &str) -> DbResult<Option<(String, i64)>> {
     let cur = currency.to_uppercase();
     if cur == "EUR" {
@@ -119,25 +119,25 @@ mod tests {
 
         assert_eq!(rate_on_date(&pool, "USD", "2026-04-15").await.unwrap(), Some(910_000));
         assert_eq!(rate_on_date(&pool, "USD", "2026-04-01").await.unwrap(), Some(900_000));
-        // Vor allen Raten: greift Fallback auf die nächste in der Zukunft.
+        // Before all rates: falls back to the next one in the future.
         assert_eq!(rate_on_date(&pool, "USD", "2026-03-14").await.unwrap(), Some(900_000));
     }
 
-    /// Realer Bug: yahoo liefert oft den Preis vom letzten Markttag (z.B.
-    /// Freitag) und die FX-Rate vom heutigen Tag (z.B. Samstag). Wenn die
-    /// FX-Rate also NACH dem Preis-Datum liegt, soll sie trotzdem genommen
-    /// werden — sonst fällt der Caller auf 1.0 zurück und zeigt den
-    /// HKD-Betrag fälschlich als EUR an.
+    /// Real bug: Yahoo often delivers the price from the last market day (e.g.
+    /// Friday) and the FX rate from the current day (e.g. Saturday). When the
+    /// FX rate therefore lies AFTER the price date, it should still be used —
+    /// otherwise the caller falls back to 1.0 and displays the HKD amount
+    /// incorrectly as EUR.
     #[tokio::test]
     async fn rate_on_date_falls_back_to_earliest_future_when_no_past_rate() {
         let pool = connect_memory().await.unwrap();
         upsert_rate(&pool, "HKD", "2026-05-23", 110_009, "yahoo").await.unwrap();
         upsert_rate(&pool, "HKD", "2026-06-01", 111_000, "yahoo").await.unwrap();
 
-        // Preis-Datum 22.5. — keine FX ≤ 22.5. existiert → nimm die früheste
-        // Rate DANACH (23.5.), nicht die noch spätere (1.6.).
+        // Price date 22.5. — no FX ≤ 22.5. exists → take the earliest
+        // rate AFTER (23.5.), not the even later one (1.6.).
         let r = rate_on_date(&pool, "HKD", "2026-05-22").await.unwrap();
-        assert_eq!(r, Some(110_009), "earliest-after fallback statt None");
+        assert_eq!(r, Some(110_009), "earliest-after fallback instead of None");
     }
 
     #[tokio::test]

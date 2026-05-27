@@ -93,7 +93,7 @@ pub async fn update_goal(
             return Err(DbError::Decode("target_cents must be > 0".into()));
         }
     }
-    // Existierendes Goal laden — wir machen partielle Updates via COALESCE.
+    // Load existing goal — we apply partial updates via COALESCE.
     let current = get_goal(pool, id).await?;
 
     let sql = format!(
@@ -150,7 +150,7 @@ pub async fn delete_goal(pool: &SqlitePool, id: i64) -> DbResult<bool> {
     Ok(res.rows_affected() > 0)
 }
 
-/// Wandelt `Some("")` in `None` um — UI sendet leere Strings für „Feld leeren".
+/// Converts `Some("")` to `None` — the UI sends empty strings to clear a field.
 fn normalize_opt(v: Option<String>) -> Option<String> {
     v.and_then(|s| if s.trim().is_empty() { None } else { Some(s) })
 }
@@ -173,7 +173,7 @@ pub async fn list_goal_progress(
 }
 
 async fn compute_progress(pool: &SqlitePool, goal: &Goal) -> DbResult<GoalProgress> {
-    // 1) currentCents: Summe positiver Tx der Kategorie ab start_date.
+    // 1) currentCents: sum of positive transactions for the category from start_date onwards.
     let (current,): (Option<i64>,) = sqlx::query_as(
         "SELECT SUM(amount_cents) FROM transactions
          WHERE category_id = ?1
@@ -187,8 +187,8 @@ async fn compute_progress(pool: &SqlitePool, goal: &Goal) -> DbResult<GoalProgre
     .await?;
     let current_cents = current.unwrap_or(0);
 
-    // 2) monthlyAvg: Σ positiver Tx der Kategorie in den 6 vollen Kalendermonaten
-    //    VOR dem aktuellen Monat, geteilt durch 6.
+    // 2) monthlyAvg: sum of positive transactions for the category in the 6 full calendar months
+    //    BEFORE the current month, divided by 6.
     let today = chrono::Local::now().date_naive();
     let (cy, cm) = (today.year(), today.month());
     let (start_y, start_m) = sub_months(cy, cm, 6);
@@ -224,7 +224,7 @@ async fn compute_progress(pool: &SqlitePool, goal: &Goal) -> DbResult<GoalProgre
         None
     };
 
-    // 4) onTrack
+    // 4) onTrack.
     let on_track = match (&goal.target_date, &forecast_date) {
         (Some(td), Some(fd)) => Some(fd.as_str() <= td.as_str()),
         _ => None,
@@ -406,12 +406,12 @@ mod tests {
 
         assert_eq!(updated.name, "Notgroschen XL");
         assert_eq!(updated.target_cents, 2_000_000);
-        assert_eq!(updated.category_id, cat); // unverändert
-        assert_eq!(updated.start_date, "2026-01-01"); // unverändert
+        assert_eq!(updated.category_id, cat); // unchanged
+        assert_eq!(updated.start_date, "2026-01-01"); // unchanged
         assert_eq!(updated.target_date.as_deref(), Some("2026-12-31"));
         assert_eq!(updated.icon.as_deref(), Some("piggy"));
         assert!(!updated.archived);
-        // sanity: cat2 wurde nicht verwendet
+        // sanity: cat2 was not used
         let _ = cat2;
     }
 
@@ -497,7 +497,7 @@ mod tests {
 
         let with_archived = list_goals(&pool, true).await.unwrap();
         assert_eq!(with_archived.len(), 2);
-        // archived = 0 zuerst, dann archived = 1
+        // archived = 0 first, then archived = 1
         assert_eq!(with_archived[0].id, a.id);
         assert_eq!(with_archived[1].id, b.id);
     }
@@ -519,14 +519,14 @@ mod tests {
         ).await.unwrap();
         assert!(delete_goal(&pool, g.id).await.unwrap());
         assert!(get_goal(&pool, g.id).await.is_err());
-        // erneutes Löschen → false
+        // deleting again → false
         assert!(!delete_goal(&pool, g.id).await.unwrap());
     }
 
     #[tokio::test]
     async fn delete_category_with_goal_is_restricted() {
-        // Mit ON DELETE RESTRICT muss das Löschen einer Kategorie fehlschlagen,
-        // solange ein Goal sie referenziert.
+        // With ON DELETE RESTRICT, deleting a category must fail
+        // as long as a goal references it.
         let pool = connect_memory().await.unwrap();
         let cat = seed_category(&pool, "Sparen").await;
         let _g = create_goal(

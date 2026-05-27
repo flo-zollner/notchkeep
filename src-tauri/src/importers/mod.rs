@@ -14,19 +14,19 @@ pub struct RawTransaction {
     pub counterparty: Option<String>,
     pub purpose: Option<String>,
     pub raw_ref: Option<String>,
-    /// Optionales Override für `transactions.kind`. `None` ⇒ Caller bestimmt
-    /// `'income'`/`'expense'` aus `amount_cents`-Vorzeichen (bestehendes Verhalten).
+    /// Optional override for `transactions.kind`. `None` ⇒ caller determines
+    /// `'income'`/`'expense'` from the sign of `amount_cents` (existing behaviour).
     pub kind: Option<String>,
-    /// Trade-Daten, wenn die Row eine Wertpapier-Transaktion ist.
+    /// Trade data when the row represents a securities transaction.
     pub trade: Option<RawTradeFields>,
-    /// IBAN der Gegenseite (aus TR-CSV column 20). `None` wenn nicht bekannt.
+    /// IBAN of the counterparty (from TR-CSV column 20). `None` if unknown.
     pub counterparty_iban: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct RawTradeFields {
     pub isin: String,
-    /// CSV-Rohwert vor Mapping (z.B. "FUND"). Mapping passiert beim Insert.
+    /// Raw CSV value before mapping (e.g. "FUND"). Mapping happens at insert time.
     pub asset_class_raw: String,
     pub name: String,
     pub side: String,  // 'buy' | 'sell' | 'dividend' | 'corporate_action' | 'fusion_out' | 'fusion_in'
@@ -36,8 +36,8 @@ pub struct RawTradeFields {
     pub kest_cents: i64,
     pub withholding_tax_cents: i64,
     pub fx_rate_micro: Option<i64>,
-    /// Paaring-Identifier für Fusion-Trades (gleiche Value auf Quell- und
-    /// Ziel-Row). `None` für alle Nicht-Fusion-Sides.
+    /// Pairing identifier for fusion trades (same value on source and
+    /// destination row). `None` for all non-fusion sides.
     pub fusion_group: Option<String>,
 }
 
@@ -51,9 +51,9 @@ pub enum ImportError {
 
 pub type ImportResult<T> = Result<T, ImportError>;
 
-/// Ergebnis eines Parser-Laufs: die geparsten Zeilen + nicht-fatale Warnings
-/// (z.B. fehlende optionale Spalten). Errors bei fatal-Conditions (wie
-/// fehlender required-Spalte oder Datei-Decode-Failure) sind nach wie vor
+/// Result of a parser run: the parsed rows plus non-fatal warnings
+/// (e.g. missing optional columns). Errors for fatal conditions (such as
+/// a missing required column or file decode failure) are still returned as
 /// `ImportError`.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct ParseResult {
@@ -65,8 +65,8 @@ pub trait Importer {
     fn parse(&self, bytes: &[u8]) -> ImportResult<ParseResult>;
 }
 
-/// SHA-256 des Dateiinhalts als Hex-String — wird als `source_file_hash` in
-/// der `transactions`-Tabelle gespeichert und ist Teil des Dedup-Index.
+/// SHA-256 of the file contents as a hex string — stored as `source_file_hash`
+/// in the `transactions` table and forms part of the dedup index.
 pub fn source_file_hash(bytes: &[u8]) -> String {
     let digest = Sha256::digest(bytes);
     let mut out = String::with_capacity(64);

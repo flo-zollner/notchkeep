@@ -25,7 +25,7 @@
       const list = await api.checkSyncConflicts();
       if (list.length > 0) syncConflicts = list;
     } catch {
-      // silently — Conflict-Check ist non-critical bei erstem Start
+      // silently — conflict check is non-critical on first startup
     }
   }
 
@@ -33,8 +33,8 @@
     void checkConflictsOnce();
   });
 
-  /** Lädt MonthOverview für aktuellen Monat und zählt Kategorien
-   * deren spent >= 80% des budgets ist (und budget gesetzt). */
+  /** Loads MonthOverview for the current month and counts categories
+   * whose spent >= 80% of their budget (and budget is set). */
   async function refreshBudgetAlerts() {
     try {
       const now = new Date();
@@ -81,7 +81,7 @@
     goto('/transactions?new=1');
   }
 
-  /** Globale Keyboard-Shortcuts. Ignoriert wenn Fokus in Input/Textarea/Select. */
+  /** Global keyboard shortcuts. Ignored when focus is in Input/Textarea/Select. */
   function onGlobalKey(e: KeyboardEvent) {
     if (e.ctrlKey || e.metaKey || e.altKey) return;
     const target = e.target as HTMLElement | null;
@@ -93,8 +93,8 @@
     )) return;
     switch (e.key) {
       case 'g':
-        // Vim-style g + nächster Buchstabe für Navigation. Vereinfacht: 'g d' = Dashboard etc.
-        // Hier minimal: nur direkte Hot-Keys nicht-chord.
+        // Vim-style g + next letter for navigation. Simplified: 'g d' = Dashboard etc.
+        // Minimal here: only direct hot-keys, no chords.
         break;
       case 't': goto('/transactions'); break;
       case 'b': goto('/budgets'); break;

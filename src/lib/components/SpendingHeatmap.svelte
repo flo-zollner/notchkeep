@@ -4,9 +4,9 @@
   interface Props {
     daily: number[];
     hide?: boolean;
-    /** First weekday of the month (0=Mo, …, 6=So). Default: 4 = Mai 2026 startet Freitag. */
+    /** First weekday of the month (0=Mo, …, 6=Su). Default: 4 = May 2026 starts on Friday. */
     offset?: number;
-    /** Wird im Tooltip jedes Tages angezeigt, z. B. „Mai 2026". */
+    /** Displayed in each day's tooltip, e.g. "May 2026". */
     monthLabel?: string;
   }
   let { daily, hide = false, offset = 4, monthLabel = '' }: Props = $props();

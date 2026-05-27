@@ -4,10 +4,9 @@ pub struct HistoryEntry {
     pub category_id: i64,
 }
 
-/// Sucht in der Historie die Counterparty mit der höchsten Jaro-Winkler-
-/// Ähnlichkeit zum gegebenen `counterparty`. Gibt die zugehörige
-/// `category_id` zurück, wenn der Score den Schwellwert erreicht oder
-/// überschreitet.
+/// Searches the history for the counterparty with the highest Jaro-Winkler
+/// similarity to the given `counterparty`. Returns the associated
+/// `category_id` when the score meets or exceeds the threshold.
 pub fn suggest_category_from_history(
     counterparty: &str,
     history: &[HistoryEntry],
@@ -16,8 +15,8 @@ pub fn suggest_category_from_history(
     suggest_category_from_history_scored(counterparty, history, threshold).map(|(id, _)| id)
 }
 
-/// Wie [`suggest_category_from_history`], gibt zusätzlich den Jaro-Winkler-
-/// Score des Treffers zurück.
+/// Like [`suggest_category_from_history`], but also returns the Jaro-Winkler
+/// score of the match.
 pub fn suggest_category_from_history_scored(
     counterparty: &str,
     history: &[HistoryEntry],

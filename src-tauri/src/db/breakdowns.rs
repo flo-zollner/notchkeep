@@ -14,8 +14,8 @@ pub struct BreakdownRowInput {
 /// Tolerance in bps for sum validation. 50 bps = 0.50%.
 pub const SUM_TOLERANCE_BPS: i64 = 50;
 
-/// Pure helper: prüft, ob die Summe der weights im akzeptablen Bereich [10000-tol, 10000+tol] liegt.
-/// Returns Ok(()) bei 0 rows (Spezialfall: Breakdown leeren ist erlaubt).
+/// Pure helper: checks whether the sum of weights is within the acceptable range [10000-tol, 10000+tol].
+/// Returns Ok(()) for 0 rows (special case: clearing a breakdown is allowed).
 pub fn validate_sum(rows: &[BreakdownRowInput]) -> Result<(), DbError> {
     if rows.is_empty() {
         return Ok(());

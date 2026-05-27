@@ -15,17 +15,17 @@
     institutionsById?: Map<number, Institution>;
     hideInstitution?: boolean;
     onclick?: () => void;
-    /** Aus welcher Account-Perspektive wird die Tx betrachtet.
-     *  Bei Depot-View (viewAccountId === tx.holding_account_id) wird das
-     *  Vorzeichen geflippt: Buy = Zufluss (+), Sell = Abfluss (−). */
+    /** From which account perspective the transaction is viewed.
+     *  In depot view (viewAccountId === tx.holding_account_id) the sign is
+     *  flipped: Buy = inflow (+), Sell = outflow (−). */
     viewAccountId?: number;
   }
 
   let { tx, accounts, categories, lang, hide, hideAccount = false, bucketsById, institutionsById, hideInstitution = false, onclick, viewAccountId }: Props = $props();
 
-  // Vorzeichen aus Depot-Sicht flippen (Doppelbuchung): wenn wir das Depot
-  // betrachten und die Tx eigentlich am Cash-Konto hängt, ist ein Kauf für
-  // das Depot ein Zufluss (positiv), ein Verkauf ein Abfluss (negativ).
+  // Flip sign for depot view (double-entry): when viewing the depot and the
+  // transaction is actually on the cash account, a buy is an inflow (positive)
+  // and a sell is an outflow (negative).
   const isDepotView = $derived(
     viewAccountId != null
       && tx.holding_account_id === viewAccountId
@@ -59,10 +59,10 @@
     cat?.name ?? (lang === 'de' ? 'Unkategorisiert' : 'Uncategorized')
   );
   const description = $derived(tx.manual_note?.trim() || tx.purpose?.trim() || '');
-  // Bei Trade-Tx blenden wir description aus dem subtitle aus — purpose
-  // (= Security-Name) ist schon im title; doppelte Anzeige vermeiden.
-  // Wenn der User aber manuell eine Notiz hinzugefügt hat (manual_note),
-  // dann ist das informativ und bleibt sichtbar.
+  // For trade transactions we omit description from the subtitle — purpose
+  // (= security name) is already in the title; avoid duplicate display.
+  // However, if the user has added a manual note (manual_note), that is
+  // informative and stays visible.
   const subtitleDescription = $derived(
     isTrade
       ? (tx.manual_note?.trim() ?? '')
@@ -73,16 +73,15 @@
       ? `${catLabel}${subtitleDescription ? ' · ' + subtitleDescription : ''}`
       : `${catLabel} · ${acc?.name ?? '—'}${subtitleDescription ? ' · ' + subtitleDescription : ''}`
   );
-  // Bei Trade-Tx (Buy/Sell/Dividend/Corp-Action) wird der Titel zu
-  // "<Kind> von <Security-Name>" statt dem Broker-Counterparty — die
-  // Wertpapier-Aktion ist informativer als "flatexDEGIRO".
-  // Fusion-Out/Fusion-In (beide kind='corporate_action') bekommen einen
-  // expliziten Richtungs-Titel, weil sonst zwei nahezu identische Einträge
-  // in der Liste stehen.
+  // For trade transactions (buy/sell/dividend/corp-action) the title becomes
+  // "<kind> of <security name>" instead of the broker counterparty — the
+  // securities action is more informative than "flatexDEGIRO".
+  // Fusion-out/fusion-in (both kind='corporate_action') get an explicit
+  // directional title to avoid two nearly identical entries in the list.
   const title = $derived.by(() => {
     const connector = t().common.tradeTitleConnector;
-    // purpose hat bei Fusion ein "Fusion: "-Präfix vom Parser — strippen
-    // damit das nicht doppelt steht ("Fusion-Ausbuchung von Fusion: X").
+    // purpose has a "Fusion: " prefix from the parser — strip it
+    // so it doesn't appear doubled ("Fusion-debit of Fusion: X").
     const cleanedPurpose = tx.purpose?.replace(/^Fusion:\s*/, '') ?? '';
     if (tx.trade_side === 'fusion_out' && cleanedPurpose) {
       return `${t().common.tradeFusionOut} ${connector} ${cleanedPurpose}`;

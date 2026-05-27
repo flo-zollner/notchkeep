@@ -62,21 +62,21 @@ pub struct Transaction {
     pub bucket_id: Option<i64>,
     pub kind: String,
     pub counterparty_iban: Option<String>,
-    /// Account-ID der zugehörigen `securities_trades.account_id`, NUR für
-    /// bestandsändernde Sides (buy/sell/corp_action/fusion_in/fusion_out).
-    /// `None` für Cash-only Tx und Dividenden/KESt. Wird nur vom
-    /// `list_transactions`-Pfad gesetzt (LEFT JOIN); andere Queries lassen
-    /// es leer via `#[sqlx(default)]`. Für UI-Filter, das die Doppelbuchung
-    /// (Cash-Konto vs Depot) auflöst.
+    /// Account ID of the associated `securities_trades.account_id`, ONLY for
+    /// holding-changing sides (buy/sell/corp_action/fusion_in/fusion_out).
+    /// `None` for cash-only Tx and dividends/withholding tax. Set only by the
+    /// `list_transactions` path (LEFT JOIN); other queries leave it empty via
+    /// `#[sqlx(default)]`. Used by the UI filter that resolves the double-entry
+    /// (cash account vs depot).
     #[sqlx(default)]
     pub holding_account_id: Option<i64>,
-    /// `securities_trades.side` der zugehörigen Trade-Detail-Zeile. Wird vom
-    /// UI gebraucht um Fusion-Out vs Fusion-In zu unterscheiden (beide haben
-    /// `kind='corporate_action'`, nur side erkennt die Richtung). `None`
-    /// für Cash-only Tx ohne Trade-Verknüpfung.
-    /// Pointer auf die gepaarte Tx wenn diese als Inter-Account-Transfer
-    /// erkannt wurde (oder die automatisch erzeugte Gegenbuchung selbst ist).
-    /// `None` für normale Tx ohne Pairing.
+    /// `securities_trades.side` of the associated trade-detail row. Needed by
+    /// the UI to distinguish fusion-out from fusion-in (both have
+    /// `kind='corporate_action'`; only side reveals the direction). `None`
+    /// for cash-only Tx without a trade link.
+    /// Pointer to the paired Tx when it has been identified as an inter-account
+    /// transfer (or is itself the automatically created counter-entry).
+    /// `None` for ordinary Tx without pairing.
     pub paired_tx_id: Option<i64>,
     #[sqlx(default)]
     pub trade_side: Option<String>,
@@ -193,8 +193,8 @@ pub struct SecurityTrade {
     pub unit_price_micro: Option<i64>,
     pub fee_cents: i64,
     pub tax_cents: i64,
-    pub kest_cents: i64,              // NEU
-    pub withholding_tax_cents: i64,   // NEU
+    pub kest_cents: i64,              // NEW
+    pub withholding_tax_cents: i64,   // NEW
     pub fx_rate_micro: Option<i64>,
-    pub account_id: Option<i64>,    // NEU — depot-Konto wenn explizit geroutet
+    pub account_id: Option<i64>,    // NEW — depot account when explicitly routed
 }

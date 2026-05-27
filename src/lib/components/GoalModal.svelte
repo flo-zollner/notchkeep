@@ -61,8 +61,8 @@
 
   const isEdit = $derived(!!goal);
 
-  // Tree-Aufbau: Top-Level-Kategorien mit ihren Kindern gruppiert.
-  // Waisen (parent_id zeigt auf nicht-existente Kategorie) hängen unten dran.
+  // Tree construction: top-level categories grouped with their children.
+  // Orphans (parent_id pointing to a non-existent category) are appended at the bottom.
   const catTree = $derived.by(() => {
     const parents = categories.filter((c) => c.parent_id === null);
     return parents.map((p) => ({
@@ -78,8 +78,8 @@
     ),
   );
 
-  // Falls categories später nachrutschen oder das Modal vor dem Load geöffnet
-  // wurde, einen sinnvollen Default für categoryId setzen.
+  // If categories arrive later or the modal was opened before loading completed,
+  // set a sensible default for categoryId.
   $effect(() => {
     if (categoryId === null && categories.length > 0 && !isEdit) {
       categoryId = categories[0].id;

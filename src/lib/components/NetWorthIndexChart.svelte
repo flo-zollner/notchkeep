@@ -7,9 +7,9 @@
     history: HistoryPoint[];
     height?: number;
     hide?: boolean;
-    /** Index des Baseline-Punkts im history array. null/undefined = erster valider Punkt. */
+    /** Index of the baseline point in the history array. null/undefined = first valid point. */
     baselineIdx?: number | null;
-    /** Callback wenn User auf einen Datenpunkt klickt um Baseline zu setzen. */
+    /** Callback when the user clicks a data point to set the baseline. */
     onBaselineChange?: (newIdx: number) => void;
   }
 

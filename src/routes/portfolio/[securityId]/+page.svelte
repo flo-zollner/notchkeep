@@ -61,9 +61,9 @@
     void loadAll();
   });
 
-  // Nach Background-Kurs-/FX-Refresh: Holding, Trades, Dividenden neu laden,
-  // damit EUR-konvertierte Werte und neue Preis-Stützstellen sichtbar werden.
-  // Chart-Re-Render via chartReloadKey++ erzwingen.
+  // After a background price/FX refresh: reload holding, trades, dividends
+  // so EUR-converted values and new price data points become visible.
+  // Force chart re-render via chartReloadKey++.
   $effect(() => {
     type Status = { stage: 'started' | 'completed' | 'failed' };
     const unlisten = listen<Status>('price_refresh_status', (e) => {
@@ -93,7 +93,7 @@
     }
   }
 
-  // Manual-Price-Editor
+  // Manual price editor
   let manualOpen = $state(false);
   let manualDate = $state<string>(new Date().toISOString().slice(0, 10));
   let manualPrice = $state<string>('');
@@ -145,7 +145,7 @@
     });
   }
 
-  // ─── Bucket allocation state ───────────────────────────────────────────────
+  // ─── Bucket allocation state ──────────────────────────────────────────────
   let allBuckets = $state<Bucket[]>([]);
   let allocDraft = $state<Array<{ bucketId: number; sharesMicroInput: string }>>([]);
   let allocSaving = $state(false);
@@ -191,7 +191,7 @@
 
   const heldSharesMicro = $derived(holding?.sharesMicro ?? 0);
   const heldMarketValueCents = $derived(holding?.marketValueCents ?? 0);
-  /** Cents pro Micro-Share. 0 falls keine Holding/Marktwert. */
+  /** Cents per micro-share. 0 if no holding/market value. */
   const valuePerMicro = $derived(
     heldSharesMicro > 0 ? heldMarketValueCents / heldSharesMicro : 0
   );

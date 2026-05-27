@@ -81,7 +81,7 @@ pub async fn month_overview(
     validate_month(month)?;
     let pool = state.pool();
 
-    // 1. Kategorien-Liste (id, name, rollover_enabled).
+    // 1. Category list (id, name, rollover_enabled).
     let cats: Vec<(i64, String, bool)> = sqlx::query_as(
         "SELECT id, name, rollover_enabled FROM categories ORDER BY name COLLATE NOCASE ASC",
     )
@@ -89,11 +89,11 @@ pub async fn month_overview(
     .await
     .map_err(|e| CommandError { message: e.to_string() })?;
 
-    // 2. Effective Budgets pro Kategorie (Forward-Fill).
+    // 2. Effective budgets per category (forward-fill).
     let eff = db_budgets::effective_budgets_for_month(&pool, year, month).await?;
     let eff_map: std::collections::HashMap<i64, i64> = eff.into_iter().collect();
 
-    // 3. Explizite Overrides für den Zielmonat (zur Anzeige des ×-Icons).
+    // 3. Explicit overrides for the target month (for showing the ×-icon).
     let overrides: Vec<(i64, i64)> = sqlx::query_as(
         "SELECT category_id, amount_cents FROM category_budgets
           WHERE year = ?1 AND month = ?2",
@@ -105,8 +105,8 @@ pub async fn month_overview(
     .map_err(|e| CommandError { message: e.to_string() })?;
     let override_map: std::collections::HashMap<i64, i64> = overrides.into_iter().collect();
 
-    // 4. Spent pro Kategorie aus monthly_spending. Achtung: monthly_spending
-    // erwartet month: u32. Nach validate_month ist month in 1..=12, also safe cast.
+    // 4. Spent per category from monthly_spending. Note: monthly_spending
+    // expects month: u32. After validate_month, month is in 1..=12, so the cast is safe.
     let spending = db_aggregates::monthly_spending(&pool, year, month as u32).await?;
     let spent_map: std::collections::HashMap<i64, i64> = spending
         .into_iter()
@@ -133,9 +133,9 @@ pub async fn month_overview(
     Ok(result)
 }
 
-/// Summe aller Ausgaben ohne Kategorie (category_id IS NULL) im gegebenen
-/// Monat. Trade-Sides (transfer, buy, sell, corporate_action) werden
-/// ausgeschlossen — selbe Filterung wie monthly_spending. Positive Cents.
+/// Sum of all expenses without a category (category_id IS NULL) in the given
+/// month. Trade sides (transfer, buy, sell, corporate_action) are excluded —
+/// same filtering as monthly_spending. Positive cents.
 #[tauri::command]
 pub async fn uncategorized_monthly_spent(
     state: State<'_, DbState>,
@@ -175,15 +175,15 @@ pub async fn uncategorized_monthly_spent(
 #[derive(Debug, Clone, serde::Serialize, sqlx::FromRow)]
 #[serde(rename_all = "camelCase")]
 pub struct InvestmentFlow {
-    pub buys_cents: i64,       // positive (absolute Käufe)
-    pub sells_cents: i64,      // positive (absolute Verkäufe-Erlöse)
-    pub dividends_cents: i64,  // positive (Dividenden-Einnahmen)
-    pub net_invested_cents: i64, // buys − sells (positive = netto Cash in Anlagen)
+    pub buys_cents: i64,       // positive (absolute purchases)
+    pub sells_cents: i64,      // positive (absolute sale proceeds)
+    pub dividends_cents: i64,  // positive (dividend income)
+    pub net_invested_cents: i64, // buys − sells (positive = net cash into investments)
 }
 
-/// Investment-Flow für einen Monat: separate Summen für buy/sell/dividend
-/// auf Cash-Konten (kind in transactions, nicht securities_trades).
-/// Alle Zahlen positiv; net_invested = buys − sells.
+/// Investment flow for a month: separate totals for buy/sell/dividend
+/// on cash accounts (kind in transactions, not securities_trades).
+/// All values positive; net_invested = buys − sells.
 #[tauri::command]
 pub async fn investment_flow_for_month(
     state: State<'_, DbState>,
@@ -202,21 +202,21 @@ pub async fn investment_flow_for_month(
         },
     );
 
-    // buy: amount_cents ist negativ (Cash raus). Wir wollen die ABSOLUTE Summe.
+    // buy: amount_cents is negative (cash out). We want the ABSOLUTE sum.
     let (buys,): (i64,) = sqlx::query_as(
         "SELECT COALESCE(SUM(-amount_cents), 0) FROM transactions
           WHERE kind = 'buy' AND booking_date >= ?1 AND booking_date < ?2"
     ).bind(&from).bind(&to).fetch_one(&pool).await
      .map_err(|e| CommandError { message: e.to_string() })?;
 
-    // sell: amount_cents positiv (Cash rein) — direkte Summe.
+    // sell: amount_cents positive (cash in) — direct sum.
     let (sells,): (i64,) = sqlx::query_as(
         "SELECT COALESCE(SUM(amount_cents), 0) FROM transactions
           WHERE kind = 'sell' AND booking_date >= ?1 AND booking_date < ?2"
     ).bind(&from).bind(&to).fetch_one(&pool).await
      .map_err(|e| CommandError { message: e.to_string() })?;
 
-    // dividend: amount_cents positiv — direkte Summe.
+    // dividend: amount_cents positive — direct sum.
     let (dividends,): (i64,) = sqlx::query_as(
         "SELECT COALESCE(SUM(amount_cents), 0) FROM transactions
           WHERE kind = 'dividend' AND booking_date >= ?1 AND booking_date < ?2"

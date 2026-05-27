@@ -48,10 +48,10 @@
   let flow = $state<MonthlyFlow[]>([]);
   let loading = $state(true);
 
-  // Compare-Tab: zwei beliebige Perioden gegeneinander.
+  // Compare tab: two arbitrary periods against each other.
   type PeriodMode = 'range' | 'month' | 'custom';
 
-  // Defaults: A = letzter Monat, B = dieser Monat (Status quo des alten Reports)
+  // Defaults: A = last month, B = this month (status quo of the old report)
   const threeAgo = stepMonth(curYear, curMonth, -3);
   const defaultCustomFrom = monthStart(threeAgo.y, threeAgo.m);
   const defaultCustomTo = monthStart(curYear, curMonth);
@@ -84,7 +84,7 @@
     return r === 'all' ? t().common.all : r;
   }
 
-  /** Differenz in Tagen zwischen zwei ISO-Daten (halboffenes Intervall). */
+  /** Difference in days between two ISO dates (half-open interval). */
   function dayDiff(fromIso: string, toIso: string): number {
     const a = Date.parse(fromIso);
     const b = Date.parse(toIso);
@@ -93,13 +93,13 @@
   }
 
   function shortDate(iso: string): string {
-    // ISO 'YYYY-MM-DD' → 'DD.MM.YY' für kompaktes Range-Label.
+    // ISO 'YYYY-MM-DD' → 'DD.MM.YY' for a compact range label.
     const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})/);
     if (!m) return iso;
     return `${m[3]}.${m[2]}.${m[1].slice(2)}`;
   }
 
-  /** Liefert from/to (halboffen), Divisor zum Normalisieren (für Ø) und ein UI-Label. */
+  /** Returns from/to (half-open), a divisor for normalization (for averages), and a UI label. */
   function periodToQuery(
     mode: PeriodMode,
     range: RangeId,
@@ -115,7 +115,7 @@
       return { from, to: monthStart(nx.y, nx.m), divisor: 1, label: monthLabel(year, month) };
     }
     if (mode === 'custom') {
-      // 30,4375 ≈ Mittel-Tage pro Monat (Gregorian). Für Ø rechnen wir Monats-Äquivalent.
+      // 30.4375 ≈ average days per month (Gregorian). For averages we compute the month equivalent.
       const days = dayDiff(customFrom, customTo);
       const months = Math.max(1, days / 30.4375);
       const divisor = avg ? months : 1;
@@ -123,7 +123,7 @@
       const label = avg ? `Ø ${range}` : range;
       return { from: customFrom, to: customTo, divisor, label };
     }
-    // 'range': letzte N Monate bis (exklusive) Anfang des nächsten Monats.
+    // 'range': last N months up to (exclusive) start of next month.
     const months = RANGE_MONTHS[range];
     const nx = stepMonth(curYear, curMonth, 1);
     const to = monthStart(nx.y, nx.m);
@@ -134,7 +134,7 @@
     return { from, to, divisor, label };
   }
 
-  // Komposition-Tab (Sankey)
+  // Composition tab (Sankey)
   type PeriodKind = 'range' | 'month';
   let periodKind = $state<PeriodKind>('range');
   let rangeId = $state<RangeId>('1M');

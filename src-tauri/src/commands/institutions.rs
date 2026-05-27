@@ -45,10 +45,10 @@ fn normalize_payload(p: &mut NewInstitutionPayload) {
 fn normalize_str_uppercase_inner(v: &mut Option<Option<String>>) {
     if let Some(Some(s)) = v {
         let cleaned: String = s.chars().filter(|c| !c.is_whitespace()).collect::<String>().to_uppercase();
-        // Leer nach Trim → explizit löschen (Some(None)); not-present bleibt unverändert.
+        // Empty after trim → explicitly clear (Some(None)); not-present stays unchanged.
         *v = Some(if cleaned.is_empty() { None } else { Some(cleaned) });
     }
-    // None outer = preserve; Some(None) = clear → keine Änderung nötig.
+    // None outer = preserve; Some(None) = clear → no change needed.
 }
 
 fn normalize_update_payload(p: &mut UpdateInstitutionPayload) {
@@ -150,7 +150,7 @@ mod tests {
 
     #[tokio::test]
     async fn list_get_round_trip_via_db_layer() {
-        // State<'_> nicht direkt instanziierbar; gegen db_inst testen.
+        // State<'_> cannot be directly instantiated; test against db_inst instead.
         let pool = connect_memory().await.unwrap();
         let inst = create_institution(&pool, NewInstitutionPayload {
             name: "X".into(), icon: None, color: None, bic: None, country: None, note: None,

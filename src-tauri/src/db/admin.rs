@@ -24,8 +24,8 @@ pub struct BackupValidation {
     pub error: Option<String>,
 }
 
-/// Schreibt einen sauberen Snapshot der aktiven DB nach `target_path`
-/// via `VACUUM INTO ?`. Funktioniert auch wenn die aktive DB im WAL-Modus ist.
+/// Writes a clean snapshot of the active DB to `target_path`
+/// via `VACUUM INTO ?`. Works even when the active DB is in WAL mode.
 pub async fn backup_to(pool: &SqlitePool, target_path: &Path) -> DbResult<u64> {
     let target_str = target_path.to_string_lossy().into_owned();
     sqlx::query("VACUUM INTO ?")
@@ -38,8 +38,8 @@ pub async fn backup_to(pool: &SqlitePool, target_path: &Path) -> DbResult<u64> {
     Ok(bytes)
 }
 
-/// Öffnet `source_path` readonly, prüft Schema und liefert Row-Counts.
-/// Returnt `ok = false` mit `error`-Message wenn keine valid Notchkeep-DB.
+/// Opens `source_path` read-only, validates the schema, and returns row counts.
+/// Returns `ok = false` with an `error` message if not a valid Notchkeep DB.
 pub async fn validate_backup(source_path: &Path) -> BackupValidation {
     let zero_counts = BackupRowCounts {
         transactions: 0,
@@ -54,7 +54,7 @@ pub async fn validate_backup(source_path: &Path) -> BackupValidation {
             ok: false,
             schema_version: None,
             row_counts: zero_counts,
-            error: Some("Datei nicht gefunden".to_string()),
+            error: Some("File not found".to_string()),
         };
     }
 
@@ -70,7 +70,7 @@ pub async fn validate_backup(source_path: &Path) -> BackupValidation {
                 ok: false,
                 schema_version: None,
                 row_counts: zero_counts,
-                error: Some(format!("SQLite-Datei kann nicht geöffnet werden: {e}")),
+                error: Some(format!("Cannot open SQLite file: {e}")),
             };
         }
     };
@@ -87,7 +87,7 @@ pub async fn validate_backup(source_path: &Path) -> BackupValidation {
             ok: false,
             schema_version: None,
             row_counts: zero_counts,
-            error: Some("Keine Notchkeep-DB (Tabelle _sqlx_migrations fehlt)".to_string()),
+            error: Some("Not a Notchkeep DB (table _sqlx_migrations missing)".to_string()),
         };
     }
 
@@ -119,12 +119,11 @@ pub async fn validate_backup(source_path: &Path) -> BackupValidation {
     }
 }
 
-/// Erstellt eine leere DB an `path` (löscht vorhandene). Returnt einen
-/// frischen Pool mit gelaufenen Migrations.
+/// Creates an empty DB at `path` (deletes any existing file). Returns a
+/// fresh pool with migrations applied.
 ///
-/// **Wichtig:** Der bisherige Pool (falls vorhanden) muss vor diesem
-/// Aufruf geschlossen sein — sonst hält Windows das File-Handle und
-/// `fs::remove_file` schlägt fehl.
+/// **Important:** Any existing pool must be closed before calling this —
+/// otherwise Windows holds the file handle and `fs::remove_file` fails.
 pub async fn wipe_and_recreate(path: &Path) -> DbResult<SqlitePool> {
     if path.exists() {
         std::fs::remove_file(path)
@@ -137,10 +136,10 @@ pub async fn wipe_and_recreate(path: &Path) -> DbResult<SqlitePool> {
     connect_file(path).await
 }
 
-/// Kopiert `source_path` über `target_path` und öffnet das Ergebnis als Pool
-/// (mit Migrations, falls Backup ältere Version war).
+/// Copies `source_path` over `target_path` and opens the result as a pool
+/// (applying migrations if the backup was from an older schema version).
 ///
-/// **Wichtig:** Wie wipe_and_recreate — vorheriger Pool muss geschlossen sein.
+/// **Important:** Same as wipe_and_recreate — the existing pool must be closed first.
 pub async fn restore_from(source_path: &Path, target_path: &Path) -> DbResult<SqlitePool> {
     if let Some(parent) = target_path.parent() {
         std::fs::create_dir_all(parent)
@@ -173,7 +172,7 @@ mod tests {
 
         let pool2 = connect_file(&src).await.unwrap();
         let bytes = backup_to(&pool2, &dst).await.unwrap();
-        assert!(bytes > 0, "Backup-File muss > 0 bytes haben");
+        assert!(bytes > 0, "Backup file must be > 0 bytes");
         assert!(dst.exists());
     }
 
@@ -195,7 +194,7 @@ mod tests {
         let dir = tempdir().unwrap();
         let report = validate_backup(&dir.path().join("nope.sqlite")).await;
         assert!(!report.ok);
-        assert!(report.error.unwrap().contains("nicht gefunden"));
+        assert!(report.error.unwrap().contains("not found"));
     }
 
     #[tokio::test]
@@ -293,7 +292,7 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore = "WIP: restore_from refactor unfinished (siehe import_flow/aggregates WIP)"]
+    #[ignore = "WIP: restore_from refactor unfinished (see import_flow/aggregates WIP)"]
     async fn restore_from_overwrites_target() {
         let dir = tempdir().unwrap();
         let src = dir.path().join("backup.sqlite");

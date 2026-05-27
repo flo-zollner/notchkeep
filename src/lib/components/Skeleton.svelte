@@ -1,12 +1,12 @@
 <script lang="ts">
   interface Props {
-    /** Höhe in px oder z.B. "12px" / "2em". Default 12px. */
+    /** Height in px or e.g. "12px" / "2em". Default 12px. */
     height?: string | number;
-    /** Breite. Default 100%. */
+    /** Width. Default 100%. */
     width?: string | number;
-    /** Border-Radius. Default 4px. */
+    /** Border radius. Default 4px. */
     radius?: string | number;
-    /** Margin oben (px). */
+    /** Top margin (px). */
     marginTop?: string | number;
   }
   let { height = 12, width = '100%', radius = 4, marginTop = 0 }: Props = $props();

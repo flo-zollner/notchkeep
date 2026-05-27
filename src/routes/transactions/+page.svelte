@@ -51,7 +51,7 @@
     return n;
   });
 
-  // ─── Multi-Select / Bulk Operations ────────────────────────────────────────
+  // ─── Multi-select / bulk operations ────────────────────────────────────────
   let selectedIds = $state<Set<number>>(new Set());
   let bulkBusy = $state(false);
   let bulkError = $state<string | null>(null);
@@ -117,7 +117,7 @@
 
   async function bulkDelete() {
     if (selectedIds.size === 0) return;
-    if (!confirm(`${selectedIds.size} Transaktionen wirklich löschen?`)) return;
+    if (!confirm(`Really delete ${selectedIds.size} transactions?`)) return;
     bulkBusy = true; bulkError = null;
     try {
       const tradeKinds = ['buy', 'sell', 'dividend', 'corporate_action'];
@@ -178,7 +178,7 @@
     filterMinAmount = filterMinAmount === 10000 ? null : 10000;
   }
 
-  // URL-Params lesen (z.B. ?categoryId=1&from=2026-05-01&to=2026-05-31 vom Sankey-Diagramm)
+  // Read URL params (e.g. ?categoryId=1&from=2026-05-01&to=2026-05-31 from the Sankey diagram)
   $effect(() => {
     const url = page.url;
     const cat = url.searchParams.get('categoryId');
@@ -192,13 +192,13 @@
     if (to !== null) filterTo = to;
   });
 
-  // FAB-Wiring (Variant B): ?new=1 öffnet die "Neue Transaktion"-Maske
+  // FAB wiring (variant B): ?new=1 opens the "New Transaction" form
   $effect(() => {
     const newFlag = page.url.searchParams.get('new');
     if (newFlag === '1') {
       modalTx = null;
       modalOpen = true;
-      // URL bereinigen, damit Reload das Modal nicht erneut öffnet
+      // Clean up the URL so a reload doesn't reopen the modal
       goto('/transactions', { replaceState: true, noScroll: true });
     }
   });
@@ -233,13 +233,13 @@
     transactions = transactions.filter((t) => t.id !== id);
   }
 
-  // ── Server-side paginated loading ───────────────────────────────────────
+  // ── Server-side paginated loading ──────────────────────────────────────
   const PAGE_SIZE = 200;
   let cursor = $state<string | null>(null);
   let hasMore = $state(false);
   let loadingMore = $state(false);
   let aggregate = $state<TxAggregate>({ inCents: 0, outCents: 0, count: 0 });
-  /** Lokale Anzeige der Kategorien-Vielfalt, baut sich aus geladenen Pages auf. */
+  /** Local display of category diversity, built up from loaded pages. */
   let usedCategoryIds = $state<Set<number>>(new Set());
 
   function buildServerFilter(): TxFilter {
@@ -313,12 +313,12 @@
     }
   }
 
-  // Initial metadata + erster Page-Load.
+  // Initial metadata + first page load.
   $effect(() => {
     void loadMetadata();
   });
 
-  // Debounced reload bei Filter-Change.
+  // Debounced reload on filter change.
   const filterKey = $derived(JSON.stringify({
     search, filterCat, filterAcc, filterInstitution, filterBucket,
     filterFrom, filterTo, filterUncategorized, filterMinAmount,
@@ -356,14 +356,14 @@
 
   const activeAccounts = $derived(accounts.filter((a) => !a.archived));
 
-  // Konto-Picker: wenn Institution gefiltert ist, nur Konten dieses Instituts anzeigen.
+  // Account picker: when an institution is filtered, show only accounts of that institution.
   const filteredAccountsForPicker = $derived(
     filterInstitution === 'all'
       ? activeAccounts
       : activeAccounts.filter((a) => a.institution_id === filterInstitution)
   );
 
-  // Konto-Filter resetten, wenn das gewählte Konto nicht mehr zur Institution passt.
+  // Reset the account filter if the selected account no longer belongs to the institution.
   $effect(() => {
     if (filterAcc !== 'all'
         && filterInstitution !== 'all'

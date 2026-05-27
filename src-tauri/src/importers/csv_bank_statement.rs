@@ -8,60 +8,60 @@ pub enum CsvEncoding {
     Utf16Le,
 }
 
-/// Signatur für TR-spezifische Trade-Extraktion. Wird vom generischen Parser
-/// pro Row aufgerufen, wenn `cfg.trade_extractor.is_some()`. Liefert
-/// `(kind_override, trade_fields)` — beide optional.
+/// Signature for TR-specific trade extraction. Called by the generic parser
+/// for each row when `cfg.trade_extractor.is_some()`. Returns
+/// `(kind_override, trade_fields)` — both optional.
 pub type TradeExtractorFn = fn(
     &csv::StringRecord,
     &HashMap<String, usize>,
 ) -> ImportResult<(Option<String>, Option<RawTradeFields>)>;
 
-/// Vollständig deklarative Beschreibung eines CSV-Banking-Format. Spalten
-/// werden per Header-NAME nachgeschlagen (case-insensitive, trim) — Reordering,
-/// zusätzliche Spalten und fehlende optionale Spalten sind erlaubt.
+/// Fully declarative description of a CSV banking format. Columns are looked
+/// up by header NAME (case-insensitive, trimmed) — column reordering,
+/// extra columns, and missing optional columns are all permitted.
 pub struct CsvBankStatementConfig {
-    /// Wird als `transactions.source` gespeichert.
+    /// Stored as `transactions.source`.
     pub source: &'static str,
     pub encoding: CsvEncoding,
     pub delimiter: u8,
-    /// Pflicht — Hard error wenn nicht in CSV-Header.
+    /// Required — hard error if not present in the CSV header.
     pub date_field: &'static str,
-    /// `chrono::NaiveDate::parse_from_str`-Format.
+    /// `chrono::NaiveDate::parse_from_str` format string.
     pub date_format: &'static str,
-    /// Pflicht — Hard error wenn nicht in CSV-Header.
+    /// Required — hard error if not present in the CSV header.
     pub amount_field: &'static str,
-    /// Optional. None oder Spalte fehlt → `default_currency` wird verwendet.
+    /// Optional. `None` or missing column → `default_currency` is used.
     pub currency_field: Option<&'static str>,
     pub default_currency: &'static str,
-    /// Erste non-empty Spalte aus der Liste wird zu `RawTransaction.counterparty`.
-    /// Fehlende konfigurierte Spalten produzieren Warnings.
+    /// First non-empty column from the list becomes `RawTransaction.counterparty`.
+    /// Configured columns that are missing from the header produce warnings.
     pub counterparty_fields: &'static [&'static str],
     pub counterparty_iban_field: Option<&'static str>,
-    /// Erste non-empty Spalte → `RawTransaction.purpose`. Warnings bei fehlend.
+    /// First non-empty column → `RawTransaction.purpose`. Warnings if missing.
     pub purpose_fields: &'static [&'static str],
     pub raw_ref_field: Option<&'static str>,
-    /// Wenn true, Zeilen mit `amount_cents == 0` werden silent geskippt
-    /// (zählen NICHT als `parsed`, nicht als `skipped`).
+    /// When true, rows with `amount_cents == 0` are silently skipped
+    /// (counted neither as `parsed` nor as `skipped`).
     pub skip_zero_amounts: bool,
-    /// Optionaler Hook für Trade-Fields (TR).
+    /// Optional hook for trade field extraction (TR).
     pub trade_extractor: Option<TradeExtractorFn>,
-    /// Optionaler Text-Preprocessor, der nach `decode_bytes` und vor dem
-    /// CSV-Reader läuft. Workaround für nicht-RFC-konforme CSV-Formate
-    /// (z.B. Sparkasse George mit unquoted Tausender-Komma in Amount-/
-    /// Booking-details-Feldern). `None` = kein Preprocessing.
+    /// Optional text preprocessor that runs after `decode_bytes` and before
+    /// the CSV reader. Workaround for non-RFC-compliant CSV formats
+    /// (e.g. Sparkasse George with unquoted thousands-comma in amount /
+    /// booking-details fields). `None` = no preprocessing.
     pub preprocess: Option<fn(&str) -> String>,
 }
 
-/// Hauptfunktion. Liest CSV-Bytes, validiert Header gegen die Config,
-/// iteriert über alle Datenzeilen und baut `RawTransaction`-Instanzen.
+/// Main entry point. Reads CSV bytes, validates the header against the config,
+/// iterates over all data rows, and builds `RawTransaction` instances.
 ///
 /// Errors:
-///   - Encoding-Decode-Fehler
-///   - Required-Spalte (`date_field`, `amount_field`) im Header nicht gefunden
-///   - Parse-Fehler in einer Datenzeile (Datum oder Betrag)
+///   - Encoding decode failure
+///   - Required column (`date_field`, `amount_field`) not found in the CSV header
+///   - Parse failure in a data row (date or amount)
 ///
-/// Warnings (nicht-fatal, in `ParseResult.warnings`):
-///   - Konfigurierte optionale Spalte nicht im Header gefunden
+/// Warnings (non-fatal, returned in `ParseResult.warnings`):
+///   - Configured optional column not found in the CSV header
 pub fn parse_csv_bank_statement(
     bytes: &[u8],
     cfg: &CsvBankStatementConfig,
@@ -81,7 +81,7 @@ pub fn parse_csv_bank_statement(
 
     let mut warnings: Vec<String> = Vec::new();
 
-    // Required-Spalten prüfen
+    // Check required columns
     for required in [cfg.date_field, cfg.amount_field] {
         if !header_map.contains_key(&normalize_header(required)) {
             return Err(ImportError::Parse(format!(
@@ -91,7 +91,7 @@ pub fn parse_csv_bank_statement(
         }
     }
 
-    // Optionale konfigurierte Spalten: fehlend → Warning
+    // Optional configured columns: missing → warning
     let optional_singles: &[Option<&'static str>] = &[
         cfg.currency_field,
         cfg.counterparty_iban_field,
@@ -215,13 +215,13 @@ fn lookup_field<'a>(
     record.get(idx)
 }
 
-/// Parst eine Geldzahl in ganzzahlige Cent. Akzeptiert englisches Format mit
-/// `.` als Dezimaltrenner und optional `,` als Tausender (wird vor dem Parsen
-/// gestripped). Fractional-Part wird rechts mit `0` auf mindestens 2 Stellen
-/// aufgefüllt und auf 2 Stellen abgeschnitten (kein Runden — TR liefert
-/// sechs Stellen, von denen die letzten vier immer 0 sind).
+/// Parses a monetary string into integer cents. Accepts English format with
+/// `.` as the decimal separator and an optional `,` thousands separator
+/// (stripped before parsing). The fractional part is right-padded with `0`
+/// to at least 2 digits and truncated to 2 digits (no rounding — TR supplies
+/// six decimal places whose last four are always 0).
 ///
-/// Beispiele:
+/// Examples:
 /// - `"100.000000"` (TR) → 10_000
 /// - `"8,946.90"` (Sparkasse) → 894_690
 /// - `"-5,000.00"` → -500_000
@@ -231,7 +231,7 @@ pub(crate) fn parse_amount_cents(s: &str) -> ImportResult<i64> {
     if s.is_empty() {
         return Ok(0);
     }
-    // Tausender-Komma rausstrippen
+    // Strip thousands-comma
     let stripped: String = s.chars().filter(|c| *c != ',').collect();
 
     let negative = stripped.starts_with('-');
@@ -268,10 +268,10 @@ pub(crate) fn parse_amount_cents(s: &str) -> ImportResult<i64> {
     Ok(if negative { -cents } else { cents })
 }
 
-/// Dekodiert ein Byte-Slice in einen String gemäß dem konfigurierten Encoding.
-/// UTF-8: Optional-BOM (EF BB BF) wird gestripped. UTF-16 LE: BOM (FF FE) ist
-/// PFLICHT; ohne BOM ist es ein Fehler (zu verhindern, dass UTF-8-Bytes
-/// versehentlich als UTF-16 interpretiert werden).
+/// Decodes a byte slice to a string according to the configured encoding.
+/// UTF-8: optional BOM (EF BB BF) is stripped. UTF-16 LE: BOM (FF FE) is
+/// REQUIRED; missing BOM is an error (to prevent UTF-8 bytes from being
+/// accidentally interpreted as UTF-16).
 pub(crate) fn decode_bytes(bytes: &[u8], encoding: CsvEncoding) -> ImportResult<String> {
     match encoding {
         CsvEncoding::Utf8 => {
@@ -346,7 +346,7 @@ mod tests {
 
     #[test]
     fn parse_required_amount_column_missing_errors() {
-        // amount-Spalte fehlt im Header → hard error.
+        // amount column missing from header → hard error.
         let csv = "date,currency,partner\n2026-05-01,EUR,SPAR\n";
         let err = parse_csv_bank_statement(csv.as_bytes(), &MINIMAL_CONFIG).unwrap_err();
         assert!(matches!(err, ImportError::Parse(msg) if msg.contains("amount") && msg.contains("required")));
@@ -390,7 +390,7 @@ mod tests {
 
     #[test]
     fn decode_utf16_le_with_bom() {
-        // "hi" als UTF-16 LE: 0xFF 0xFE 'h' 0x00 'i' 0x00
+        // "hi" as UTF-16 LE: 0xFF 0xFE 'h' 0x00 'i' 0x00
         let bytes = &[0xFF, 0xFE, b'h', 0x00, b'i', 0x00];
         let s = decode_bytes(bytes, CsvEncoding::Utf16Le).unwrap();
         assert_eq!(s, "hi");
@@ -471,7 +471,7 @@ mod tests {
     fn build_header_map_last_wins_on_duplicate_normalized_name() {
         let headers = ["Currency", "currency", "CURRENCY"];
         let map = build_header_map(headers.iter().copied());
-        // Letzter Eintrag gewinnt — deterministisches Verhalten bei Duplikaten.
+        // Last entry wins — deterministic behaviour on duplicates.
         assert_eq!(map.get("currency"), Some(&2));
     }
 
@@ -486,7 +486,7 @@ mod tests {
 
     #[test]
     fn parse_reordered_columns_work_via_name_lookup() {
-        // Spalten in anderer Reihenfolge als in MINIMAL_CONFIG erwartet.
+        // Columns in a different order than expected by MINIMAL_CONFIG.
         let csv = "ref,purpose,iban,partner,currency,amount,date\nxyz,coffee,AT01,SPAR,EUR,-13.03,2026-05-01\n";
         let result = parse_csv_bank_statement(csv.as_bytes(), &MINIMAL_CONFIG).unwrap();
         assert!(result.warnings.is_empty());
@@ -505,7 +505,7 @@ mod tests {
 
     #[test]
     fn parse_optional_currency_column_missing_warns_and_defaults() {
-        // currency-Spalte fehlt → Warning + default_currency.
+        // currency column missing → warning + default_currency.
         let csv = "date,amount,partner,iban,purpose,ref\n2026-05-01,-13.03,SPAR,AT01,coffee,xyz\n";
         let result = parse_csv_bank_statement(csv.as_bytes(), &MINIMAL_CONFIG).unwrap();
         assert_eq!(result.warnings.len(), 1);
@@ -527,7 +527,7 @@ mod tests {
 
     #[test]
     fn parse_zero_amount_kept_when_skip_disabled() {
-        // MINIMAL_CONFIG hat skip_zero_amounts=false
+        // MINIMAL_CONFIG has skip_zero_amounts=false
         let csv = "date,amount,currency,partner,iban,purpose,ref\n2026-05-01,0.00,EUR,X,,note,\n";
         let result = parse_csv_bank_statement(csv.as_bytes(), &MINIMAL_CONFIG).unwrap();
         assert_eq!(result.raws.len(), 1);

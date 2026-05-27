@@ -2,11 +2,11 @@ import type { Transaction } from '$lib/api';
 
 export interface DayGroup {
   date: string;       // YYYY-MM-DD
-  totalCents: number; // Summe amount_cents in dieser Gruppe (inkl. positives + negatives)
+  totalCents: number; // Sum of amount_cents in this group (including positive and negative)
   txs: Transaction[];
 }
 
-/** Gruppiert eine bereits absteigend nach Datum sortierte Tx-Liste in Tages-Buckets. */
+/** Groups a transaction list that is already sorted descending by date into day buckets. */
 export function groupByDay(txs: Transaction[]): DayGroup[] {
   const groups: DayGroup[] = [];
   let current: DayGroup | null = null;

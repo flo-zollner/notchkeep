@@ -4,7 +4,7 @@
   import { t } from '$lib/settings.svelte';
   import InstitutionModal from './InstitutionModal.svelte';
 
-  // i18n-Lookup ohne typed Property-Access — fehlende Keys fallen via ?? auf den Default zurück.
+  // i18n lookup without typed property access — missing keys fall back to the default via ??.
   const tx = () => t().common as unknown as Record<string, string | undefined>;
 
   interface Props {
@@ -15,20 +15,20 @@
   }
   let { account, onSave, onCancel, accounts = [] }: Props = $props();
 
-  // Lokale Arbeitskopie, damit Eingaben den Parent-State erst beim Save updaten.
+  // Local working copy so that edits only update parent state on save.
   /* svelte-ignore state_referenced_locally */
   let draft = $state<Account>({ ...account });
   let saving = $state(false);
   let error = $state<string | null>(null);
 
-  // Institut-Dropdown
+  // Institution dropdown
   let institutions = $state<Institution[]>([]);
   let showInstModal = $state(false);
 
   async function refreshInstitutions() {
     const visible = await listInstitutions(false);
     institutions = visible;
-    // Falls das Konto ein archiviertes Institut hat, das nicht in der visible-Liste ist:
+    // If the account references an archived institution not in the visible list:
     if (draft.institution_id != null && !visible.find((i) => i.id === draft.institution_id)) {
       institutions = await listInstitutions(true);
     }
@@ -45,7 +45,7 @@
   function handleInstitutionSelect(value: string) {
     if (value === '__create__') {
       showInstModal = true;
-      // Dropdown-Wert bleibt beim nächsten Render auf dem aktuellen institution_id
+      // Dropdown value stays on the current institution_id on the next render
     } else if (value === '') {
       draft.institution_id = null;
     } else {

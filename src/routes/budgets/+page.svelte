@@ -75,10 +75,10 @@
   const saveTimers = new Map<number, ReturnType<typeof setTimeout>>();
   const SAVE_DEBOUNCE_MS = 600;
 
-  // Slider-Max wird *einmal* pro (Kategorie, Jahr, Monat) initialisiert und nur dann
-  // angehoben, wenn der Wert die aktuelle Obergrenze überschreitet.
-  // Composite Key entkoppelt max vom Live-Budget und verhindert, dass der Daumen
-  // reaktiv bei 50 % hängt wenn man zwischen Monaten wechselt.
+  // Slider max is initialized *once* per (category, year, month) and only raised
+  // when the value exceeds the current upper bound.
+  // The composite key decouples max from the live budget and prevents the thumb
+  // from reactively sticking at 50 % when switching between months.
   let sliderMaxEur = $state<Map<string, number>>(new Map());
   const SLIDER_MIN_MAX_EUR = 300;
   const SLIDER_INIT_HEADROOM = 2;
@@ -130,19 +130,19 @@
       });
   });
 
-  // Heatmap erwartet Float-Euro und Wochentags-Offset (0=Mo) für den 1. des Monats.
+  // Heatmap expects float euros and a weekday offset (0=Mon) for the 1st of the month.
   const dailyEur = $derived(dailyCents.map((c) => c / 100));
   const heatmapOffset = $derived(((new Date(viewYear, viewMonth - 1, 1).getDay() + 6) % 7));
 
-  // Karte bleibt sichtbar sobald ein Budget gesetzt wurde (auch 0 €) ODER
-  // sobald es Ausgaben gibt. Entfernen passiert nur explizit via Remove-X.
+  // Card stays visible once a budget has been set (even 0 €) OR
+  // once there is spending. Removal only happens explicitly via the remove X.
   const rows = $derived(
     monthRows
       .filter((r) => r.budgetCents !== null || r.spentCents > 0)
       .sort((a, b) => b.spentCents - a.spentCents),
   );
 
-  // Gruppierung: budgeted (Budget gesetzt UND > 0) vs unbudgeted (kein/0 Budget aber Spending > 0)
+  // Grouping: budgeted (budget set AND > 0) vs unbudgeted (no/0 budget but spending > 0)
   const budgetedRows = $derived(
     monthRows
       .filter((r) => r.budgetCents !== null && r.budgetCents > 0)
@@ -154,7 +154,7 @@
       .sort((a, b) => b.spentCents - a.spentCents),
   );
 
-  // Combined "ungeplant": Spending in nicht-budgetierten Kategorien + uncategorized Tx
+  // Combined "unplanned": spending in unbudgeted categories + uncategorized transactions
   const nonBudgetedSpentCents = $derived(
     unbudgetedRows.reduce((s, r) => s + r.spentCents, 0) + uncategorizedSpentCents,
   );
@@ -166,10 +166,10 @@
   const sonstigeCls = $derived(sonstigeP > 100 ? 'over' : sonstigeP > 85 ? 'warn' : '');
   const sonstigeBudgetEur = $derived(sonstigeBudgetCents / 100);
 
-  // KPI-Totals inkludieren auch den Sonstige-Catch-all (Budget + Spending):
-  // - Budget = Summe Kategorie-Budgets + Sonstige-Budget
-  // - Spent = Summe Kategorie-Spending (rows enthält BUDGETIERT + UNBUDGETIERT) + uncategorized
-  //   (sonst Doppelzählung der unbudgetierten Kategorien).
+  // KPI totals also include the "other" catch-all (budget + spending):
+  // - Budget = sum of category budgets + other budget
+  // - Spent = sum of category spending (rows contains BUDGETED + UNBUDGETED) + uncategorized
+  //   (otherwise unbudgeted categories would be double-counted).
   const totalBudgetCents = $derived(
     rows.reduce((s, r) => s + (r.budgetCents ?? 0), 0) + sonstigeBudgetCents
   );
@@ -233,9 +233,9 @@
     void loadPrevYearSpending();
   }
 
-  /** Map categoryId → ∅ Ausgaben der letzten 6 vollen Kalendermonate vor dem aktuellen viewMonth. */
+  /** Map categoryId → average spending over the last 6 full calendar months before the current viewMonth. */
   let avgSpending6m = $state<Map<number, number>>(new Map());
-  /** Map categoryId → spent im gleichen Monat des Vorjahres. */
+  /** Map categoryId → spent in the same month of the previous year. */
   let prevYearSpent = $state<Map<number, number>>(new Map());
 
   async function loadPrevYearSpending() {
@@ -313,8 +313,8 @@
     const existing = categoriesById.get(catId);
     if (!existing) return;
     const next: Category = { ...existing, rollover_enabled: !existing.rollover_enabled };
-    // Optimistic lokal — categoriesById + monthRows-Eintrag mit-updaten,
-    // damit der Hint sofort verschwindet/erscheint.
+    // Optimistic local update — also update categoriesById + monthRows entry
+    // so the hint appears/disappears immediately.
     categoriesById.set(catId, next);
     categoriesById = new Map(categoriesById);
     const idx = monthRows.findIndex((r) => r.categoryId === catId);
@@ -335,9 +335,9 @@
   let addBudgetEur = $state<number | ''>('');
   let addSaving = $state(false);
 
-  // Kategorien ohne effektives Budget für viewMonth: entweder null (nie gesetzt)
-  // oder explizit 0 (User hat Slider auf 0 gezogen). In beiden Fällen soll die
-  // Kategorie im Hinzufügen-Popover wählbar sein, damit man sie re-aktivieren kann.
+  // Categories without an effective budget for viewMonth: either null (never set)
+  // or explicitly 0 (user dragged slider to 0). In both cases the category
+  // should be selectable in the add popover so it can be re-activated.
   const categoriesWithoutBudget = $derived(
     monthRows
       .filter((r) => (r.budgetCents ?? 0) === 0)
@@ -409,7 +409,7 @@
 {#if activeTab === 'month'}
 <div class="month-layout">
 
-  <!-- KPI-Strip -->
+  <!-- KPI strip -->
   <div class="kpi-strip">
     <div class="kpi-tile">
       <div class="kpi-label">Einnahmen</div>
@@ -443,7 +443,7 @@
     </div>
   </div>
 
-  <!-- Hero Progress Bar -->
+  <!-- Hero progress bar -->
   <div class="hero-progress card card-pad-lg">
     <div class="hero-head">
       <span class="hero-label">Monatsbudget</span>
@@ -457,7 +457,7 @@
     </div>
   </div>
 
-  <!-- Umschichtungen Geld → Anlagen -->
+  <!-- Cash → investments reallocation -->
   <div class="card card-pad-lg invest-flow">
     <div class="card-h">
       <h3 class="section-h">Umschichtungen Geld → Anlagen</h3>
@@ -502,7 +502,7 @@
     />
   </div>
 
-  <!-- Categories Card-Grid -->
+  <!-- Category card grid -->
   <div class="section-gap">
     <div class="card-h section-head-row">
       <h3 class="section-h">{t().common.perCat}</h3>
@@ -569,7 +569,7 @@
       </div>
     {:else}
       <div class="cat-grid">
-        <!-- Sonstige-Card immer zuerst -->
+        <!-- "Other" card always first -->
         <div class="cat-card cat-card-sonstige">
           <header class="cat-card-h">
             <span class="cat-ic" style:color="var(--accent)">
@@ -814,7 +814,7 @@
 {/if}
 
 <style>
-  /* ── Sticky topbar ─────────────────────────────────────────────── */
+  /* ── Sticky topbar ──────────────────────────────────────────────── */
   .page-sticky {
     position: sticky;
     top: 0;
@@ -870,7 +870,7 @@
       scroll-snap-align: start;
     }
 
-    /* Budget-Cards: 1-spaltig auf Phone */
+    /* Budget cards: 1-column on phone */
     .cat-grid { grid-template-columns: 1fr; gap: 8px; }
   }
 

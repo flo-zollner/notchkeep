@@ -14,7 +14,7 @@
 
   const moreActive = $derived.by(() => {
     const path = page.url.pathname;
-    // "Mehr" gilt als aktiv, wenn aktueller Pfad nicht in mobileTabs ist
+    // "More" is considered active when the current path is not among the mobileTabs
     return !mobileTabs.some((tab) => isActive(path, tab.href));
   });
 </script>

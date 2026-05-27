@@ -18,8 +18,8 @@
   }
   let { onClose }: Props = $props();
 
-  // ─── Form-State: Conditions als UI-Variante mit getrennten Feldern. Beim
-  // Save in serialisierte RuleCondition (value: string) umgewandelt.
+  // ─── Form state: conditions as UI variant with separate fields. Converted to
+  // serialised RuleCondition (value: string) on save.
 
   type CondForm = {
     field: MatchFieldId;
@@ -67,7 +67,7 @@
       : c.opRange;
   }
 
-  // ─── Encode/Decode zwischen API-Form (RuleCondition.value: string) und CondForm.
+  // ─── Encode/decode between API form (RuleCondition.value: string) and CondForm.
 
   function condToForm(c: RuleCondition, accounts: Account[]): CondForm {
     const f = emptyCond();
@@ -95,7 +95,7 @@
     return Math.round(n * 100);
   }
 
-  /** Liefert die serialisierte Condition oder `null`, wenn unvollständig/ungültig. */
+  /** Returns the serialised condition, or `null` if incomplete/invalid. */
   function formToCond(f: CondForm): RuleCondition | null {
     if (f.field === 'amount' && f.op === 'range') {
       const mi = eurStringToCents(f.rangeMinEur);
@@ -116,7 +116,7 @@
     return { field: f.field, op: f.op, value: f.text };
   }
 
-  // ─── Top-level State
+  // ─── Top-level state
 
   let rules = $state<Rule[]>([]);
   let categories = $state<Category[]>([]);

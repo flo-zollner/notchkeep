@@ -15,7 +15,7 @@ function detect(): Bp {
   return 'notebook';
 }
 
-/** Reactive aktuelle Breakpoint-Klasse. SSR-Default: notebook. */
+/** Reactive current breakpoint class. SSR default: notebook. */
 export const bp = readable<Bp>(detect(), (set) => {
   if (typeof window === 'undefined') return;
   const queries = [PHONE, TABLET, NOTEBOOK, DESKTOP].map((q) => window.matchMedia(q));

@@ -53,11 +53,11 @@ pub async fn connect_file(db_path: &Path) -> DbResult<SqlitePool> {
         .filename(db_path)
         .create_if_missing(true)
         .foreign_keys(true)
-        // WAL erlaubt concurrent reads während eines writes — wichtig wenn die
-        // DB in einem Syncthing-Ordner liegt und mehrere Lese-Operationen
-        // parallel laufen (Charts, Listen, Refresh).
+        // WAL allows concurrent reads during a write — important when the DB
+        // lives in a Syncthing folder and multiple read operations run in
+        // parallel (charts, lists, refresh).
         .journal_mode(sqlx::sqlite::SqliteJournalMode::Wal)
-        // NORMAL ist eine gute Balance bei WAL: durable beim app-crash, schnell.
+        // NORMAL is a good balance with WAL: durable on app-crash, fast.
         .synchronous(sqlx::sqlite::SqliteSynchronous::Normal);
     let pool = SqlitePoolOptions::new()
         .max_connections(5)
@@ -128,7 +128,7 @@ mod tests {
         )
         .fetch_all(&pool).await.unwrap();
         assert_eq!(rows.len(), 1);
-        // Bedingt: leere DB → kein TR-Institut.
+        // Conditional: empty DB → no TR institution.
         let (inst_cnt,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM institutions")
             .fetch_one(&pool).await.unwrap();
         assert_eq!(inst_cnt, 0);
@@ -145,7 +145,7 @@ mod tests {
         )
         .bind(acc.id).execute(&pool).await.unwrap();
 
-        // Auto-Migration-SQL nachfahren (idempotent):
+        // Replay the auto-migration SQL (idempotent):
         sqlx::query(
             "INSERT INTO institutions (name, icon, color, country)
              SELECT 'Trade Republic', 'bank', 'oklch(0.55 0.13 230)', 'DE'
@@ -157,7 +157,7 @@ mod tests {
         ).execute(&pool).await.unwrap();
 
         let reloaded = crate::db::accounts::get_account(&pool, acc.id).await.unwrap();
-        assert!(reloaded.institution_id.is_some(), "TR-Konto nicht zugewiesen");
+        assert!(reloaded.institution_id.is_some(), "TR account not assigned");
     }
 
     #[tokio::test]
@@ -171,7 +171,7 @@ mod tests {
 
     #[tokio::test]
     async fn migration_0016_backfill_routes_trade_to_broker_in_same_institution() {
-        // Setup: Institut mit Verrechnungskonto + Depot, Trade hängt an Verrechnung.
+        // Setup: institution with settlement account + depot, trade linked to settlement account.
         let pool = connect_memory().await.unwrap();
         sqlx::query("INSERT INTO institutions (name) VALUES ('TR')")
             .execute(&pool).await.unwrap();
@@ -181,7 +181,7 @@ mod tests {
             .await.unwrap();
         let depot = crate::db::accounts::create_account(&pool, "Depot", "broker", "EUR", None, None, Some(inst_id))
             .await.unwrap();
-        // Security + Tx + Trade einfügen (manuell, weil die heutige insert_trade_row keine account_id kennt)
+        // Insert security + tx + trade manually (current insert_trade_row does not know account_id)
         sqlx::query(
             "INSERT INTO securities (isin, name, asset_type) VALUES ('LU0000000001', 'TestETF', 'etf_equity')"
         ).execute(&pool).await.unwrap();
@@ -198,7 +198,7 @@ mod tests {
              VALUES (?1, ?2, 'buy', 5000000)"
         ).bind(tx_id).bind(sec_id).execute(&pool).await.unwrap();
 
-        // Backfill SQL nachfahren (idempotent — die Migration läuft nur einmal beim Connect)
+        // Replay the backfill SQL (idempotent — the migration runs only once on connect)
         sqlx::query(
             "UPDATE securities_trades AS st SET account_id = (
                 SELECT broker.id
@@ -215,7 +215,7 @@ mod tests {
              WHERE st.account_id IS NULL"
         ).execute(&pool).await.unwrap();
 
-        // Verify: securities_trades.account_id zeigt jetzt aufs Depot
+        // Verify: securities_trades.account_id now points to the depot
         let (st_acc,): (Option<i64>,) = sqlx::query_as("SELECT account_id FROM securities_trades WHERE tx_id=?1")
             .bind(tx_id).fetch_one(&pool).await.unwrap();
         assert_eq!(st_acc, Some(depot.id));
@@ -223,7 +223,7 @@ mod tests {
 
     #[tokio::test]
     async fn migration_0016_backfill_skips_when_already_broker() {
-        // Wenn die Tx schon am Broker-Konto hängt, soll account_id NULL bleiben.
+        // When the tx is already linked to the broker account, account_id should remain NULL.
         let pool = connect_memory().await.unwrap();
         sqlx::query("INSERT INTO institutions (name) VALUES ('TR')")
             .execute(&pool).await.unwrap();
@@ -265,7 +265,7 @@ mod tests {
 
         let (st_acc,): (Option<i64>,) = sqlx::query_as("SELECT account_id FROM securities_trades WHERE tx_id=?1")
             .bind(tx_id).fetch_one(&pool).await.unwrap();
-        assert_eq!(st_acc, None, "Backfill darf nicht greifen wenn Tx schon am Broker hängt");
+        assert_eq!(st_acc, None, "Backfill must not fire when tx is already on the broker account");
     }
 
     #[tokio::test]
@@ -275,7 +275,7 @@ mod tests {
             let rows: Vec<(String,)> = sqlx::query_as(&format!(
                 "SELECT name FROM pragma_table_info('securities_trades') WHERE name='{col}'",
             )).fetch_all(&pool).await.unwrap();
-            assert_eq!(rows.len(), 1, "spalte {col} fehlt");
+            assert_eq!(rows.len(), 1, "column {col} missing");
         }
     }
 

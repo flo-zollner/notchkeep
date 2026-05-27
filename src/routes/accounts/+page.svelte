@@ -9,7 +9,7 @@
   import KPI from '$lib/components/KPI.svelte';
   import { settings, t } from '$lib/settings.svelte';
 
-  // i18n-Lookup ohne typed Property-Access — fehlende Keys fallen via ?? auf den Default zurück.
+  // i18n lookup without typed property access — missing keys fall back to the default via ??.
   const tx = () => t().common as unknown as Record<string, string | undefined>;
 
   let allAccounts = $state<Account[]>([]);
@@ -23,9 +23,9 @@
   let newKind = $state('bank');
   let newInstitutionId = $state<number | null>(null);
 
-  /** Kinds, die kein Bank-Institut tragen sollen. */
+  /** Kinds that should not carry a bank institution. */
   const NON_INSTITUTION_KINDS = new Set(['cash', 'loan']);
-  // Wenn der Benutzer auf cash/loan wechselt, Institut-Auswahl leeren.
+  // When the user switches to cash/loan, clear the institution selection.
   $effect(() => {
     if (NON_INSTITUTION_KINDS.has(newKind)) newInstitutionId = null;
   });
@@ -67,7 +67,7 @@
   const activeAccounts = $derived(allAccounts.filter((a) => !a.archived));
   const archivedAccounts = $derived(allAccounts.filter((a) => a.archived));
 
-  // Tree-Top-Level: alle nicht-archivierten Konten ohne Parent (oder mit Parent außerhalb der Tree-Auswahl).
+  // Tree top level: all non-archived accounts without a parent (or whose parent is outside the tree selection).
   const activeIds = $derived(new Set(activeAccounts.map((a) => a.id)));
   const activeTopLevel = $derived(
     activeAccounts.filter((a) => a.parent_id == null || !activeIds.has(a.parent_id)),
@@ -78,7 +78,7 @@
     ),
   );
 
-  /** Gruppiert active-Top-Level-Konten nach kind (bank/savings/broker/cash/credit/loan). */
+  /** Groups active top-level accounts by kind (bank/savings/broker/cash/credit/loan). */
   const KIND_ORDER: ReadonlyArray<string> = [
     'bank', 'savings', 'broker', 'cash', 'credit', 'loan',
   ];
@@ -94,7 +94,7 @@
       arr.push(a);
       map.set(a.kind, arr);
     }
-    // Stabile Reihenfolge: known kinds first, dann alphabetisch.
+    // Stable order: known kinds first, then alphabetically.
     const known = KIND_ORDER.filter((k) => map.has(k));
     const unknown = [...map.keys()].filter((k) => !KIND_ORDER.includes(k)).sort();
     return [...known, ...unknown].map((k) => ({
@@ -122,7 +122,7 @@
       );
       balances = new Map(entries);
 
-      // Trends: 6-Monats-Cashflow-Netto pro Top-Level-Konto (depth=0 zeigt's nur dort).
+      // Trends: 6-month net cashflow per top-level account (depth=0 shows it there only).
       const now = new Date();
       const trendEntries = await Promise.all(
         allAccounts
@@ -159,8 +159,8 @@
     }
   }
 
-  // pickAndImport / pickAndImportFlatex wurden durch das einheitliche
-  // ImportStatementsModal ersetzt. Trigger: openImportModal(accountId?).
+  // pickAndImport / pickAndImportFlatex were replaced by the unified
+  // ImportStatementsModal. Trigger: openImportModal(accountId?).
 </script>
 
 <div class="topbar">

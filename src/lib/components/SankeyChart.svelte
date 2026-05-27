@@ -6,14 +6,14 @@
   interface Props {
     breakdown: CashflowSlice[];
     categories: Category[];
-    /** ISO YYYY-MM-DD — inklusiv Start des Zeitraums (für Navigation zu /transactions). */
+    /** ISO YYYY-MM-DD — inclusive start of the period (for navigation to /transactions). */
     from?: string;
-    /** ISO YYYY-MM-DD — exklusiv Ende des Zeitraums (Backend-Konvention); für UI-Filter ziehen wir 1 Tag ab. */
+    /** ISO YYYY-MM-DD — exclusive end of the period (backend convention); subtract 1 day for the UI filter. */
     to?: string;
   }
   let { breakdown, categories, from, to }: Props = $props();
 
-  /** Backend nutzt halboffenes Intervall [from, to). UI-Filter ist inklusiv → 1 Tag abziehen. */
+  /** Backend uses half-open interval [from, to). UI filter is inclusive → subtract 1 day. */
   function exclusiveToInclusive(iso: string | undefined): string | undefined {
     if (!iso) return undefined;
     const d = new Date(iso);
@@ -23,11 +23,11 @@
   }
 
   let expanded = $state<Set<number>>(new Set());
-  /** Set von Seiten ('income' | 'expense'), bei denen Sonstige aufgeklappt ist. */
+  /** Set of sides ('income' | 'expense') where "Other" is expanded. */
   let otherExpanded = $state<Set<'income' | 'expense'>>(new Set());
   let hoverNodeId = $state<string | null>(null);
 
-  // Fallback-Paletten falls Kategorie keine eigene Farbe hat.
+  // Fallback palettes when a category has no own colour.
   const PALETTE_INCOME = [
     '#10b981', '#22c55e', '#84cc16', '#14b8a6', '#06b6d4',
   ];
@@ -35,7 +35,7 @@
     '#ef4444', '#f59e0b', '#a855f7', '#ec4899', '#6366f1',
     '#0ea5e9', '#fb7185', '#facc15', '#8b5cf6', '#94a3b8',
   ];
-  /** Wenn ein Bucket weniger als dieser Anteil der Seitensumme hat, wird er in "Sonstige" gemergt. */
+  /** When a bucket has less than this fraction of the side total, it is merged into "Other". */
   const SMALL_THRESHOLD = 0.02;
 
   const catsById = $derived(new Map(categories.map((c) => [c.id, c])));
@@ -87,11 +87,11 @@
   }
 
   /**
-   * Berechnet die perceived Luminanz eines Hex-Hex-Color-Strings, returnt
-   * eine passende Vordergrund-Farbe (schwarz für helle Backgrounds, weiß für dunkle).
+   * Computes the perceived luminance of a hex colour string and returns
+   * a suitable foreground colour (black for light backgrounds, white for dark).
    */
   function contrastText(bgHex: string): string {
-    // Akzeptiert #rgb und #rrggbb
+    // Accepts #rgb and #rrggbb
     let hex = bgHex.replace('#', '');
     if (hex.length === 3) hex = hex.split('').map((c) => c + c).join('');
     if (hex.length !== 6) return '#fff';
@@ -103,9 +103,9 @@
     return lum > 0.6 ? '#1a1a1a' : '#fff';
   }
 
-  /** Navigation zu /transactions mit Filter auf Kategorie + Zeitraum. */
+  /** Navigate to /transactions filtered by category and time range. */
   function navigateToTx(categoryId: number | null) {
-    if (categoryId === null || categoryId < 0) return;  // null + synthetisches Sonstige (-999999) nicht navigierbar
+    if (categoryId === null || categoryId < 0) return;  // null + synthetic "Other" sentinel (-999999) are not navigable
     const params = new URLSearchParams();
     params.set('categoryId', String(categoryId));
     if (from) params.set('from', from);
@@ -115,7 +115,7 @@
   }
 
   function onNodeClick(n: { categoryId: number | null; canExpand: boolean; side: 'income' | 'cashflow' | 'expense' }) {
-    // Sonstige-Sentinel: toggle Other-Expand
+    // "Other" sentinel: toggle other-expand
     if (n.categoryId === -999_999 && (n.side === 'income' || n.side === 'expense')) {
       toggleOtherExpand(n.side);
       return;
@@ -129,7 +129,7 @@
 
   type Bucket = { key: string; categoryId: number | null; sign: 1 | -1; sumAbsCents: number };
 
-  /** Roll-up auf effective parent based on expansion-set. */
+  /** Roll up to effective parent based on the expansion set. */
   const rolled = $derived.by<Bucket[]>(() => {
     const map = new Map<string, Bucket>();
     for (const s of breakdown) {
@@ -146,9 +146,9 @@
   });
 
   /**
-   * "Sonstige"-Auto-Bucket: mergt Slices < SMALL_THRESHOLD der Seitensumme.
-   * Bei `expandOther = true` werden die kleinen Cats stattdessen einzeln gerendert
-   * + ein Marker-Bucket "Sonstige (zuklappen)" zum Toggle.
+   * "Other" auto-bucket: merges slices < SMALL_THRESHOLD of the side total.
+   * When `expandOther = true`, the small categories are rendered individually instead,
+   * plus a marker bucket "Other (collapse)" for toggling.
    */
   function mergeSmallToOther(buckets: Bucket[], sign: 1 | -1, expandOther: boolean): Bucket[] {
     if (buckets.length <= 4) return buckets;
@@ -172,10 +172,10 @@
       return big.sort((a, b) => b.sumAbsCents - a.sumAbsCents);
     }
     if (expandOther) {
-      // Aufgeklappt: alle kleinen Cats einzeln zeigen.
+      // Expanded: show all small categories individually.
       big.push(...smalls);
     } else if (otherSum > 0) {
-      // Zugeklappt: ein Sonstige-Bucket.
+      // Collapsed: one "Other" bucket.
       big.push({
         key: `other-${sign}`,
         categoryId: -999_999,  // Sentinel
@@ -197,7 +197,7 @@
   const COL_W = 140;
   const COL_GAP = (W - 3 * COL_W) / 2;
   const NODE_GAP = 6;
-  const PAD_Y = 28;  // mehr Platz für Header-Labels
+  const PAD_Y = 28;  // extra space for header labels
 
   const usableH = H - 2 * PAD_Y;
   const maxSide = $derived(Math.max(totalIncome, totalExpense, 1));
@@ -285,7 +285,7 @@
   });
 
   type Link = { d: string; color: string; nodeId: string };
-  /** Y-Range auf dem Center-Node pro Side-Knoten — für Cross-Highlight beim Hover. */
+  /** Y range on the centre node per side node — for cross-highlighting on hover. */
   type CenterSegment = { y: number; h: number; color: string };
 
   const linkData = $derived.by<{ links: Link[]; segments: Map<string, CenterSegment> }>(() => {
@@ -353,7 +353,7 @@
             Z`;
   }
 
-  /** Formatiert Cent-Betrag als Pill-Label "1.234 €". */
+  /** Formats a cent amount as a pill label "1.234 €". */
   function fmtAmountShort(cents: number): string {
     return fmtEur(cents, { hide: settings.hide, decimals: 0 });
   }
@@ -362,7 +362,7 @@
     return `${Math.round(p * 100)}%`;
   }
 
-  /** Tooltip-Text für Hover (SVG title-Element). */
+  /** Tooltip text for hover (SVG title element). */
   function tooltipFor(n: Node): string {
     if (n.side === 'cashflow') {
       return `${n.label}: ${fmtAmountShort(n.amount)}`;
@@ -383,7 +383,7 @@
   {/if}
 
   <svg viewBox="0 0 {W} {H}" class="chart" preserveAspectRatio="xMidYMid meet">
-    <!-- Spalten-Header mit Summe -->
+    <!-- Column headers with totals -->
     <text
       x={COL_W / 2}
       y={14}
@@ -401,7 +401,7 @@
       {tc.expenses ?? 'Ausgaben'} · {fmtAmountShort(totalExpense)}
     </text>
 
-    <!-- Bezier-Links -->
+    <!-- Bezier links -->
     {#each links as l (l.nodeId)}
       <path
         class="link"
@@ -434,7 +434,7 @@
         <title>{tooltipFor(n)}</title>
         <rect x={n.x} y={n.y} width={COL_W} height={n.h} fill={n.color} rx="2" />
         {#if n.h >= 26}
-          <!-- Großer Knoten: Name + Betrag in zwei Zeilen -->
+          <!-- Large node: name + amount on two lines -->
           <text
             x={n.side === 'income' ? n.x + COL_W - 6 : n.x + 6}
             y={n.y + n.h / 2 - 2}
@@ -456,7 +456,7 @@
             {fmtAmountShort(n.amount)}{#if n.side !== 'cashflow'} · {fmtPct(n.pct)}{/if}
           </text>
         {:else if n.h >= 12}
-          <!-- Mittlerer Knoten: nur Name -->
+          <!-- Medium node: name only -->
           <text
             x={n.side === 'income' ? n.x + COL_W - 6 : n.x + 6}
             y={n.y + n.h / 2 + 4}
@@ -470,7 +470,7 @@
       </g>
     {/each}
 
-    <!-- Cross-Highlight: gehoverter Side-Knoten → korrespondierender Center-Bereich -->
+    <!-- Cross-highlight: hovered side node → corresponding centre area -->
     {#if hoverCenterSegment && centralNode}
       <rect
         class="center-highlight"

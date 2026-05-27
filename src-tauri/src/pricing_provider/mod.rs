@@ -20,8 +20,8 @@ pub struct Quote {
     pub symbol: String,
     pub price_micro: i64,
     pub as_of: NaiveDate,
-    /// Trading-Währung laut Provider (z. B. "EUR", "USD", "HKD"). `None` wenn
-    /// Provider sie nicht liefert.
+    /// Trading currency as reported by the provider (e.g. "EUR", "USD", "HKD").
+    /// `None` when the provider does not supply it.
     pub currency: Option<String>,
 }
 
@@ -31,7 +31,7 @@ pub struct PricePoint {
     pub close_micro: i64,
 }
 
-/// Abstrahiert die Preis-Quelle (Yahoo, Mock, ...).
+/// Abstracts the price source (Yahoo, Mock, ...).
 pub trait PriceProvider: Send + Sync {
     fn fetch_quote<'a>(&'a self, symbol: &'a str)
         -> std::pin::Pin<Box<dyn std::future::Future<Output = ProviderResult<Quote>> + Send + 'a>>;
@@ -52,6 +52,6 @@ pub trait FxProvider: Send + Sync {
         -> std::pin::Pin<Box<dyn std::future::Future<Output = ProviderResult<i64>> + Send + 'a>>;
 }
 
-/// Bequemes Combined-Trait für State-Storage als `Box<dyn CombinedProvider>`.
+/// Convenience combined trait for state storage as `Box<dyn CombinedProvider>`.
 pub trait CombinedProvider: PriceProvider + FxProvider {}
 impl<T: PriceProvider + FxProvider + ?Sized> CombinedProvider for T {}

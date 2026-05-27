@@ -86,9 +86,9 @@ pub async fn delete_bucket_rule(pool: &SqlitePool, id: i64) -> DbResult<()> {
     Ok(())
 }
 
-/// Wendet alle aktiven Bucket-Regeln auf Income-Tx ohne Bucket aus den letzten
-/// `days` Tagen an. Returnt Anzahl der Tx die durch eine Regel einen Topf bekommen
-/// haben. First-Match-Wins nach priority ASC.
+/// Applies all active bucket rules to income transactions without a bucket from the last
+/// `days` days. Returns the number of transactions that were assigned a bucket by a rule.
+/// First-match-wins ordered by priority ASC.
 pub async fn apply_bucket_rules_to_recent_income(
     pool: &SqlitePool,
     days: u32,
@@ -124,7 +124,7 @@ pub async fn apply_bucket_rules_to_recent_income(
     for tx in txs {
         let cp_lower = tx.counterparty.as_deref().unwrap_or("").to_lowercase();
         for rule in &active {
-            // Counterparty-Match (substring, case-insensitive — leerer Needle = matched all)
+            // Counterparty match (substring, case-insensitive — empty needle matches all)
             let needle = rule.counterparty_contains.as_deref().unwrap_or("").to_lowercase();
             if !needle.is_empty() && !cp_lower.contains(&needle) {
                 continue;

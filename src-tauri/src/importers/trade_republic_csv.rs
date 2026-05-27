@@ -3,11 +3,11 @@ use std::collections::HashMap;
 use super::csv_bank_statement::{CsvBankStatementConfig, CsvEncoding};
 use super::{ImportError, ImportResult, ParseResult, RawTradeFields};
 
-/// Importer für den Trade-Republic-„Transaction export"-CSV.
+/// Importer for the Trade Republic "Transaction export" CSV.
 ///
-/// Format-Annahmen (Stand 2026-05): komma-separiert, Doppelquotes, englische
-/// Header, Beträge mit Punkt-Dezimaltrenner und sechs Nachkommastellen.
-/// Spalten: datetime, date, account_type, category, type, asset_class, name,
+/// Format assumptions (as of 2026-05): comma-separated, double-quoted, English
+/// headers, amounts with dot decimal separator and six decimal places.
+/// Columns: datetime, date, account_type, category, type, asset_class, name,
 /// symbol, shares, price, amount, fee, tax, currency, original_amount,
 /// original_currency, fx_rate, description, transaction_id,
 /// counterparty_name, counterparty_iban, payment_reference, mcc_code.
@@ -37,8 +37,8 @@ impl super::Importer for TradeRepublicCsv {
     }
 }
 
-/// Validiert eine ISIN gegen das Format `[A-Z]{2}[A-Z0-9]{9}[0-9]`.
-/// Mirror des CHECK-constraints in der DB.
+/// Validates an ISIN against the format `[A-Z]{2}[A-Z0-9]{9}[0-9]`.
+/// Mirrors the CHECK constraint in the database.
 fn is_valid_isin(s: &str) -> bool {
     if s.len() != 12 { return false; }
     let mut chars = s.chars();
@@ -51,11 +51,11 @@ fn is_valid_isin(s: &str) -> bool {
     matches!(last, Some(c) if c.is_ascii_digit())
 }
 
-/// Extrahiert die erste ISIN-konforme Sequenz aus einem Freitext.
-/// Schaut nach `[A-Z]{2}[A-Z0-9]{9}[0-9]` als Whole-Word-Match.
-/// Returnt `Some(isin)` wenn gefunden, sonst `None`.
+/// Extracts the first ISIN-conforming sequence from free text.
+/// Looks for `[A-Z]{2}[A-Z0-9]{9}[0-9]` as a whole-word match.
+/// Returns `Some(isin)` when found, otherwise `None`.
 fn extract_isin_from_text(text: &str) -> Option<String> {
-    // Split nach Whitespace + Komma/Punkt-trimmed; jeden Token gegen is_valid_isin testen.
+    // Split on whitespace with comma/dot trimming; test each token against is_valid_isin.
     for raw in text.split_whitespace() {
         let token: String = raw.chars()
             .filter(|c| c.is_ascii_alphanumeric())
@@ -73,8 +73,8 @@ fn extract_isin_from_text(text: &str) -> Option<String> {
     None
 }
 
-/// TR-spezifischer Trade-Extractor — wird vom generischen Parser pro Row
-/// aufgerufen. Liefert (kind_override, trade_fields).
+/// TR-specific trade extractor — called by the generic parser for each row.
+/// Returns (kind_override, trade_fields).
 fn tr_extract_trade(
     record: &csv::StringRecord,
     header_map: &HashMap<String, usize>,
@@ -136,16 +136,16 @@ fn parse_trade_fields(
         _ => return Ok((None, None)),
     };
 
-    // ISIN-Resolution: zuerst symbol (gilt für Aktien/ETFs/Bonds wo TR das ISIN ins symbol-
-    // Feld schreibt). Wenn symbol kein gültiges ISIN-Format → versuche description
-    // (Crypto: TR schreibt dort 'Buy trade XF000BTC0017 Bitcoin, …').
+    // ISIN resolution: try symbol first (used for equities/ETFs/bonds where TR writes the ISIN
+    // into the symbol field). If symbol is not a valid ISIN → try description
+    // (Crypto: TR writes e.g. 'Buy trade XF000BTC0017 Bitcoin, …' there).
     let isin = if is_valid_isin(symbol) {
         symbol.to_string()
     } else if let Some(extracted) = extract_isin_from_text(description) {
         extracted
     } else {
-        // Kein gültiges ISIN-Pattern findbar → diese Row nicht als Trade behandeln.
-        // Die Tx landet als generische income/expense.
+        // No valid ISIN pattern found → don't treat this row as a trade.
+        // The transaction falls through as a generic income/expense.
         return Ok((None, None));
     };
 
@@ -169,7 +169,7 @@ fn parse_trade_fields(
         Some(parse_micro(price)?)
     };
 
-    // CSV liefert fee/tax signiert; DB will non-negative.
+    // CSV delivers fee/tax as signed values; the database wants non-negative.
     let fee_cents = super::csv_bank_statement::parse_amount_cents(fee)?.unsigned_abs() as i64;
     let tax_cents = super::csv_bank_statement::parse_amount_cents(tax)?.unsigned_abs() as i64;
 
@@ -187,15 +187,15 @@ fn parse_trade_fields(
         shares_micro,
         unit_price_micro,
         fee_cents,
-        kest_cents: tax_cents,              // TR liefert nur eine Steuer-Summe → AT-KESt
+        kest_cents: tax_cents,              // TR provides a single tax total → AT capital gains tax
         withholding_tax_cents: 0,
         fx_rate_micro,
         fusion_group: None,
     })))
 }
 
-/// Parst Decimal-String in micro-Einheit (×1e6). Truncates auf 6 Stellen
-/// (TR liefert konsistent 10 Stellen mit Trailing-Nullen).
+/// Parses a decimal string into micro-units (×1e6). Truncates to 6 digits
+/// (TR consistently supplies 10 decimal places with trailing zeroes).
 fn parse_micro(s: &str) -> ImportResult<i64> {
     let s = s.trim();
     if s.is_empty() {
@@ -225,8 +225,8 @@ fn parse_micro(s: &str) -> ImportResult<i64> {
     Ok(if negative { -micro } else { micro })
 }
 
-/// Konvertiert TR's `fx_rate` (Float `1 EUR = X foreign`) in `rate_micro`
-/// (`1 foreign = N micro_EUR`). Beispiel `1.10` (USD/EUR) → 909_090.
+/// Converts TR's `fx_rate` (float `1 EUR = X foreign`) into `rate_micro`
+/// (`1 foreign = N micro_EUR`). Example: `1.10` (USD/EUR) → 909_090.
 fn convert_fx_rate(csv: &str) -> ImportResult<i64> {
     let csv = csv.trim();
     let micro_per_eur = parse_micro(csv)?;
@@ -262,7 +262,7 @@ mod tests {
 
     #[test]
     fn falls_back_to_description_when_name_and_counterparty_empty() {
-        // TRANSFER_INSTANT_INBOUND: TR füllt nur description, nicht counterparty_name.
+        // TRANSFER_INSTANT_INBOUND: TR only fills description, not counterparty_name.
         let row = "\"2025-05-10T19:13:58.970000Z\",\"2025-05-10\",\"DEFAULT\",\"CASH\",\"TRANSFER_INSTANT_INBOUND\",\"\",\"\",\"\",\"\",\"\",\"100.000000\",\"\",\"\",\"EUR\",\"\",\"\",\"\",\"Incoming transfer from Alice Example\",\"00000000-0000-0000-0000-000000000002\",\"\",\"\",\"\",\"\"";
         let csv = format!("{HEADER}\n{row}\n");
         let txs = TradeRepublicCsv.parse(csv.as_bytes()).unwrap().raws;
@@ -273,7 +273,7 @@ mod tests {
 
     #[test]
     fn prefers_counterparty_name_over_description() {
-        // SEPA-Überweisung: counterparty_name gesetzt, soll Vorrang vor description haben.
+        // SEPA transfer: counterparty_name is set and should take precedence over description.
         let row = "\"2025-06-01T10:00:00.000000Z\",\"2025-06-01\",\"DEFAULT\",\"CASH\",\"TRANSFER_INBOUND\",\"\",\"\",\"\",\"\",\"\",\"500.000000\",\"\",\"\",\"EUR\",\"\",\"\",\"\",\"SEPA-Transfer\",\"00000000-0000-0000-0000-000000000003\",\"Bob Example\",\"DE00000000000000000000\",\"Miete Juni\",\"\"";
         let csv = format!("{HEADER}\n{row}\n");
         let txs = TradeRepublicCsv.parse(csv.as_bytes()).unwrap().raws;
@@ -282,9 +282,9 @@ mod tests {
         assert_eq!(t.purpose.as_deref(), Some("Miete Juni"));
     }
 
-    /// Spot-Check gegen eine echte TR-Export-Datei. Lokal mit
-    /// `cargo test --lib -- --ignored` ausführbar; die Datei selbst ist
-    /// per `.gitignore` aus dem Repo ausgeschlossen.
+    /// Spot-check against a real TR export file. Can be run locally with
+    /// `cargo test --lib -- --ignored`; the file itself is excluded from the
+    /// repository via `.gitignore`.
     #[test]
     #[ignore]
     fn smoke_test_real_export_file() {
@@ -299,9 +299,9 @@ mod tests {
         }
     }
 
-    /// Vollverifikation gegen die echte TR-Datei. Werte sind unabhängig per
-    /// Python aus der Rohdatei ermittelt (siehe Konversation 2026-05-16).
-    /// Schlägt fehl, sobald das echte Format vom Parser abweicht.
+    /// Full verification against the real TR file. Values were independently
+    /// derived from the raw file using Python (see conversation 2026-05-16).
+    /// Fails as soon as the real format diverges from what the parser expects.
     #[test]
     #[ignore]
     fn full_verification_against_real_export() {
@@ -309,43 +309,43 @@ mod tests {
         let bytes = std::fs::read(path).expect("real TR-CSV in test-material/");
         let txs = TradeRepublicCsv.parse(&bytes).expect("parse").raws;
 
-        // Anzahl Datenzeilen.
+        // Number of data rows.
         assert_eq!(txs.len(), 328, "row count");
 
-        // Summe aller amount_cents.
+        // Sum of all amount_cents.
         let total: i64 = txs.iter().map(|t| t.amount_cents).sum();
         assert_eq!(total, 469_939, "sum amount_cents");
 
-        // Datums-Range.
+        // Date range.
         let dates: Vec<_> = txs.iter().map(|t| t.booking_date).collect();
         assert_eq!(dates.iter().min().unwrap().to_string(), "2025-05-10");
         assert_eq!(dates.iter().max().unwrap().to_string(), "2026-05-16");
 
-        // Währung: ausschließlich EUR.
+        // Currency: exclusively EUR.
         for t in &txs {
             assert_eq!(t.currency, "EUR", "non-EUR currency: {:?}", t);
         }
 
-        // Counterparty ist immer gesetzt (description ist Last-Resort-Fallback).
+        // Counterparty is always set (description is the last-resort fallback).
         let with_cp = txs.iter().filter(|t| t.counterparty.is_some()).count();
         assert_eq!(with_cp, 328, "counterparty present");
 
-        // Purpose ist nie gesetzt (payment_reference durchgängig leer).
+        // Purpose is never set (payment_reference is consistently empty).
         let with_purpose = txs.iter().filter(|t| t.purpose.is_some()).count();
         assert_eq!(with_purpose, 0, "purpose absent");
 
-        // raw_ref (transaction_id) ist immer gesetzt.
+        // raw_ref (transaction_id) is always set.
         let with_raw = txs.iter().filter(|t| t.raw_ref.is_some()).count();
         assert_eq!(with_raw, 328, "raw_ref present");
 
-        // raw_ref muss eindeutig sein (UUIDs).
+        // raw_ref must be unique (UUIDs).
         let mut ids: Vec<_> = txs.iter().filter_map(|t| t.raw_ref.as_deref()).collect();
         ids.sort();
         let before = ids.len();
         ids.dedup();
         assert_eq!(ids.len(), before, "transaction_ids not unique");
 
-        // 6d: Trade-Rows zählen + Sample-Validierung
+        // 6d: count trade rows + sample validation
         let trades: Vec<_> = txs.iter().filter(|t| t.trade.is_some()).collect();
         assert!(!trades.is_empty(), "expected at least 1 trade in real fixture");
         eprintln!("→ {} trade rows", trades.len());
@@ -355,7 +355,7 @@ mod tests {
             .count();
         assert!(buy_count > 0, "expected at least 1 buy");
 
-        // Sample-Check: erste Trade-Row muss eine ISIN haben.
+        // Sample check: first trade row must have an ISIN.
         let first = trades.first().unwrap();
         let t_fields = first.trade.as_ref().unwrap();
         assert_eq!(t_fields.isin.len(), 12, "ISIN should be 12 chars");
@@ -421,8 +421,8 @@ mod tests {
         let row = "\"2025-05-13T16:42:49.970000Z\",\"2025-05-13\",\"DEFAULT\",\"CASH\",\"CARD_TRANSACTION\",\"\",\"Acme Store 42\",\"\",\"\",\"\",\"-6.300000\",\"\",\"\",\"EUR\",\"\",\"\",\"\",\"TR Card Transaction\",\"id-card-1\",\"\",\"\",\"\",\"5812\"";
         let csv = format!("{HEADER}\n{row}\n");
         let t = &TradeRepublicCsv.parse(csv.as_bytes()).unwrap().raws[0];
-        assert!(t.kind.is_none(), "card-tx hat kein kind-override");
-        assert!(t.trade.is_none(), "card-tx hat keine trade-fields");
+        assert!(t.kind.is_none(), "card-tx has no kind override");
+        assert!(t.trade.is_none(), "card-tx has no trade fields");
     }
 
     #[test]
@@ -453,18 +453,18 @@ mod tests {
     fn is_valid_isin_accepts_typical_isins() {
         assert!(is_valid_isin("LU0290358497"));  // XEON
         assert!(is_valid_isin("IE00BK5BQT80"));  // VWCE
-        assert!(is_valid_isin("XF000BTC0017"));  // TR-Crypto-ISIN für Bitcoin
-        assert!(!is_valid_isin("DE000A1B2C3D")); // letztes Char muss Ziffer sein — ungültig
+        assert!(is_valid_isin("XF000BTC0017"));  // TR crypto ISIN for Bitcoin
+        assert!(!is_valid_isin("DE000A1B2C3D")); // last char must be a digit — invalid
     }
 
     #[test]
     fn is_valid_isin_rejects_short_or_malformed() {
         assert!(!is_valid_isin("BTC"));
         assert!(!is_valid_isin(""));
-        assert!(!is_valid_isin("LU029035849"));    // 11 Zeichen
-        assert!(!is_valid_isin("LU02903584977"));  // 13 Zeichen
+        assert!(!is_valid_isin("LU029035849"));    // 11 characters
+        assert!(!is_valid_isin("LU02903584977"));  // 13 characters
         assert!(!is_valid_isin("lu0290358497"));   // lowercase
-        assert!(!is_valid_isin("LU029035849X"));   // letztes Char kein digit
+        assert!(!is_valid_isin("LU029035849X"));   // last char not a digit
     }
 
     #[test]
@@ -481,15 +481,15 @@ mod tests {
 
     #[test]
     fn extract_isin_from_text_handles_punctuation() {
-        // ISIN am Wortende mit Komma
+        // ISIN at word-end followed by comma
         let desc = "Sell XF000BTC0017, see notes";
         assert_eq!(extract_isin_from_text(desc), Some("XF000BTC0017".to_string()));
     }
 
     #[test]
     fn parses_crypto_row_uses_isin_from_description() {
-        // Echte BTC-Row aus dem User-Bug-Report (asset_class=CRYPTO, symbol=BTC,
-        // ISIN ist nur in description).
+        // Real BTC row from the user bug report (asset_class=CRYPTO, symbol=BTC,
+        // ISIN only present in description).
         let row = "\"2026-05-22T15:43:33.644Z\",\"2026-05-22\",\"DEFAULT\",\"TRADING\",\"BUY\",\"CRYPTO\",\"Bitcoin\",\"BTC\",\"0.0041540000\",\"66677.8800000000\",\"-276.98\",\"-1.00\",\"\",\"EUR\",\"\",\"\",\"\",\"Buy trade XF000BTC0017 Bitcoin, quantity: 0.004154\",\"87f39bba-4d1b-40a6-81cc-c0a6e9e2f305\",\"\",\"\",\"\",\"\"";
         let csv = format!("{HEADER}\n{row}");
         let txs = TradeRepublicCsv.parse(csv.as_bytes()).expect("parse").raws;
@@ -504,7 +504,7 @@ mod tests {
 
     #[test]
     fn parses_buy_with_invalid_symbol_and_no_isin_in_description_is_not_trade() {
-        // Falls weder symbol noch description ISIN-Pattern matchen → keine Trade-Klassifikation.
+        // If neither symbol nor description matches an ISIN pattern → no trade classification.
         let row = "\"2026-05-22T15:43:33.644Z\",\"2026-05-22\",\"DEFAULT\",\"TRADING\",\"BUY\",\"OTHER\",\"Some Asset\",\"\",\"0.0041540000\",\"66677.88\",\"-276.98\",\"-1.00\",\"\",\"EUR\",\"\",\"\",\"\",\"no isin here\",\"unique-id\",\"\",\"\",\"\",\"\"";
         let csv = format!("{HEADER}\n{row}");
         let txs = TradeRepublicCsv.parse(csv.as_bytes()).expect("parse").raws;

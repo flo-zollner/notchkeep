@@ -22,18 +22,17 @@ pub struct NetWorthForecastPoint {
     pub hi_cents: i64,
 }
 
-/// Kumulative Saldensumme aller nicht-archivierten Accounts zum Monatsende.
-/// `months = 0` liefert die Reihe ab dem Monat der ersten Transaktion;
-/// sonst die letzten `months` Buckets bis inklusive `(end_year, end_month)`.
+/// Cumulative balance sum of all non-archived accounts at month-end.
+/// `months = 0` returns the series from the month of the first transaction;
+/// otherwise the last `months` buckets up to and including `(end_year, end_month)`.
 pub async fn net_worth_history(
     pool: &SqlitePool,
     end_year: i32,
     end_month: u32,
     months: u32,
 ) -> DbResult<Vec<NetWorthPoint>> {
-    // Erste Tx ermitteln (für months=0 und für die "leere DB"-Kurzschluss-Antwort).
-    // SELECT MIN(...) gibt immer eine Row zurück; der Wert ist NULL falls keine
-    // Transaktion existiert.
+    // Find the first tx (for months=0 and for the "empty DB" short-circuit response).
+    // SELECT MIN(...) always returns one row; the value is NULL when no transaction exists.
     let (first_opt,): (Option<String>,) = sqlx::query_as(
         "SELECT MIN(t.booking_date)
          FROM transactions t
@@ -46,7 +45,7 @@ pub async fn net_worth_history(
         return Ok(Vec::new());
     };
 
-    // Range bestimmen.
+    // Determine the range.
     let buckets: Vec<(i32, u32)> = if months == 0 {
         let first_year: i32 = first_date[0..4]
             .parse()
@@ -54,7 +53,7 @@ pub async fn net_worth_history(
         let first_month: u32 = first_date[5..7]
             .parse()
             .map_err(|e: std::num::ParseIntError| DbError::Decode(format!("first month: {e}")))?;
-        // Anzahl Monate von (first_year, first_month) bis (end_year, end_month) inklusive.
+        // Number of months from (first_year, first_month) to (end_year, end_month) inclusive.
         let span = (end_year * 12 + end_month as i32) - (first_year * 12 + first_month as i32);
         if span < 0 {
             return Ok(Vec::new());
@@ -68,7 +67,7 @@ pub async fn net_worth_history(
         return Ok(Vec::new());
     }
 
-    // Monatliche Deltas seit Beginn der Zeit bis Ende des Range-Endes.
+    // Monthly deltas from the beginning of time up to the end of the range.
     let (after_y, after_m) = step_month(end_year, end_month, 1);
     let upper_bound = format!("{after_y:04}-{after_m:02}-01");
 
@@ -89,7 +88,7 @@ pub async fn net_worth_history(
     .fetch_all(pool)
     .await?;
 
-    // Akkumulieren und Buckets befüllen. Buckets vor der ersten Tx erhalten 0.
+    // Accumulate and populate buckets. Buckets before the first tx get 0.
     let mut deltas: Vec<((i32, u32), i64)> = Vec::with_capacity(rows.len());
     for (y_str, m_str, delta_cents) in rows {
         let y: i32 = y_str
@@ -130,8 +129,8 @@ pub async fn net_worth_history(
     Ok(out)
 }
 
-/// Linearer Forecast aus dem Mittel/StdDev der monatlichen Differenzen
-/// in den letzten `history_window` Monaten. Pro Forecast-Monat `i`:
+/// Linear forecast from the mean/stddev of the monthly deltas
+/// over the last `history_window` months. Per forecast month `i`:
 /// `mid = last + μ·i`, `lo = mid − σ·√i`, `hi = mid + σ·√i`.
 pub async fn net_worth_forecast(
     pool: &SqlitePool,
@@ -151,7 +150,7 @@ pub async fn net_worth_forecast(
 
     let last = history.last().expect("history non-empty").total_cents;
 
-    // Monatliche Differenzen.
+    // Monthly deltas.
     let deltas: Vec<i64> = history
         .windows(2)
         .map(|w| w[1].total_cents - w[0].total_cents)
@@ -324,7 +323,7 @@ mod tests {
         let pool = connect_memory().await.unwrap();
         let acc = seed_account(&pool, "A").await;
         insert_tx(&pool, acc, "2026-02-01", 100_000).await;
-        // Keine Tx im März/April, dann wieder Mai.
+        // No tx in March/April, then again in May.
         insert_tx(&pool, acc, "2026-05-01", 50_000).await;
 
         let result = net_worth_history(&pool, 2026, 5, 4).await.unwrap();
@@ -374,7 +373,7 @@ mod tests {
     async fn net_worth_forecast_flat_history_zero_sigma() {
         let pool = connect_memory().await.unwrap();
         let acc = seed_account(&pool, "A").await;
-        // History: jeden Monat 0 Delta → flacher Saldo bei 100k.
+        // History: delta 0 every month → flat balance at 100k.
         insert_tx(&pool, acc, "2025-12-01", 100_000).await;
 
         let result = net_worth_forecast(&pool, 2026, 5, 6, 3).await.unwrap();
@@ -393,7 +392,7 @@ mod tests {
     async fn net_worth_forecast_linear_drift_zero_sigma() {
         let pool = connect_memory().await.unwrap();
         let acc = seed_account(&pool, "A").await;
-        // History: gleichmäßig +10_000 pro Monat über 6 Monate.
+        // History: uniform +10_000 per month over 6 months.
         insert_tx(&pool, acc, "2025-12-01", 100_000).await;
         insert_tx(&pool, acc, "2026-01-01", 10_000).await;
         insert_tx(&pool, acc, "2026-02-01", 10_000).await;
@@ -403,7 +402,7 @@ mod tests {
 
         let result = net_worth_forecast(&pool, 2026, 5, 6, 3).await.unwrap();
         assert_eq!(result.len(), 3);
-        // History-Window 6 Monate → 5 Δ-Werte, alle 10_000 → μ=10_000, σ=0.
+        // History window 6 months → 5 Δ values, all 10_000 → μ=10_000, σ=0.
         // last = 150_000 (100k + 5×10k).
         assert_eq!(result[0], NetWorthForecastPoint { year: 2026, month: 6, mid_cents: 160_000, lo_cents: 160_000, hi_cents: 160_000 });
         assert_eq!(result[1], NetWorthForecastPoint { year: 2026, month: 7, mid_cents: 170_000, lo_cents: 170_000, hi_cents: 170_000 });
@@ -452,13 +451,13 @@ mod tests {
     async fn net_worth_forecast_variance_widens_cone() {
         let pool = connect_memory().await.unwrap();
         let acc = seed_account(&pool, "A").await;
-        // History: Δ-Werte 0, 20_000, 0, 20_000, 0 → μ=8_000, σ_sample ≈ 10_954.5.
+        // History: Δ values 0, 20_000, 0, 20_000, 0 → μ=8_000, σ_sample ≈ 10_954.5.
         insert_tx(&pool, acc, "2025-12-01", 100_000).await;
-        // Jan: kein Tx → Δ=0
+        // Jan: no tx → Δ=0
         insert_tx(&pool, acc, "2026-02-01", 20_000).await; // Δ=20_000
-        // Mär: kein Tx → Δ=0
+        // Mar: no tx → Δ=0
         insert_tx(&pool, acc, "2026-04-01", 20_000).await; // Δ=20_000
-        // Mai: kein Tx → Δ=0
+        // May: no tx → Δ=0
 
         let result = net_worth_forecast(&pool, 2026, 5, 6, 3).await.unwrap();
         assert_eq!(result.len(), 3);
@@ -466,7 +465,7 @@ mod tests {
         // μ = (0+20k+0+20k+0)/5 = 8_000
         // σ (sample, n=5, n-1=4): variance = ((0-8k)² + (20k-8k)² + (0-8k)² + (20k-8k)² + (0-8k)²) / 4
         //                                  = (64M + 144M + 64M + 144M + 64M) / 4 = 480M / 4 = 120M
-        //                                  → σ ≈ 10_954.45 → gerundet 10_954
+        //                                  → σ ≈ 10_954.45 → rounded 10_954
         // mid_i = 140_000 + 8_000·i; σ·√i.
         // i=1: mid=148_000, σ·1≈10_954 → lo=137_046, hi=158_954
         // i=2: mid=156_000, σ·√2≈15_491 → lo=140_509, hi=171_491
@@ -476,7 +475,7 @@ mod tests {
         assert!(result[0].lo_cents < result[0].mid_cents);
         assert_eq!(result[0].hi_cents - result[0].mid_cents, result[0].mid_cents - result[0].lo_cents);
 
-        // Kegel verbreitert sich von i=1 zu i=3.
+        // Cone widens from i=1 to i=3.
         let width1 = result[0].hi_cents - result[0].lo_cents;
         let width3 = result[2].hi_cents - result[2].lo_cents;
         assert!(width3 > width1, "cone should widen: {width1} → {width3}");

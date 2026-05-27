@@ -8,7 +8,7 @@ pub enum CategorizationOutcome {
     None,
 }
 
-/// Erst Regel-Engine, sonst Fuzzy auf Counterparty-Historie.
+/// Tries the rule engine first; falls back to fuzzy matching against counterparty history.
 pub fn categorize(
     ctx: &MatchContext,
     rules: &[Rule],
@@ -183,7 +183,7 @@ mod tests {
             CategorizationOutcome::Rule { rule_id: 9, category_id: 5 }
         ));
 
-        // Anderes Konto → kein Match
+        // Different account → no match
         let outcome2 = categorize(
             &MatchContext::new(&t, Some(7)),
             std::slice::from_ref(&r),

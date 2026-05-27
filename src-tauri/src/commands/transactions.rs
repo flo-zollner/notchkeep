@@ -10,15 +10,15 @@ use crate::importers::RawTransaction;
 use crate::model::Transaction;
 
 const FUZZY_THRESHOLD: f64 = 0.85;
-/// Trade-Kinds, die NICHT über `update_transaction`/`delete_transaction`
-/// (Cash-Editor) angefasst werden dürfen — sie haben Trade-Detail-Felder,
-/// die nur über die Trade-Commands konsistent geändert werden.
+/// Trade kinds that must NOT be touched via `update_transaction`/`delete_transaction`
+/// (cash editor) — they carry trade-detail fields that can only be changed
+/// consistently through the trade commands.
 ///
-/// `fee` ist bewusst NICHT drin: eine reine Gebühren-Tx ist Cash-Editing
-/// (z.B. Depotgebühr ohne Trade-Row).
+/// `fee` is intentionally excluded: a pure fee transaction is cash-editable
+/// (e.g. a custody fee without a trade row).
 const TRADE_KINDS: &[&str] = &["buy", "sell", "dividend", "corporate_action", "tax"];
 
-/// Trimt + uppercaset eine IBAN. Leer → None. Format-Check
+/// Trims and uppercases an IBAN. Empty → None. Format check
 /// (`^[A-Z]{2}\d{2}[A-Z0-9]{11,30}$`).
 fn normalize_iban(raw: Option<&str>) -> Result<Option<String>, CommandError> {
     let Some(s) = raw else { return Ok(None) };
@@ -77,17 +77,17 @@ pub struct TxFilter {
     pub bucket_id: Option<i64>,
     pub institution_id: Option<i64>,
     pub search: Option<String>,
-    /// Inklusiv ('YYYY-MM-DD'). Tx mit booking_date >= from.
+    /// Inclusive ('YYYY-MM-DD'). Tx with booking_date >= from.
     pub from: Option<String>,
-    /// Inklusiv ('YYYY-MM-DD'). Tx mit booking_date <= to.
+    /// Inclusive ('YYYY-MM-DD'). Tx with booking_date <= to.
     pub to: Option<String>,
-    /// Wenn true: nur Tx ohne Kategorie (category_id IS NULL).
+    /// If true: only Tx without a category (category_id IS NULL).
     pub uncategorized: Option<bool>,
     /// abs(amount_cents) >= min_amount_cents.
     pub min_amount_cents: Option<i64>,
     /// Page size; default 200, clamped to [1, 5000].
     pub limit: Option<i64>,
-    /// Opaker Cursor 'YYYY-MM-DD|<id>' — Tx davor (in DESC-Order) holen.
+    /// Opaque cursor 'YYYY-MM-DD|<id>' — fetch Tx before this point (in DESC order).
     pub cursor: Option<String>,
 }
 
@@ -99,8 +99,8 @@ pub struct ListTransactionsPage {
     pub has_more: bool,
 }
 
-/// Aggregat-Summen über alle Tx im Filter (ohne LIMIT/Cursor).
-/// Excludiert Transfer/Buy/Sell/Corporate-Action (= keine echten Cashflows).
+/// Aggregate totals across all Tx matching the filter (without LIMIT/cursor).
+/// Excludes transfer/buy/sell/corporate_action (= not real cash flows).
 #[derive(Debug, Serialize, sqlx::FromRow)]
 #[serde(rename_all = "camelCase")]
 pub struct TxAggregate {
@@ -115,9 +115,9 @@ fn parse_cursor(s: &str) -> Option<(String, i64)> {
     Some((d.to_string(), id))
 }
 
-/// Baut die WHERE-Clauses für den TxFilter (ohne ORDER/LIMIT) und liefert
-/// das SQL-Fragment plus die Binding-Reihenfolge zurück. Wird sowohl von
-/// `list_transactions_inner` als auch `aggregate_transactions_inner` genutzt.
+/// Builds the WHERE clauses for a TxFilter (without ORDER/LIMIT) and returns
+/// the SQL fragment together with the bind order. Used by both
+/// `list_transactions_inner` and `aggregate_transactions_inner`.
 fn build_tx_where(f: &TxFilter) -> (String, Vec<TxBind>) {
     let mut sql = String::new();
     let mut binds: Vec<TxBind> = Vec::new();
@@ -225,7 +225,7 @@ pub(crate) async fn list_transactions_inner(
         }
     }
     sql.push_str(" ORDER BY booking_date DESC, id DESC LIMIT ?");
-    binds.push(TxBind::I64(limit + 1)); // +1 für has_more-Detection
+    binds.push(TxBind::I64(limit + 1)); // +1 for has_more detection
 
     let q = sqlx::query_as::<_, Transaction>(&sql);
     let mut rows: Vec<Transaction> = bind_all(q, binds).fetch_all(pool).await?;
@@ -252,9 +252,9 @@ pub async fn list_transactions(
     Ok(list_transactions_inner(&state.pool(), &f).await?)
 }
 
-/// Aggregat-Summen über alle gefilterten Tx ohne LIMIT/Cursor.
-/// `in_cents` = SUM(amount > 0), `out_cents` = SUM(-amount) für amount < 0.
-/// Excludiert Transfer/Buy/Sell/Corporate-Action (= keine echten Cashflows).
+/// Aggregate totals across all filtered Tx without LIMIT/cursor.
+/// `in_cents` = SUM(amount > 0), `out_cents` = SUM(-amount) for amount < 0.
+/// Excludes transfer/buy/sell/corporate_action (= not real cash flows).
 pub(crate) async fn aggregate_transactions_inner(
     pool: &sqlx::SqlitePool,
     f: &TxFilter,
@@ -297,10 +297,10 @@ pub struct NewTransaction {
     pub bucket_id: Option<i64>,
     pub manual_note: Option<String>,
     pub counterparty_iban: Option<String>,
-    /// Optionaler kind-Override. None = Auto aus Amount-Vorzeichen
-    /// (positiv → income, negativ → expense). Erlaubte Werte: income,
-    /// expense, transfer, fee, tax_general. Wertpapier-Steuer (kind='tax')
-    /// und übrige Trade-Kinds (buy/sell/...) laufen über die Trade-Commands.
+    /// Optional kind override. None = auto from amount sign
+    /// (positive → income, negative → expense). Allowed values: income,
+    /// expense, transfer, fee, tax_general. Securities tax (kind='tax')
+    /// and other trade kinds (buy/sell/...) go through the trade commands.
     #[serde(default)]
     pub kind: Option<String>,
 }
@@ -317,11 +317,11 @@ pub async fn create_transaction(
     let booking_date = NaiveDate::parse_from_str(&tx.booking_date, "%Y-%m-%d")
         .map_err(|e| CommandError { message: format!("bad date: {e}") })?;
     let normalized_iban = normalize_iban(tx.counterparty_iban.as_deref())?;
-    // Whitelist: nur Cash-Kinds aus der UI erlaubt. Trade-Kinds müssen
-    // über die Trade-Commands laufen, sonst entsteht ein Orphan-Tx ohne
-    // Trade-Detail-Row. 'tax_general' = allgemeine Steuer-Ausgabe ohne
-    // Wertpapier-Bezug (Einkommensteuer, Grundsteuer, …); 'tax' bleibt
-    // reserviert für WP-Steuer mit securities_trades-Row.
+    // Whitelist: only cash kinds are permitted from the UI. Trade kinds must
+    // go through the trade commands, otherwise an orphan Tx is created
+    // without a trade-detail row. 'tax_general' = general tax expense without
+    // a securities reference (income tax, property tax, …); 'tax' remains
+    // reserved for securities tax with a securities_trades row.
     let allowed_kinds = ["income", "expense", "transfer", "fee", "tax_general"];
     let kind = match tx.kind.as_deref() {
         Some(k) if !allowed_kinds.contains(&k) => {
@@ -413,13 +413,13 @@ pub async fn assign_bucket(
     Ok(())
 }
 
-/// Verschiebt eine Tx auf ein anderes Konto. Funktioniert auch für Trade-Tx
-/// (kind ∈ buy/sell/dividend/corporate_action), die `update_transaction`
-/// sonst ablehnt. Ändert nur `transactions.account_id`; `securities_trades.
-/// account_id` bleibt unangetastet (Variante B): wenn dort NULL, folgen
-/// Holdings automatisch dem neuen tx.account_id; wenn explizit gesetzt,
-/// bleiben sie wo sie sind. Falls der User auch die Holdings mit verschieben
-/// will, muss er den Trade separat über die Trade-Edit-Pfade ändern.
+/// Moves a Tx to a different account. Also works for trade Tx
+/// (kind ∈ buy/sell/dividend/corporate_action) that `update_transaction`
+/// would otherwise reject. Only changes `transactions.account_id`;
+/// `securities_trades.account_id` is left untouched (variant B): if NULL
+/// there, holdings automatically follow the new tx.account_id; if explicitly
+/// set, they stay where they are. If the user also wants to move holdings,
+/// they must update the trade separately through the trade-edit paths.
 #[tauri::command]
 pub async fn assign_account(
     state: State<'_, DbState>,
@@ -453,9 +453,9 @@ pub struct UpdateTransaction {
     pub bucket_id: Option<i64>,
     pub manual_note: Option<String>,
     pub counterparty_iban: Option<String>,
-    /// Optionaler kind-Override. None = unverändert lassen. Erlaubte
-    /// Werte: income, expense, transfer, fee, tax_general — Trade-Kinds
-    /// würden hier inkonsistent (Tx ohne Trade-Detail).
+    /// Optional kind override. None = leave unchanged. Allowed values:
+    /// income, expense, transfer, fee, tax_general — trade kinds would be
+    /// inconsistent here (Tx without a trade-detail row).
     #[serde(default)]
     pub kind: Option<String>,
 }
@@ -482,7 +482,7 @@ pub async fn update_transaction(
         }
     }
 
-    // SQL: kind nur schreiben wenn explizit gesetzt (Option-aware).
+    // SQL: only write kind if explicitly set (Option-aware).
     let rows = sqlx::query(
         "UPDATE transactions SET
             account_id        = ?1,
@@ -616,9 +616,9 @@ async fn load_history(
         .collect())
 }
 
-/// Erkennt Transaktionen, bei denen `counterparty_iban` zu einer eigenen
-/// Konto-IBAN matcht, und setzt `kind = 'transfer'`. Nützlich für Bestands-
-/// Daten die vor dem P25-Update importiert wurden.
+/// Detects transactions where `counterparty_iban` matches one of the user's
+/// own account IBANs and sets `kind = 'transfer'`. Useful for existing data
+/// that was imported before the P25 update.
 #[tauri::command]
 pub async fn detect_transfers(
     state: State<'_, DbState>,
@@ -629,18 +629,18 @@ pub async fn detect_transfers(
     Ok(detected)
 }
 
-/// Findet Auto-Pair-Mirror-Tx, für die es eine echte matching Tx auf dem
-/// gleichen Konto in +/- 3 Tagen gibt. Zwei Szenarien:
+/// Finds auto-pair mirror Tx for which a real matching Tx exists on the same
+/// account within +/- 3 days. Two scenarios:
 ///
-/// 1. Echte Tx ist noch UNPAIRED → Mirror löschen + echte Tx mit Original
-///    verlinken.
-/// 2. Echte Tx ist mit einem ANDEREN Auto-Pair-Mirror gepaart (doppelseitige
-///    Detection, beide Seiten haben counterparty_iban) → BEIDE Mirror löschen
-///    und die beiden REAL Tx direkt verlinken.
+/// 1. Real Tx is still UNPAIRED → delete the mirror and link the real Tx to
+///    the original.
+/// 2. Real Tx is paired with ANOTHER auto-pair mirror (double-sided detection,
+///    both sides carry counterparty_iban) → delete BOTH mirrors and link the
+///    two REAL Tx directly.
 ///
-/// Returnt die Anzahl der gefixten Mirror-Pairs.
+/// Returns the number of fixed mirror pairs.
 pub(crate) async fn cleanup_phantom_mirrors_inner(pool: &SqlitePool) -> Result<usize, sqlx::Error> {
-    // Alle auto_pair-Mirror holen (mit ihrem Original)
+    // Fetch all auto_pair mirrors (with their originals)
     let mirrors: Vec<(i64, i64, String, i64, String, Option<i64>)> = sqlx::query_as(
         "SELECT id, account_id, booking_date, amount_cents, currency, paired_tx_id
            FROM transactions WHERE source = 'auto_pair'"
@@ -648,7 +648,7 @@ pub(crate) async fn cleanup_phantom_mirrors_inner(pool: &SqlitePool) -> Result<u
 
     let mut cleaned = 0usize;
     for (mirror_id, account_id, booking_date, amount_cents, currency, original_paired) in mirrors {
-        // Skip wenn Mirror gar nicht (mehr) existiert (z.B. cascade-deleted in vorherigem Schritt)
+        // Skip if the mirror no longer exists (e.g. cascade-deleted in a previous iteration)
         let still_exists: Option<(i64,)> = sqlx::query_as(
             "SELECT id FROM transactions WHERE id = ?1"
         ).bind(mirror_id).fetch_optional(pool).await?;
@@ -656,7 +656,7 @@ pub(crate) async fn cleanup_phantom_mirrors_inner(pool: &SqlitePool) -> Result<u
             continue;
         }
 
-        // Suche echte matching Tx auf Mirror's Konto im ±3-Tage-Fenster
+        // Search for a real matching Tx on the mirror's account within the ±3-day window
         let real: Option<(i64, Option<i64>)> = sqlx::query_as(
             "SELECT id, paired_tx_id FROM transactions
               WHERE account_id = ?1
@@ -677,57 +677,57 @@ pub(crate) async fn cleanup_phantom_mirrors_inner(pool: &SqlitePool) -> Result<u
 
         let orig_id = match original_paired {
             Some(o) => o,
-            None => continue, // Mirror ohne Original — sollte nicht passieren, skippen
+            None => continue, // Mirror without an original — should not happen, skip
         };
 
         match real_paired {
-            // CASE 1: real_R noch unpaired
+            // CASE 1: real_R is still unpaired
             None => {
-                // Re-point original.paired_tx_id auf real_R
+                // Re-point original.paired_tx_id to real_R
                 sqlx::query("UPDATE transactions SET paired_tx_id = ?1 WHERE id = ?2")
                     .bind(real_id).bind(orig_id)
                     .execute(pool).await?;
-                // real_R wird kind=transfer + paired_tx_id = orig
+                // real_R gets kind=transfer + paired_tx_id = orig
                 sqlx::query("UPDATE transactions SET kind = 'transfer', paired_tx_id = ?1 WHERE id = ?2")
                     .bind(orig_id).bind(real_id)
                     .execute(pool).await?;
-                // Mirror löschen
+                // Delete the mirror
                 sqlx::query("DELETE FROM transactions WHERE id = ?1")
                     .bind(mirror_id)
                     .execute(pool).await?;
                 cleaned += 1;
             }
-            // CASE 2: real_R ist mit anderem Mirror gepaart (doppelseitige Phantom-Detection)
+            // CASE 2: real_R is paired with another mirror (double-sided phantom detection)
             Some(other_mirror_id) => {
-                // Verifiziere dass other_mirror_id wirklich ein auto_pair-Mirror ist
+                // Verify that other_mirror_id is really an auto_pair mirror
                 let other_check: Option<(String, i64)> = sqlx::query_as(
                     "SELECT source, account_id FROM transactions WHERE id = ?1"
                 ).bind(other_mirror_id)
                 .fetch_optional(pool).await?;
                 let Some((other_source, other_account_id)) = other_check else { continue };
                 if other_source != "auto_pair" {
-                    // real_R ist mit einer echten Tx gepaart — wir können nicht reinpfuschen, skip
+                    // real_R is paired with a real Tx — we must not interfere, skip
                     continue;
                 }
-                // Verifiziere: other_mirror_id sollte auf orig_id's Konto sein
+                // Verify: other_mirror_id should be on orig_id's account
                 let orig_account: Option<(i64,)> = sqlx::query_as(
                     "SELECT account_id FROM transactions WHERE id = ?1"
                 ).bind(orig_id)
                 .fetch_optional(pool).await?;
                 let Some((orig_account_id,)) = orig_account else { continue };
                 if other_account_id != orig_account_id {
-                    // Mirror M2 ist auf einem dritten Konto — atypisch, skippen
+                    // Mirror M2 is on a third account — atypical, skip
                     continue;
                 }
 
-                // Re-link beide ECHTE Tx miteinander
+                // Re-link both REAL Tx to each other
                 sqlx::query("UPDATE transactions SET paired_tx_id = ?1 WHERE id = ?2")
                     .bind(real_id).bind(orig_id)
                     .execute(pool).await?;
                 sqlx::query("UPDATE transactions SET kind = 'transfer', paired_tx_id = ?1 WHERE id = ?2")
                     .bind(orig_id).bind(real_id)
                     .execute(pool).await?;
-                // BEIDE Mirror löschen
+                // Delete BOTH mirrors
                 sqlx::query("DELETE FROM transactions WHERE id = ?1")
                     .bind(mirror_id)
                     .execute(pool).await?;
@@ -803,8 +803,8 @@ mod tests {
 
     #[tokio::test]
     async fn assign_account_moves_trade_tx_to_other_account() {
-        // Trade-Tx (kind=buy) müssen verschiebbar sein — assert_not_trade_tx
-        // in update_transaction würde das normalerweise ablehnen.
+        // Trade Tx (kind=buy) must be movable — assert_not_trade_tx
+        // in update_transaction would normally reject this.
         let pool = connect_memory().await.unwrap();
         let from_acc = seed_account(&pool, "TR Depot").await;
         let to_acc = seed_account(&pool, "Flatex Depot").await;
@@ -813,7 +813,7 @@ mod tests {
              VALUES (?1, '2026-05-10', -10000, 'EUR', 'flatex_pdf', 'buy') RETURNING id",
         ).bind(from_acc).fetch_one(&pool).await.unwrap();
 
-        // Inner UPDATE (direkt, weil State<DbState> nicht testbar)
+        // Inner UPDATE (directly, because State<DbState> is not testable)
         sqlx::query("UPDATE transactions SET account_id = ?1 WHERE id = ?2")
             .bind(to_acc).bind(tx_id).execute(&pool).await.unwrap();
 
@@ -1197,7 +1197,7 @@ mod tests {
     async fn list_transactions_paginates_via_cursor() {
         let pool = connect_memory().await.unwrap();
         let acc = crate::db::accounts::create_account(&pool, "A", "bank", "EUR", None, None, None).await.unwrap();
-        // 5 Tx an verschiedenen Tagen (DESC: 5, 4, 3, 2, 1).
+        // 5 Tx on different days (DESC: 5, 4, 3, 2, 1).
         for d in 1..=5 {
             sqlx::query(
                 "INSERT INTO transactions (account_id, booking_date, amount_cents, currency, counterparty, source, kind)
@@ -1239,13 +1239,13 @@ mod tests {
             "INSERT INTO categories (name) VALUES ('Food') RETURNING id"
         ).fetch_one(&pool).await.unwrap();
 
-        // tx1: 2026-04-01, -500, kat=Food
+        // tx1: 2026-04-01, -500, cat=Food
         sqlx::query("INSERT INTO transactions (account_id, booking_date, amount_cents, currency, source, kind, category_id) VALUES (?1, '2026-04-01', -500, 'EUR', 't', 'expense', ?2)")
             .bind(acc.id).bind(cat).execute(&pool).await.unwrap();
-        // tx2: 2026-05-01, -5000, kat=NULL
+        // tx2: 2026-05-01, -5000, cat=NULL
         sqlx::query("INSERT INTO transactions (account_id, booking_date, amount_cents, currency, source, kind) VALUES (?1, '2026-05-01', -5000, 'EUR', 't', 'expense')")
             .bind(acc.id).execute(&pool).await.unwrap();
-        // tx3: 2026-06-01, -100, kat=NULL
+        // tx3: 2026-06-01, -100, cat=NULL
         sqlx::query("INSERT INTO transactions (account_id, booking_date, amount_cents, currency, source, kind) VALUES (?1, '2026-06-01', -100, 'EUR', 't', 'expense')")
             .bind(acc.id).execute(&pool).await.unwrap();
 
@@ -1277,7 +1277,7 @@ mod tests {
             ("2026-05-01", 10000_i64, "income"),
             ("2026-05-02", -3000_i64, "expense"),
             ("2026-05-03", -2000_i64, "expense"),
-            ("2026-05-04", 5000_i64, "transfer"), // excluded (Aggregate filtert kind)
+            ("2026-05-04", 5000_i64, "transfer"), // excluded (aggregate filters by kind)
         ] {
             sqlx::query("INSERT INTO transactions (account_id, booking_date, amount_cents, currency, source, kind) VALUES (?1, ?2, ?3, 'EUR', 't', ?4)")
                 .bind(acc.id).bind(date).bind(amt).bind(kind).execute(&pool).await.unwrap();
@@ -1286,16 +1286,16 @@ mod tests {
         let agg = aggregate_transactions_inner(&pool, &TxFilter::default()).await.unwrap();
         assert_eq!(agg.in_cents, 10000);
         assert_eq!(agg.out_cents, 5000);
-        assert_eq!(agg.count, 3); // transfer ist excluded
+        assert_eq!(agg.count, 3); // transfer is excluded
     }
 
     #[tokio::test]
     async fn list_transactions_depot_view_shows_only_holding_changes() {
-        // Doppelte-Buchung-Semantik: alle Cash-Bewegungen (auch Dividenden +
-        // KESt) am Verrechnungskonto. Im Depot-View nur das, was den Bestand
-        // ändert: buy, sell, corporate_action, fusion_out, fusion_in.
-        // Dividenden + Thesaurierungs-KESt sind reine Cash-Events und gehören
-        // NICHT in den Depot-View.
+        // Double-entry semantics: all cash movements (including dividends and
+        // withholding tax) recorded at the settlement account. The depot view
+        // shows only what changes the holdings: buy, sell, corporate_action,
+        // fusion_out, fusion_in. Dividends and accumulation tax are pure cash
+        // events and do NOT belong in the depot view.
         let pool = connect_memory().await.unwrap();
         let cash = crate::db::accounts::create_account(
             &pool, "Cash", "savings", "EUR", None, None, None,
@@ -1308,7 +1308,7 @@ mod tests {
              VALUES ('LU1781541179', 'LYXOR', 'EUR', 'etf_equity') RETURNING id"
         ).fetch_one(&pool).await.unwrap();
 
-        // Buy: Tx an Cash, Trade-Detail side='buy' mit account_id=Depot
+        // Buy: Tx on Cash, trade-detail side='buy' with account_id=Depot
         let (buy_tx_id,): (i64,) = sqlx::query_as(
             "INSERT INTO transactions
                 (account_id, booking_date, amount_cents, currency, counterparty, source, kind, imported_at)
@@ -1320,7 +1320,7 @@ mod tests {
              VALUES (?1, ?2, 'buy', 1000000, ?3)"
         ).bind(buy_tx_id).bind(sec_id).bind(depot.id).execute(&pool).await.unwrap();
 
-        // Dividende: Tx an Cash, Trade-Detail side='dividend' (shares=0), account_id=Depot
+        // Dividend: Tx on Cash, trade-detail side='dividend' (shares=0), account_id=Depot
         let (div_tx_id,): (i64,) = sqlx::query_as(
             "INSERT INTO transactions
                 (account_id, booking_date, amount_cents, currency, counterparty, source, kind, imported_at)
@@ -1332,16 +1332,16 @@ mod tests {
              VALUES (?1, ?2, 'dividend', 0, ?3)"
         ).bind(div_tx_id).bind(sec_id).bind(depot.id).execute(&pool).await.unwrap();
 
-        // Cash-View: sieht beide (Geldfluss-Sicht)
+        // Cash view: sees both (cash-flow perspective)
         let f_cash = TxFilter { account_id: Some(cash.id), ..Default::default() };
         let cash_rows = list_transactions_inner(&pool, &f_cash).await.unwrap().rows;
-        assert_eq!(cash_rows.len(), 2, "Cash-View zeigt Buy + Dividende");
+        assert_eq!(cash_rows.len(), 2, "cash view shows buy + dividend");
 
-        // Depot-View: nur Buy, NICHT Dividende
+        // Depot view: only buy, NOT dividend
         let f_depot = TxFilter { account_id: Some(depot.id), ..Default::default() };
         let depot_rows = list_transactions_inner(&pool, &f_depot).await.unwrap().rows;
-        assert_eq!(depot_rows.len(), 1, "Depot-View zeigt nur bestandsändernde Tx");
-        assert_eq!(depot_rows[0].id, buy_tx_id, "Es ist die Buy-Tx, nicht die Dividende");
+        assert_eq!(depot_rows.len(), 1, "depot view shows only holding-changing Tx");
+        assert_eq!(depot_rows[0].id, buy_tx_id, "it is the buy Tx, not the dividend");
     }
 
     #[tokio::test]
@@ -1357,11 +1357,11 @@ mod tests {
         insert_simple_tx(&pool, acc_a, 100, "giro-tx").await;
         insert_simple_tx(&pool, acc_b, 200, "depot-tx").await;
 
-        // Institut-Filter alleine → beide
+        // Institution filter alone → both
         let f1 = TxFilter { institution_id: Some(iid), ..Default::default() };
         assert_eq!(list_transactions_inner(&pool, &f1).await.unwrap().rows.len(), 2);
 
-        // Institut + Konto-Filter → nur ein Konto
+        // Institution + account filter → only one account
         let f2 = TxFilter {
             institution_id: Some(iid),
             account_id: Some(acc_a),
@@ -1377,14 +1377,14 @@ mod tests {
         use crate::db::connect_memory;
         let pool = connect_memory().await.unwrap();
         let acc = crate::db::accounts::create_account(&pool, "A", "bank", "EUR", None, None, None).await.unwrap();
-        // Tx einfügen, IBAN initial leer
+        // Insert Tx, IBAN initially empty
         sqlx::query(
             "INSERT INTO transactions (account_id, booking_date, amount_cents, currency, counterparty, source, kind)
              VALUES (?1, '2026-05-15', -10000, 'EUR', 'X', 'manual', 'expense')"
         ).bind(acc.id).execute(&pool).await.unwrap();
         let (tx_id,): (i64,) = sqlx::query_as("SELECT id FROM transactions LIMIT 1").fetch_one(&pool).await.unwrap();
 
-        // normalize_iban + DB-update separat testen
+        // Test normalize_iban + DB update separately
         let normalized = normalize_iban(Some(" de89 3704 0044 0532 0130 00 ")).unwrap();
         assert_eq!(normalized.as_deref(), Some("DE89370400440532013000"));
 
@@ -1422,7 +1422,7 @@ mod tests {
     async fn cleanup_resolves_double_sided_phantom_mirrors() {
         let pool = connect_memory().await.unwrap();
 
-        // 2 Konten mit IBAN
+        // 2 accounts with IBAN
         let src: i64 = sqlx::query_scalar(
             "INSERT INTO accounts (name, kind, currency, iban) VALUES ('Main', 'bank', 'EUR', 'AT000000000000000010') RETURNING id"
         ).fetch_one(&pool).await.unwrap();
@@ -1430,7 +1430,7 @@ mod tests {
             "INSERT INTO accounts (name, kind, currency, iban) VALUES ('Cash', 'savings', 'EUR', 'AT000000000000000011') RETURNING id"
         ).fetch_one(&pool).await.unwrap();
 
-        // Echte Sparkasse-out und TR-in (1 Tag versetzt)
+        // Real Sparkasse-out and TR-in (1 day apart)
         let real_out: i64 = sqlx::query_scalar(
             "INSERT INTO transactions (account_id, booking_date, amount_cents, currency, counterparty_iban, kind, source)
              VALUES (?1, '2026-05-04', -23000, 'EUR', 'AT000000000000000011', 'transfer', 'sparkasse_csv') RETURNING id"
@@ -1440,7 +1440,7 @@ mod tests {
              VALUES (?1, '2026-05-05', 23000, 'EUR', 'AT000000000000000010', 'transfer', 'tr_csv') RETURNING id"
         ).bind(tgt).fetch_one(&pool).await.unwrap();
 
-        // Phantom-Mirrors auf beiden Seiten erzeugen
+        // Create phantom mirrors on both sides
         let mirror_on_tgt: i64 = sqlx::query_scalar(
             "INSERT INTO transactions (account_id, booking_date, amount_cents, currency, kind, source, paired_tx_id)
              VALUES (?1, '2026-05-04', 23000, 'EUR', 'transfer', 'auto_pair', ?2) RETURNING id"
@@ -1450,27 +1450,27 @@ mod tests {
              VALUES (?1, '2026-05-05', -23000, 'EUR', 'transfer', 'auto_pair', ?2) RETURNING id"
         ).bind(src).bind(real_in).fetch_one(&pool).await.unwrap();
 
-        // Beide echte Tx zeigen auf ihre jeweiligen Mirror-Partner
+        // Both real Tx point to their respective mirror partners
         sqlx::query("UPDATE transactions SET paired_tx_id = ?1 WHERE id = ?2")
             .bind(mirror_on_tgt).bind(real_out).execute(&pool).await.unwrap();
         sqlx::query("UPDATE transactions SET paired_tx_id = ?1 WHERE id = ?2")
             .bind(mirror_on_src).bind(real_in).execute(&pool).await.unwrap();
 
-        // Vor cleanup: 4 Tx
+        // Before cleanup: 4 Tx
         let (cnt_before,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM transactions")
             .fetch_one(&pool).await.unwrap();
         assert_eq!(cnt_before, 4);
 
-        // Cleanup ausführen
+        // Run cleanup
         let fixed = cleanup_phantom_mirrors_inner(&pool).await.unwrap();
-        assert_eq!(fixed, 1, "Genau 1 Mirror-Pair soll als doppelseitiger Fall gefixt werden");
+        assert_eq!(fixed, 1, "exactly 1 mirror pair should be fixed as a double-sided case");
 
-        // Nach cleanup: nur noch 2 echte Tx
+        // After cleanup: only 2 real Tx remain
         let (cnt_after,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM transactions")
             .fetch_one(&pool).await.unwrap();
-        assert_eq!(cnt_after, 2, "Beide Mirror sollen gelöscht sein");
+        assert_eq!(cnt_after, 2, "both mirrors should be deleted");
 
-        // real_out und real_in sollen direkt miteinander verlinkt sein
+        // real_out and real_in should be linked directly to each other
         let (out_paired,): (Option<i64>,) = sqlx::query_as(
             "SELECT paired_tx_id FROM transactions WHERE id = ?1"
         ).bind(real_out).fetch_one(&pool).await.unwrap();
@@ -1481,13 +1481,13 @@ mod tests {
         ).bind(real_in).fetch_one(&pool).await.unwrap();
         assert_eq!(in_paired, Some(real_out), "real_in.paired_tx_id → real_out");
 
-        // Sicherstellen dass die Mirror wirklich weg sind
+        // Verify that the mirrors are truly gone
         let (m1_exists,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM transactions WHERE id = ?1")
             .bind(mirror_on_tgt).fetch_one(&pool).await.unwrap();
         let (m2_exists,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM transactions WHERE id = ?1")
             .bind(mirror_on_src).fetch_one(&pool).await.unwrap();
-        assert_eq!(m1_exists, 0, "mirror_on_tgt soll gelöscht sein");
-        assert_eq!(m2_exists, 0, "mirror_on_src soll gelöscht sein");
+        assert_eq!(m1_exists, 0, "mirror_on_tgt should be deleted");
+        assert_eq!(m2_exists, 0, "mirror_on_src should be deleted");
     }
 
     #[tokio::test]
@@ -1500,14 +1500,14 @@ mod tests {
             "INSERT INTO accounts (name, kind, currency, iban) VALUES ('Cash', 'savings', 'EUR', 'AT000000000000000011') RETURNING id"
         ).fetch_one(&pool).await.unwrap();
 
-        // Echte Sparkasse-out + TR-in (3 Tage versetzt — im ±3-Tage-Window)
+        // Real Sparkasse-out + TR-in (3 days apart — within the ±3-day window)
         sqlx::query(
             "INSERT INTO transactions (account_id, booking_date, amount_cents, currency, counterparty_iban, kind, source)
              VALUES (?1, '2026-05-04', -23000, 'EUR', 'AT000000000000000011', 'expense', 'sparkasse_csv'),
                     (?2, '2026-05-07', 23000, 'EUR', 'AT000000000000000010', 'income', 'tr_csv')"
         ).bind(src).bind(tgt).execute(&pool).await.unwrap();
 
-        // Detection setzt kind='transfer' + paired_tx_id (kein Mirror weil beide IBANs bekannt)
+        // Detection sets kind='transfer' + paired_tx_id (no mirror because both IBANs are known)
         let paired = crate::import_flow::detect_inter_account_transfers(&pool).await.unwrap();
         cleanup_phantom_mirrors_inner(&pool).await.unwrap();
 

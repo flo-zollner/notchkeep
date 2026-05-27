@@ -17,7 +17,7 @@
 
   let { tx, accounts, categories, bucketsById, onClose, onSaved, onDeleted }: Props = $props();
 
-  // ── Initial-Load: zugehörige Trade-Row + Security ─────────────────────────
+  // ── Initial load: associated trade row + security ─────────────────────────
   let trade = $state<SecurityTrade | null>(null);
   let security = $state<Security | null>(null);
   let loading = $state(true);
@@ -36,7 +36,7 @@
       .finally(() => { loading = false; });
   });
 
-  // ── Editierbare Felder ────────────────────────────────────────────────────
+  // ── Editable fields ───────────────────────────────────────────────────────
   let sharesStr = $state('');
   let priceStr = $state('');
   let amountStr = $state('');
@@ -60,7 +60,7 @@
     depotAccountId = trade.accountId;
   });
 
-  // ── Read-only-Kontext-Anzeige ─────────────────────────────────────────────
+  // ── Read-only context display ─────────────────────────────────────────────
   const cashAccount = $derived(accounts.find((a) => a.id === tx.account_id));
   const category = $derived(
     tx.category_id != null ? categories.find((c) => c.id === tx.category_id) : undefined
@@ -69,7 +69,7 @@
     tx.bucket_id != null ? bucketsById?.get(tx.bucket_id) : undefined
   );
 
-  // Side-Variante steuert, welche Felder editierbar/lock'd sind
+  // Trade side controls which fields are editable/locked
   const tradeSide = $derived((trade?.side ?? 'buy') as string);
   const isDividend = $derived(tradeSide === 'dividend');
   const isFusion = $derived(tradeSide === 'fusion_out' || tradeSide === 'fusion_in');
@@ -78,7 +78,7 @@
   const priceEditable = $derived(!isDividend && !isFusion && !isCorpAction);
   const amountEditable = $derived(!isFusion && !isCorpAction);
 
-  // ── Save ─────────────────────────────────────────────────────────────────
+  // ── Save ──────────────────────────────────────────────────────────────────
   function parseNum(s: string, unit: number): number | null {
     const n = parseEur(s);
     if (!Number.isFinite(n)) return null;

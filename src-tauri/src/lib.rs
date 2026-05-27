@@ -219,13 +219,13 @@ pub fn run() {
             let data_dir = {
                 #[cfg(target_os = "android")]
                 {
-                    // Auf Android: External-Files-Dir, damit Syncthing den Folder picken kann.
-                    // Pfad: /sdcard/Android/data/me.zollner.notchkeep/files/
+                    // Android: external files dir so Syncthing can pick the folder.
+                    // Path: /sdcard/Android/data/me.zollner.notchkeep/files/
                     app.path().app_data_dir().expect("app_data_dir")
                 }
                 #[cfg(not(target_os = "android"))]
                 {
-                    // Desktop: lokales Daten-Verzeichnis (z.B. ~/.local/share/me.zollner.notchkeep/)
+                    // Desktop: local data directory (e.g. ~/.local/share/me.zollner.notchkeep/)
                     app.path().app_local_data_dir().expect("app_local_data_dir")
                 }
             };
@@ -261,9 +261,9 @@ pub fn run() {
                 db::lock::acquire(&pool, &device_id, &hostname).await
             })?;
             if let AcquireOutcome::HeldByOther(holder) = &outcome {
-                // MVP: nur loggen; UI-Warnung kommt mit dem Frontend-Hook.
+                // MVP: log only; UI warning will come with the frontend hook.
                 eprintln!(
-                    "[notchkeep] sync_lock gehört '{}' ({}), erworben {}",
+                    "[notchkeep] sync_lock held by '{}' ({}), acquired {}",
                     holder.hostname, holder.device_id, holder.acquired_at
                 );
             }
@@ -275,7 +275,7 @@ pub fn run() {
                 hostname: hostname.clone(),
             });
 
-            // 6e: Provider-State + Background-Refresh.
+            // 6e: ProviderState + background price refresh.
             use crate::pricing_provider::yahoo::YahooProvider;
             app.manage(ProviderState(Box::new(YahooProvider::new())));
 
@@ -295,7 +295,7 @@ pub fn run() {
                             .ok();
                     }
                     Err(e) => {
-                        eprintln!("[notchkeep] background refresh failed: {e}");
+                        eprintln!("[notchkeep] background price refresh failed: {e}");
                         handle_for_bg
                             .emit("price_refresh_status", serde_json::json!({
                                 "stage": "failed",

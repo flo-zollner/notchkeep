@@ -110,7 +110,7 @@ mod tests {
     #[tokio::test]
     async fn create_bucket_command_round_trip() {
         let pool = connect_memory().await.unwrap();
-        // State<'_> kann in cargo-test nicht einfach instanziiert werden; daher direkt db_buckets nutzen.
+        // State<'_> cannot be easily instantiated in cargo-test; use db_buckets directly instead.
         let p = NewBucketPayload {
             name: "x".into(), icon: None, color: None, note: None,
             target_cents: None, start_date: None, target_date: None,

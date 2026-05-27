@@ -78,7 +78,7 @@
   type DonutMode = 'lumped' | 'perHolding' | 'perAccount' | 'perInstitution' | 'perKind';
   let donutMode = $state<DonutMode>('lumped');
 
-  // Konto-Typen-Reihenfolge wie auf /accounts
+  // Account kind order as on /accounts
   const KIND_ORDER = ['bank', 'savings', 'broker', 'cash', 'credit', 'loan'] as const;
 
   function kindLabel(kind: string): string {
@@ -132,8 +132,8 @@
     void loadAll(monthsForRange(range), runwayWindow);
   });
 
-  // Nach Background-FX-/Kurs-Refresh: alles neu laden (Holdings, Portfolio-Werte,
-  // Kontosalden sind alle FX-abhängig).
+  // After a background FX/price refresh: reload everything (holdings, portfolio values,
+  // account balances are all FX-dependent).
   $effect(() => {
     type Status = { stage: 'started' | 'completed' | 'failed' };
     const unlisten = listen<Status>('price_refresh_status', (e) => {
@@ -146,12 +146,12 @@
 
   const activeAccounts = $derived(accounts.filter((a) => !a.archived));
 
-  // Konto-Total inkl. Wertpapier-Marktwert je Konto (perKind/perAccount-konsistent).
+  // Account total including securities market value per account (consistent with perKind/perAccount).
   function accountTotalCents(a: Account): number {
     return (balances[a.id] ?? 0) + (portfolioByAccount[a.id] ?? 0);
   }
 
-  // Gruppiere aktive Konten nach kind, sortiert in KIND_ORDER-Reihenfolge.
+  // Group active accounts by kind, sorted in KIND_ORDER order.
   const accountsByKind = $derived.by(() => {
     const map = new Map<string, Account[]>();
     for (const a of activeAccounts) {
@@ -228,7 +228,7 @@
 
   const allocation = $derived.by(() => {
     if (donutMode === 'perAccount') {
-      // Konten-Saldo + Portfolio-Marktwert je Account zusammengefasst.
+      // Account balance + portfolio market value per account combined.
       return activeAccounts
         .map((a, i) => ({
           name: a.name,
@@ -238,7 +238,7 @@
         .filter((d) => d.v > 0);
     }
     if (donutMode === 'perInstitution') {
-      // Konten + Portfolio gruppiert pro Institut.
+      // Accounts + portfolio grouped per institution.
       const byInst = new Map<number | null, number>(); // institution_id (or null) -> total cents
       for (const a of activeAccounts) {
         const total = (balances[a.id] ?? 0) + (portfolioByAccount[a.id] ?? 0);
@@ -246,7 +246,7 @@
         byInst.set(key, (byInst.get(key) ?? 0) + total);
       }
       const items: { name: string; v: number; color: string }[] = [];
-      // Gemäß Institut-Liste sortiert (alphabetisch), plus eine Sonder-Gruppe "Ohne Institut" am Ende
+      // Sorted according to the institution list (alphabetically), plus a special "No institution" group at the end
       for (const [j, inst] of institutions.entries()) {
         const cents = byInst.get(inst.id);
         if (cents != null && cents !== 0) {
@@ -260,7 +260,7 @@
       return items;
     }
     if (donutMode === 'perKind') {
-      // Konten + Portfolio gruppiert pro Konto-Typ (Depot, Giro, Tagesgeld, …).
+      // Accounts + portfolio grouped by account kind (broker, bank, savings, …).
       const byKind = new Map<string, number>();
       for (const a of activeAccounts) {
         const total = (balances[a.id] ?? 0) + (portfolioByAccount[a.id] ?? 0);
@@ -295,7 +295,7 @@
         .filter((d) => d.v > 0);
       return [...accountSlices, ...holdingSlices];
     }
-    // 'lumped': ein gesammelter Slice "Wertpapiere"
+    // 'lumped': one combined "securities" slice
     if (portfolioCents > 0) {
       accountSlices.push({
         name: t().common.securities,

@@ -8,11 +8,11 @@ use crate::importers::flatex_pdf::FlatexPdf;
 
 const FUZZY_THRESHOLD: f64 = 0.85;
 
-/// Stößt nach einem Import den Background-Refresh aller Wertpapier-Kurse und
-/// FX-Raten an. Dabei wird derselbe `price_refresh_status`-Event-Lebenszyklus
-/// emittiert wie beim App-Start (`lib.rs`) — die Sidebar zeigt den Spinner,
-/// und Seiten, die auf das `completed`-Event hören (z.B. /settings/currencies,
-/// Dashboard), können sich automatisch neu laden.
+/// Triggers a background refresh of all security prices and FX rates after an
+/// import. Emits the same `price_refresh_status` event lifecycle as on app
+/// startup (`lib.rs`) — the sidebar shows the spinner, and pages listening for
+/// the `completed` event (e.g. /settings/currencies, dashboard) can reload
+/// automatically.
 fn spawn_post_import_refresh(app: AppHandle, pool: sqlx::SqlitePool) {
     let _ = app.emit(
         "price_refresh_status",
@@ -28,7 +28,7 @@ fn spawn_post_import_refresh(app: AppHandle, pool: sqlx::SqlitePool) {
                 );
             }
             Err(e) => {
-                eprintln!("[notchkeep] post-import refresh failed: {e}");
+                eprintln!("[notchkeep] post-import price refresh failed: {e}");
                 let _ = app.emit(
                     "price_refresh_status",
                     serde_json::json!({ "stage": "failed", "error": e.to_string() }),
@@ -38,9 +38,9 @@ fn spawn_post_import_refresh(app: AppHandle, pool: sqlx::SqlitePool) {
     });
 }
 
-/// Stellt sicher, dass `account_id` einem Trade-Republic-Institut zugewiesen ist.
-/// Wenn das Konto bereits ein Institut hat, wird nichts geändert (User-Wahl respektieren).
-/// Wenn `institution_id IS NULL`, wird TR upserted und zugewiesen.
+/// Ensures that `account_id` is assigned to a Trade Republic institution.
+/// If the account already has an institution, nothing is changed (respecting the user's choice).
+/// If `institution_id IS NULL`, TR is upserted and assigned.
 pub(crate) async fn ensure_tr_institution_for_account(
     pool: &sqlx::SqlitePool,
     account_id: i64,
@@ -63,8 +63,8 @@ pub(crate) async fn ensure_tr_institution_for_account(
     Ok(())
 }
 
-/// Stellt sicher, dass `account_id` einem flatexDEGIRO-Institut zugewiesen ist.
-/// Wenn das Konto bereits ein Institut hat, wird nichts geändert.
+/// Ensures that `account_id` is assigned to a flatexDEGIRO institution.
+/// If the account already has an institution, nothing is changed.
 pub(crate) async fn ensure_flatex_institution_for_account(
     pool: &sqlx::SqlitePool,
     account_id: i64,
@@ -87,8 +87,8 @@ pub(crate) async fn ensure_flatex_institution_for_account(
     Ok(())
 }
 
-/// Stellt sicher, dass `account_id` einem Erste-Bank-/Sparkasse-Institut
-/// zugewiesen ist. Wenn das Konto bereits ein Institut hat, wird nichts geändert.
+/// Ensures that `account_id` is assigned to an Erste Bank / Sparkasse institution.
+/// If the account already has an institution, nothing is changed.
 pub(crate) async fn ensure_sparkasse_institution_for_account(
     pool: &sqlx::SqlitePool,
     account_id: i64,
@@ -134,19 +134,19 @@ pub async fn import_trade_republic_csv(
     .await?;
     report.warnings.extend(parsed.warnings);
 
-    // Nach dem Import: Konto dem TR-Institut zuweisen, falls noch keins gesetzt.
+    // After import: assign account to the TR institution if none is set yet.
     let _ = ensure_tr_institution_for_account(&pool, account_id).await;
 
-    // Wendet Regeln auf alle uncategorized Tx an — fängt Re-Imports + frische Regeln ab.
+    // Apply rules to all uncategorized transactions — catches re-imports + newly created rules.
     let retro = apply_rules_to_uncategorized(&pool).await.unwrap_or(0);
     report.categorized_by_rule += retro;
 
-    // IBAN-basierte Transfer-Detection: setzt kind = 'transfer' wo counterparty_iban
-    // zu einem eigenen Konto matched.
+    // IBAN-based transfer detection: sets kind = 'transfer' where counterparty_iban
+    // matches one of the user's own accounts.
     let _ = crate::import_flow::detect_inter_account_transfers(&pool).await;
     let _ = crate::commands::transactions::cleanup_phantom_mirrors_inner(&pool).await;
 
-    // Hintergrund-Refresh für Kurse + FX-Raten (siehe spawn_post_import_refresh).
+    // Background refresh for prices + FX rates (see spawn_post_import_refresh).
     spawn_post_import_refresh(app, state.pool());
 
     Ok(report)
@@ -191,11 +191,11 @@ pub async fn import_flatex_pdfs(
 ) -> Result<ImportReport, CommandError> {
     let pool = state.pool();
 
-    // Auto-Routing: Flatex-PDFs enthalten Cash-Bewegungen + Trade-Details. Cash
-    // muss am Cashkonto landen, Trade-Detail am Depot. Wenn der User das Depot
-    // selber gewählt hat und im Institut genau ein Cashkonto existiert, routen
-    // wir die Tx-account_id dort hin — `resolve_trade_account` im Import-Flow
-    // setzt dann securities_trades.account_id auf das Depot zurück.
+    // Auto-routing: Flatex PDFs contain both cash movements and trade details. Cash
+    // must land on the cash account, the trade detail on the depot. If the user
+    // selected the depot themselves and exactly one cash account exists in the
+    // institution, we route the Tx account_id there — `resolve_trade_account` in
+    // the import flow then sets securities_trades.account_id back to the depot.
     let effective_account_id = crate::db::accounts::resolve_cash_settlement_account(
         &pool, account_id,
     )
@@ -212,18 +212,18 @@ pub async fn import_flatex_pdfs(
             .map_err(|e| CommandError { message: e.to_string() })?;
         combined.warnings.extend(parsed.warnings);
         let mut raws = parsed.raws;
-        // Chronologisch sortieren (relevant für Multi-Position-Belege wie
-        // Sparplan-Sammelabrechnung oder Krypto-Sammel). Macht FIFO-Lots
-        // stabil und Tx-IDs entsprechen der Beleg-Chronologie.
+        // Sort chronologically (relevant for multi-position documents like
+        // savings-plan batch statements or crypto batches). Makes FIFO lots
+        // stable and Tx IDs match document chronology.
         raws.sort_by_key(|r| r.booking_date);
         combined.parsed += raws.len();
 
-        // Symmetrischer Sparplan-Dedup:
-        // - Wenn raws Sparplan-Positionen enthält und die Einzelbelege schon
-        //   in der DB sind → SP-Positionen skippen.
-        // - Wenn raws Einzelbelege enthält und SP-Tx schon in der DB sind →
-        //   die alten SP-Tx löschen (destruktiv) zugunsten der detaillierteren
-        //   Einzelbelege.
+        // Symmetric savings-plan dedup:
+        // - If raws contains savings-plan positions and the individual documents
+        //   are already in the DB → skip SP positions.
+        // - If raws contains individual documents and SP transactions are already
+        //   in the DB → delete the old SP transactions (destructive) in favour
+        //   of the more detailed individual documents.
         let displaced = displace_sparplan_duplicates(&pool, effective_account_id, &raws).await?;
         combined.skipped += displaced;
         let (raws_clean, skipped_dup) =
@@ -239,33 +239,33 @@ pub async fn import_flatex_pdfs(
         combined.categorized_by_fuzzy += report.categorized_by_fuzzy;
         combined.warnings.extend(report.warnings);
     }
-    // Institut wird am ursprünglich gewählten Konto verankert (User-Intent),
-    // auch wenn Tx über die Verrechnung landen.
+    // Institution is anchored to the originally selected account (user intent),
+    // even when transactions land on the settlement account.
     let _ = ensure_flatex_institution_for_account(&pool, account_id).await;
 
-    // IBAN-basierte Transfer-Detection + Phantom-Mirror-Cleanup.
+    // IBAN-based transfer detection + phantom mirror cleanup.
     let _ = crate::import_flow::detect_inter_account_transfers(&pool).await;
     let _ = crate::commands::transactions::cleanup_phantom_mirrors_inner(&pool).await;
 
-    // Hintergrund-Refresh für Kurse + FX-Raten (siehe spawn_post_import_refresh).
+    // Background refresh for prices + FX rates (see spawn_post_import_refresh).
     spawn_post_import_refresh(app, state.pool());
 
     Ok(combined)
 }
 
-/// Ersetzt bestehende Sparplan-Sammel-Positionen in der DB durch neu
-/// importierte Einzelbelege. Symmetrisches Gegenstück zu
-/// `filter_sparplan_duplicates` — handhabt den Fall, dass der User die
-/// Sparplan-Sammelabrechnung ZUERST importiert hat und jetzt die Einzelbelege
-/// nachschiebt.
+/// Replaces existing savings-plan batch positions in the DB with newly
+/// imported individual documents. Symmetric counterpart to
+/// `filter_sparplan_duplicates` — handles the case where the user imported
+/// the savings-plan batch statement FIRST and now pushes the individual
+/// documents afterwards.
 ///
-/// Pro Non-SP-Tx in `raws` mit Trade-Daten: wenn in der DB eine SP-Tx mit
-/// gleichem (account_id, booking_date, amount_cents, ISIN) existiert, wird
-/// die SP-Tx gelöscht (securities_trades via ON DELETE CASCADE mit). Returnt
-/// die Anzahl gelöschter SP-Tx.
+/// For each non-SP Tx in `raws` with trade data: if a SP Tx with the same
+/// (account_id, booking_date, amount_cents, ISIN) exists in the DB, the
+/// SP Tx is deleted (securities_trades via ON DELETE CASCADE). Returns the
+/// number of deleted SP transactions.
 ///
-/// **Destruktive Operation** — sollte nur aufgerufen werden, wenn der Caller
-/// danach den passenden Einzelbeleg inserted.
+/// **Destructive operation** — should only be called when the caller will
+/// insert the matching individual document afterwards.
 async fn displace_sparplan_duplicates(
     pool: &sqlx::SqlitePool,
     account_id: i64,
@@ -296,7 +296,7 @@ async fn displace_sparplan_duplicates(
         .await?;
 
         for (tx_id,) in sp_tx_ids {
-            // securities_trades.tx_id ist ON DELETE CASCADE — Trade-Zeile wird mit gelöscht.
+            // securities_trades.tx_id has ON DELETE CASCADE — trade row is deleted along with it.
             sqlx::query("DELETE FROM transactions WHERE id = ?1")
                 .bind(tx_id)
                 .execute(pool)
@@ -307,17 +307,17 @@ async fn displace_sparplan_duplicates(
     Ok(deleted)
 }
 
-/// Pre-Import-Filter für Sparplan-Sammelabrechnungs-Positionen.
+/// Pre-import filter for savings-plan batch statement positions.
 ///
-/// Sparplan-Belege fassen mehrere Monate eines laufenden Sparplans zusammen —
-/// dieselben Käufe gibt's typischerweise auch als Einzelbeleg
-/// (`KaufFondsZertifikate`). Wenn der User beides importiert hat, würde jeder
-/// Sparplan-Monat doppelt verbucht.
+/// Savings-plan documents aggregate multiple months of a running plan —
+/// the same purchases also exist as individual documents
+/// (`KaufFondsZertifikate`). If the user imports both, each savings-plan
+/// month would be double-booked.
 ///
-/// Heuristik: eine Tx mit `raw_ref.starts_with("SP")` wird übersprungen, wenn
-/// in der DB bereits eine Tx mit gleichem (account_id, booking_date,
-/// amount_cents) UND gleicher ISIN auf einer securities_trades-Zeile existiert,
-/// die NICHT aus einer Sparplan-Sammelabrechnung stammt.
+/// Heuristic: a Tx with `raw_ref.starts_with("SP")` is skipped when
+/// a Tx with the same (account_id, booking_date, amount_cents) AND the
+/// same ISIN on a securities_trades row already exists in the DB and
+/// does NOT come from a savings-plan batch statement.
 async fn filter_sparplan_duplicates(
     pool: &sqlx::SqlitePool,
     account_id: i64,
@@ -417,7 +417,7 @@ mod tests {
         let acc = crate::db::accounts::create_account(&pool, "F", "bank", "EUR", None, None, None)
             .await.unwrap();
 
-        // Setup: Security + Einzelkauf-Tx (raw_ref="195830560/1") für LU am 2022-06-02, -100 EUR, 7.46 Stücke
+        // Setup: security + individual-purchase Tx (raw_ref="195830560/1") for LU on 2022-06-02, -100 EUR, 7.46 shares
         sqlx::query("INSERT INTO securities (isin, name, asset_type, currency)
                      VALUES ('LU1781541179', 'LYXOR', 'etf_equity', 'EUR')")
             .execute(&pool).await.unwrap();
@@ -433,7 +433,7 @@ mod tests {
                      VALUES (?1, ?2, 'buy', 7463422, 0, 0, 0, 0)")
             .bind(tx_id).bind(sec_id).execute(&pool).await.unwrap();
 
-        // Sparplan-Sammelabrechnung-Tx: raw_ref-Prefix "SP", gleicher Tag + Betrag + ISIN
+        // Savings-plan batch Tx: raw_ref prefix "SP", same date + amount + ISIN
         use chrono::NaiveDate;
         use crate::importers::{RawTradeFields, RawTransaction};
         let sp_dup = RawTransaction {
@@ -459,7 +459,7 @@ mod tests {
             }),
             counterparty_iban: None,
         };
-        // Sparplan-Position für anderen Tag (KEIN Duplikat) — sollte durchkommen
+        // Savings-plan position for a different day (NOT a duplicate) — should pass through
         let sp_new = RawTransaction {
             booking_date: NaiveDate::from_ymd_opt(2022, 7, 4).unwrap(),
             amount_cents: -10000,
@@ -470,8 +470,8 @@ mod tests {
         let (filtered, skipped) = super::filter_sparplan_duplicates(
             &pool, acc.id, vec![sp_dup, sp_new]
         ).await.unwrap();
-        assert_eq!(skipped, 1, "SP-Tx mit gleichem Datum+Betrag+ISIN sollte geskippt werden");
-        assert_eq!(filtered.len(), 1, "neue SP-Tx (anderer Tag) sollte durchkommen");
+        assert_eq!(skipped, 1, "SP Tx with same date+amount+ISIN should be skipped");
+        assert_eq!(filtered.len(), 1, "new SP Tx (different day) should pass through");
         assert_eq!(filtered[0].raw_ref.as_deref(), Some("SP0001818664-1"));
     }
 
@@ -487,7 +487,7 @@ mod tests {
         let (sec_id,): (i64,) = sqlx::query_as("SELECT id FROM securities WHERE isin='LU1781541179'")
             .fetch_one(&pool).await.unwrap();
 
-        // Setup: SP-Tx ist schon in der DB (User hatte Sparplan-Sammelabrechnung zuerst)
+        // Setup: SP Tx already in the DB (user had imported savings-plan batch first)
         sqlx::query("INSERT INTO transactions (account_id, booking_date, amount_cents, currency, counterparty, source, kind, raw_ref)
                      VALUES (?1, '2022-06-02', -10000, 'EUR', 'flatexDEGIRO', 'flatex_pdf', 'buy', 'SP0001818664-0')")
             .bind(acc.id).execute(&pool).await.unwrap();
@@ -498,7 +498,7 @@ mod tests {
                      VALUES (?1, ?2, 'buy', 7463422, 0, 0, 0, 0)")
             .bind(sp_tx_id).bind(sec_id).execute(&pool).await.unwrap();
 
-        // Jetzt kommt der Einzelbeleg (raw_ref OHNE "SP"-Prefix)
+        // Now the individual document arrives (raw_ref WITHOUT "SP" prefix)
         use chrono::NaiveDate;
         use crate::importers::{RawTradeFields, RawTransaction};
         let einzel = RawTransaction {
@@ -522,21 +522,21 @@ mod tests {
             .await.unwrap();
         assert_eq!(deleted, 1);
 
-        // SP-Tx + ihre securities_trades-Zeile sind weg (CASCADE)
+        // SP Tx + its securities_trades row are gone (CASCADE)
         let (sp_remaining,): (i64,) = sqlx::query_as(
             "SELECT COUNT(*) FROM transactions WHERE raw_ref = 'SP0001818664-0'"
         ).fetch_one(&pool).await.unwrap();
-        assert_eq!(sp_remaining, 0, "SP-Tx sollte gelöscht sein");
+        assert_eq!(sp_remaining, 0, "SP Tx should be deleted");
         let (st_remaining,): (i64,) = sqlx::query_as(
             "SELECT COUNT(*) FROM securities_trades"
         ).fetch_one(&pool).await.unwrap();
-        assert_eq!(st_remaining, 0, "zugehörige securities_trades sollte via CASCADE weg sein");
+        assert_eq!(st_remaining, 0, "associated securities_trades should be gone via CASCADE");
     }
 
     #[tokio::test]
     async fn displace_sparplan_ignores_non_sp_existing_tx() {
-        // Wenn die existierende Tx KEIN SP-Prefix hat, darf displace sie nicht
-        // antasten (Sonst würden normale Einzelbelege bei Re-Import gelöscht).
+        // If the existing Tx does NOT have an SP prefix, displace must not
+        // touch it (otherwise normal individual invoices would be deleted on re-import).
         let pool = connect_memory().await.unwrap();
         let acc = crate::db::accounts::create_account(&pool, "F", "bank", "EUR", None, None, None)
             .await.unwrap();
@@ -556,7 +556,7 @@ mod tests {
 
         use chrono::NaiveDate;
         use crate::importers::{RawTradeFields, RawTransaction};
-        // Re-Import des gleichen Einzelbelegs — displace darf NICHT die existing Tx löschen
+        // Re-import of the same individual invoice — displace must NOT delete the existing Tx
         let same_einzel = RawTransaction {
             booking_date: NaiveDate::from_ymd_opt(2022, 6, 2).unwrap(),
             amount_cents: -10000,
@@ -575,7 +575,7 @@ mod tests {
         };
         let deleted = super::displace_sparplan_duplicates(&pool, acc.id, &[same_einzel])
             .await.unwrap();
-        assert_eq!(deleted, 0, "displace darf nur SP-Tx löschen, nicht reguläre");
+        assert_eq!(deleted, 0, "displace must only delete SP Tx, not regular ones");
         let (remaining,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM transactions")
             .fetch_one(&pool).await.unwrap();
         assert_eq!(remaining, 1);
@@ -583,7 +583,7 @@ mod tests {
 
     #[tokio::test]
     async fn filter_sparplan_keeps_non_sp_tx_untouched() {
-        // Non-SP-Tx (z.B. normale Käufe) sollen unverändert durchgehen.
+        // Non-SP Tx (e.g. regular purchases) should pass through unchanged.
         let pool = connect_memory().await.unwrap();
         let acc = crate::db::accounts::create_account(&pool, "F", "bank", "EUR", None, None, None)
             .await.unwrap();
@@ -595,7 +595,7 @@ mod tests {
             currency: "EUR".into(),
             counterparty: Some("flatexDEGIRO".into()),
             purpose: None,
-            raw_ref: Some("999/1".into()),   // kein "SP"-Prefix
+            raw_ref: Some("999/1".into()),   // no "SP" prefix
             kind: Some("buy".into()),
             trade: Some(RawTradeFields {
                 isin: "LU1781541179".into(), asset_class_raw: "FUND".into(),

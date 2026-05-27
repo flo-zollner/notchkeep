@@ -15,7 +15,7 @@ const TX_COLUMNS: &str = "id, account_id, booking_date, value_date, amount_cents
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NewTradePayload {
-    /// transactions.account_id (= Cashkonto). Wo der Cashflow gebucht wird.
+    /// transactions.account_id (= cash account). Where the cash flow is booked.
     pub account_id: i64,
     pub security_id: i64,
     pub booking_date: String,
@@ -30,9 +30,9 @@ pub struct NewTradePayload {
     pub currency: Option<String>,
     pub counterparty: Option<String>,
     pub manual_note: Option<String>,
-    /// Optionaler Override für securities_trades.account_id (= Depot).
-    /// Wenn None: Backend leitet das Depot über `resolve_trade_account` aus
-    /// `account_id` ab (Auto-Routing innerhalb desselben Instituts).
+    /// Optional override for securities_trades.account_id (= depot).
+    /// When None: the backend derives the depot from `account_id` via
+    /// `resolve_trade_account` (auto-routing within the same institution).
     #[serde(default)]
     pub holding_account_id: Option<i64>,
 }
@@ -45,17 +45,17 @@ pub struct UpdateTradePayload {
     pub fee_cents: Option<i64>,
     pub tax_cents: Option<i64>,
     pub fx_rate_micro: Option<Option<i64>>,
-    // NEU für Depot-Dialog — diese Felder werden vom Multi-Table-Update in
-    // einem Folge-Commit verarbeitet (Task 2 des Plans). Bis dahin schreibt
-    // `update_trade` sie noch nicht in die DB.
+    // NEW for depot dialog — these fields are processed by the multi-table
+    // update in a follow-up commit (task 2 of the plan). Until then
+    // `update_trade` does not yet write them to the DB.
     pub kest_cents: Option<i64>,
     pub withholding_tax_cents: Option<i64>,
-    /// `securities_trades.account_id` (= Depot, wenn explizit gesetzt).
+    /// `securities_trades.account_id` (= depot, when explicitly set).
     pub account_id: Option<i64>,
     pub security_id: Option<i64>,
     pub amount_cents: Option<i64>,
-    /// `transactions.account_id` (= Cashkonto). Disambiguiert vom obigen
-    /// `account_id`, das auf die Trade-Detail-Zeile zielt.
+    /// `transactions.account_id` (= cash account). Disambiguates from the
+    /// `account_id` above, which targets the trade detail row.
     pub tx_account_id: Option<i64>,
 }
 
@@ -85,8 +85,8 @@ pub async fn create_trade(
     if p.kest_cents < 0 || p.withholding_tax_cents < 0 {
         return Err(DbError::Decode("tax fields must be >= 0".into()));
     }
-    // side='tax' = WP-Steuer-Belastung (z.B. Thesaurierungs-KESt). Hat keine
-    // Stück- oder Preis-Komponente und mappt 1:1 auf parent-Tx.kind='tax'.
+    // side='tax' = securities tax charge (e.g. accumulation withholding tax).
+    // Has no share or price component and maps 1:1 to parent tx.kind='tax'.
     if p.side == "tax" {
         if p.shares_micro != 0 {
             return Err(DbError::Decode(
@@ -100,8 +100,8 @@ pub async fn create_trade(
         }
     }
     let tax_cents_sum = p.kest_cents + p.withholding_tax_cents;
-    // Wenn der Caller das Depot explizit setzt (= aus dem UI-Picker), nimm das.
-    // Sonst fällt's auf Auto-Routing via resolve_trade_account zurück.
+    // When the caller explicitly sets the depot (= from the UI picker), use it.
+    // Otherwise fall back to auto-routing via resolve_trade_account.
     let target_account_id = match p.holding_account_id {
         Some(id) => Some(id),
         None => crate::db::accounts::resolve_trade_account(pool, p.account_id).await?,
@@ -219,7 +219,7 @@ pub async fn list_trades(
             bucket_id: r.get("bucket_id"),
             kind: r.get("kind"),
             counterparty_iban: r.get("counterparty_iban"),
-            holding_account_id: None,  // nicht relevant in der TradeWithTx-Liste
+            holding_account_id: None,  // not relevant in the TradeWithTx list
             paired_tx_id: r.get("paired_tx_id"),
             trade_side: None,
         };
@@ -314,9 +314,9 @@ pub async fn update_trade(
     Ok(updated_trade)
 }
 
-/// Hängt eine Trade-Zeile an einen bereits existierenden Tx (für CSV-Import-Pfad).
-/// Anders als `create_trade`, das den Tx selbst erstellt und atomic ist.
-/// `target_account_id`: explizites Depot-Konto; None = Fallback auf tx.account_id (T36 setzt den echten Wert).
+/// Attaches a trade row to an already-existing tx (for the CSV import path).
+/// Unlike `create_trade`, which creates the tx itself and is atomic.
+/// `target_account_id`: explicit depot account; None = fallback to tx.account_id (T36 sets the real value).
 #[allow(clippy::too_many_arguments)]
 pub async fn insert_trade_row(
     pool: &SqlitePool,
@@ -329,7 +329,7 @@ pub async fn insert_trade_row(
     kest_cents: i64,
     withholding_tax_cents: i64,
     fx_rate_micro: Option<i64>,
-    target_account_id: Option<i64>,   // None = Fallback auf tx.account_id
+    target_account_id: Option<i64>,   // None = fallback to tx.account_id
     fusion_group: Option<&str>,       // Only set for side='fusion_out'|'fusion_in'
 ) -> DbResult<()> {
     if !ALLOWED_SIDES.contains(&side) {
@@ -703,8 +703,8 @@ mod tests {
 
     #[tokio::test]
     async fn create_trade_routes_to_depot_when_account_at_verrechnung() {
-        // Variante B: User legt manuell einen Buy am Verrechnungskonto an.
-        // securities_trades.account_id sollte automatisch aufs Depot des Instituts zeigen.
+        // Variant B: user manually creates a buy on the settlement account.
+        // securities_trades.account_id should automatically point to the institution's depot.
         let pool = connect_memory().await.unwrap();
         sqlx::query("INSERT INTO institutions (name) VALUES ('TR')")
             .execute(&pool).await.unwrap();
@@ -736,15 +736,15 @@ mod tests {
             holding_account_id: None,
         }).await.unwrap();
 
-        // Tx hängt am Verrechnung
+        // Tx is linked to settlement account
         assert_eq!(result.tx.account_id, verrechnung.id);
-        // securities_trades.account_id zeigt aufs Depot
+        // securities_trades.account_id points to the depot
         assert_eq!(result.trade.account_id, Some(depot.id));
     }
 
     #[tokio::test]
     async fn create_trade_leaves_account_null_when_directly_at_broker() {
-        // User legt direkt am Depot an → kein Routing nötig, account_id NULL (Fallback).
+        // User creates directly on the depot → no routing needed, account_id NULL (fallback).
         let pool = connect_memory().await.unwrap();
         let (acc, sec) = setup_broker_and_security(&pool).await;
         let result = create_trade(&pool, NewTradePayload {
@@ -764,7 +764,7 @@ mod tests {
 
     #[tokio::test]
     async fn create_trade_leaves_account_null_when_no_broker_in_institution() {
-        // Bank-Konto im Institut ohne Broker → kein Routing möglich.
+        // Bank account in institution without broker → no routing possible.
         let pool = connect_memory().await.unwrap();
         sqlx::query("INSERT INTO institutions (name) VALUES ('BankOnly')")
             .execute(&pool).await.unwrap();
@@ -814,7 +814,7 @@ mod tests {
         let updated = update_trade(&pool, tx_id, payload).await.unwrap();
         assert_eq!(updated.kest_cents, 80);
         assert_eq!(updated.withholding_tax_cents, 40);
-        assert_eq!(updated.tax_cents, 120, "tax_cents = kest + wht (legacy-Summe)");
+        assert_eq!(updated.tax_cents, 120, "tax_cents = kest + wht (legacy sum)");
     }
 
     #[tokio::test]
@@ -908,11 +908,11 @@ mod tests {
             tx_account_id: None,
         };
         let res = update_trade(&pool, tx_id, payload).await;
-        assert!(res.is_err(), "FK-Violation muss Fehler werfen");
+        assert!(res.is_err(), "FK violation must raise an error");
 
         let (amt,): (i64,) = sqlx::query_as(
             "SELECT amount_cents FROM transactions WHERE id = ?1"
         ).bind(tx_id).fetch_one(&pool).await.unwrap();
-        assert_eq!(amt, -10000, "Rollback: amount_cents unverändert");
+        assert_eq!(amt, -10000, "Rollback: amount_cents unchanged");
     }
 }

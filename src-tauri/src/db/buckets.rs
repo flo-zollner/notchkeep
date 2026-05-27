@@ -228,7 +228,7 @@ mod tests {
             start_date: Some("2026-01-01".into()), target_date: None,
         }).await.unwrap();
 
-        // Partielles Update: nur name, andere Felder bleiben.
+        // Partial update: name only, other fields are preserved.
         let updated = update_bucket(&pool, b.id, UpdateBucketPayload {
             name: Some("neu".into()),
             icon: None, color: None, note: None,
@@ -240,7 +240,7 @@ mod tests {
         assert_eq!(updated.target_cents, Some(100_000));
         assert!(!updated.archived);
 
-        // archived = true setzen.
+        // Set archived = true.
         let archived = update_bucket(&pool, b.id, UpdateBucketPayload {
             name: None, icon: None, color: None, note: None,
             target_cents: None, start_date: None, target_date: None,
@@ -274,7 +274,7 @@ mod tests {
         assert_eq!(cnt, 0);
         let (still_there,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM transactions")
             .fetch_one(&pool).await.unwrap();
-        assert_eq!(still_there, 1, "Tx selbst bleibt erhalten");
+        assert_eq!(still_there, 1, "Tx itself must be preserved");
     }
 
     #[tokio::test]

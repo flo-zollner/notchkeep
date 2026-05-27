@@ -12,7 +12,7 @@ pub struct PriceRow {
     pub source: String,
 }
 
-/// Upsert eines Tagespreises. `(security_id, date)` ist PK, Konflikt → update.
+/// Upserts a daily price. `(security_id, date)` is the PK; conflict → update.
 pub async fn upsert_price(
     pool: &SqlitePool,
     security_id: i64,
@@ -36,7 +36,7 @@ pub async fn upsert_price(
     Ok(())
 }
 
-/// Letzter bekannter Preis ≤ `on_date`. None falls keiner existiert.
+/// Last known price ≤ `on_date`. None if none exists.
 pub async fn price_on_date(
     pool: &SqlitePool,
     security_id: i64,
@@ -55,7 +55,7 @@ pub async fn price_on_date(
     Ok(row.map(|(c,)| c))
 }
 
-/// Aktuellster Preis. None falls noch keiner gespeichert.
+/// Most recent price. None if none has been stored yet.
 pub async fn latest_price(
     pool: &SqlitePool,
     security_id: i64,
@@ -72,8 +72,8 @@ pub async fn latest_price(
     Ok(row)
 }
 
-/// Eine Liste (security_id, date, close_micro) für alle Securities mit
-/// mindestens einem Eintrag. Für `current_holdings`-Aggregation.
+/// A list of (security_id, date, close_micro) for all securities that have
+/// at least one entry. Used for `current_holdings` aggregation.
 pub async fn latest_per_security(pool: &SqlitePool) -> DbResult<Vec<(i64, String, i64)>> {
     let rows: Vec<(i64, String, i64)> = sqlx::query_as(
         "SELECT sp.security_id, sp.date, sp.close_micro

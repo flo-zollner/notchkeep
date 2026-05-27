@@ -19,16 +19,16 @@
   let editError = $state<string | null>(null);
   let savingEdit = $state(false);
   let refreshingCodes = $state<Set<string>>(new Set());
-  // Per-Zeile-Fehler (z.B. Yahoo-Fetch failed) — zeigt sich unter der Rate-Zelle
-  // statt im globalen Top-Banner.
+  // Per-row errors (e.g. Yahoo fetch failed) — shown below the rate cell
+  // instead of the global top banner.
   let rowErrors = $state<Record<string, string>>({});
 
   $effect(() => { void load(); });
 
-  // Nach einem Import (oder Startup-Refresh) emittiert das Backend
-  // 'price_refresh_status'. Bei 'completed' frischen wir die Liste auf —
-  // ohne Reload würden neue Währungen aus Imports erst nach Neustart oder
-  // manuellem Navigieren sichtbar.
+  // After an import (or startup refresh) the backend emits
+  // 'price_refresh_status'. On 'completed' we refresh the list —
+  // without a reload, new currencies from imports would only become visible
+  // after a restart or manual navigation.
   $effect(() => {
     type Status = { stage: 'started' | 'completed' | 'failed' };
     const unlisten = listen<Status>('price_refresh_status', (e) => {
@@ -85,7 +85,7 @@
   async function refreshOne(code: string) {
     refreshingCodes.add(code);
     refreshingCodes = new Set(refreshingCodes);
-    // Alten Row-Error für diesen Code löschen
+    // Clear the old row error for this code
     const { [code]: _, ...rest } = rowErrors;
     rowErrors = rest;
     try {
@@ -107,7 +107,7 @@
       const results = await Promise.allSettled(
         currencies.map((c) => api.refreshCurrencyRate(c.code))
       );
-      // Per-Zeile-Fehler aus allSettled extrahieren
+      // Extract per-row errors from allSettled results
       const newRowErrors: Record<string, string> = {};
       results.forEach((r, i) => {
         if (r.status === 'rejected') {

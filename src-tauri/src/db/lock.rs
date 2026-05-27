@@ -4,8 +4,8 @@ use sqlx::SqlitePool;
 
 use super::DbResult;
 
-/// Stale-Lock-Schwelle: ein Lock eines anderen Geräts gilt als veraltet, wenn
-/// er älter als das ist (Crash auf anderem Gerät o.Ä.).
+/// Stale-lock threshold: a lock held by another device is considered stale when
+/// it is older than this (crash on another device etc.).
 pub const STALE_AFTER: Duration = Duration::hours(24);
 
 #[derive(Debug, Clone, Serialize)]
@@ -16,20 +16,20 @@ pub struct LockHolder {
     pub acquired_at: DateTime<Utc>,
 }
 
-/// Resultat von `acquire`.
+/// Result of `acquire`.
 #[derive(Debug)]
 pub enum AcquireOutcome {
-    /// Lock war frei oder bereits von uns gehalten → jetzt unser.
+    /// Lock was free or already held by us → now ours.
     Acquired,
-    /// Ein anderes Gerät hält den Lock und er ist noch frisch (< STALE_AFTER).
-    /// UI soll Warnung zeigen; `force_acquire` kann ihn übernehmen.
+    /// Another device holds the lock and it is still fresh (< STALE_AFTER).
+    /// The UI should show a warning; `force_acquire` can take it over.
     HeldByOther(LockHolder),
 }
 
-/// Versucht den Sync-Lock zu erwerben. Schreibt nur, wenn:
-/// - keine Zeile existiert, ODER
-/// - die existierende Zeile gehört uns (gleiches `device_id`), ODER
-/// - der bestehende Lock ist älter als `STALE_AFTER`.
+/// Tries to acquire the sync lock. Writes only when:
+/// - no row exists, OR
+/// - the existing row belongs to us (same `device_id`), OR
+/// - the existing lock is older than `STALE_AFTER`.
 pub async fn acquire(
     pool: &SqlitePool,
     device_id: &str,
@@ -61,8 +61,8 @@ pub async fn acquire(
     Ok(AcquireOutcome::Acquired)
 }
 
-/// Übernimmt den Lock unbedingt — z.B. nachdem die UI den User gewarnt hat
-/// und er „trotzdem öffnen" gewählt hat.
+/// Takes over the lock unconditionally — e.g. after the UI warned the user
+/// and they chose "open anyway".
 pub async fn force_acquire(
     pool: &SqlitePool,
     device_id: &str,
@@ -71,7 +71,7 @@ pub async fn force_acquire(
     upsert_lock(pool, device_id, hostname, Utc::now()).await
 }
 
-/// Gibt den Lock frei, aber nur wenn er uns gehört.
+/// Releases the lock, but only if it belongs to us.
 pub async fn release(pool: &SqlitePool, device_id: &str) -> DbResult<()> {
     sqlx::query("DELETE FROM sync_lock WHERE id = 1 AND device_id = ?1")
         .bind(device_id)
@@ -80,7 +80,7 @@ pub async fn release(pool: &SqlitePool, device_id: &str) -> DbResult<()> {
     Ok(())
 }
 
-/// Liest den aktuellen Lock-Halter aus, ohne ihn zu verändern.
+/// Reads the current lock holder without modifying anything.
 pub async fn current_holder(pool: &SqlitePool) -> DbResult<Option<LockHolder>> {
     let row: Option<(String, String, String)> = sqlx::query_as(
         "SELECT device_id, hostname, acquired_at FROM sync_lock WHERE id = 1",

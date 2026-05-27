@@ -88,9 +88,9 @@ pub async fn delete_category(
     Ok(())
 }
 
-/// Merge: alle transactions + rules.target_category_id von `from_id` zu `to_id`,
-/// dann from_id löschen. Sub-Kategorien von from_id werden zu Kindern von to_id.
-/// Atomic in einer Transaktion.
+/// Merge: moves all transactions + rules.target_category_id from `from_id` to `to_id`,
+/// then deletes from_id. Sub-categories of from_id become children of to_id.
+/// Atomic within a single transaction.
 #[tauri::command]
 pub async fn merge_categories(
     state: State<'_, DbState>,
@@ -115,33 +115,33 @@ pub(crate) async fn merge_categories_db(
     }
     let mut tx = pool.begin().await?;
 
-    // Update Tx
+    // Update transactions
     let tx_rows = sqlx::query("UPDATE transactions SET category_id = ?1 WHERE category_id = ?2")
         .bind(to_id).bind(from_id)
         .execute(&mut *tx).await?
         .rows_affected();
 
-    // Update Rule-Targets
+    // Update rule targets
     sqlx::query("UPDATE rules SET target_category_id = ?1 WHERE target_category_id = ?2")
         .bind(to_id).bind(from_id)
         .execute(&mut *tx).await?;
 
-    // Sub-Kategorien re-parent
+    // Re-parent sub-categories
     sqlx::query("UPDATE categories SET parent_id = ?1 WHERE parent_id = ?2")
         .bind(to_id).bind(from_id)
         .execute(&mut *tx).await?;
 
-    // Budget-Overrides: simple delete der from-Rows (User-Budgets bleiben am to_id falls vorhanden)
+    // Budget overrides: simply delete the from-rows (user budgets remain on to_id if present)
     sqlx::query("DELETE FROM category_budgets WHERE category_id = ?1")
         .bind(from_id)
         .execute(&mut *tx).await?;
 
-    // Goals haben REFERENCES categories(id) ON DELETE RESTRICT — re-pointen auf to_id
+    // Goals have REFERENCES categories(id) ON DELETE RESTRICT — re-point to to_id
     sqlx::query("UPDATE goals SET category_id = ?1 WHERE category_id = ?2")
         .bind(to_id).bind(from_id)
         .execute(&mut *tx).await?;
 
-    // Source löschen
+    // Delete source
     sqlx::query("DELETE FROM categories WHERE id = ?1")
         .bind(from_id)
         .execute(&mut *tx).await?;

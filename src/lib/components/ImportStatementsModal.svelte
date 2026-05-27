@@ -26,10 +26,10 @@
   let report = $state<ImportReport | null>(null);
   let fileInputEl: HTMLInputElement;
 
-  // Parser → erwartetes Institut (Name wie in db/institutions). Wenn das Konto
-  // diesem Institut zugeordnet ist, routed Variante B die Trades korrekt aufs
-  // passende Depot. Bei Mismatch (z.B. Flatex-PDF auf TR-Konto) würden Trades
-  // semantisch falsch landen — deshalb wird das Dropdown vor-gefiltert.
+  // Parser → expected institution (name as in db/institutions). When the account
+  // belongs to this institution, the variant B routing places trades on the correct
+  // depot. A mismatch (e.g. Flatex PDF assigned to a TR account) would route trades
+  // incorrectly — therefore the dropdown is pre-filtered.
   const expectedInstitution = $derived(
     parser === 'flatex' ? 'flatexDEGIRO'
     : parser === 'tr' ? 'Trade Republic'
@@ -43,20 +43,20 @@
     return inst?.id ?? null;
   });
 
-  // Filter: bank/broker/savings UND zugehörig zum erwarteten Institut.
-  // Konten ohne Institut werden auch angeboten (legacy / noch nicht zugewiesen).
+  // Filter: bank/broker/savings AND belonging to the expected institution.
+  // Accounts without an institution are also offered (legacy / not yet assigned).
   const eligibleAccounts = $derived(
     accounts.filter((a) => {
       if (a.archived) return false;
       if (!['bank', 'broker', 'savings'].includes(a.kind)) return false;
       if (expectedInstitutionId === null) return true;
-      // Match: Konto-Institut == erwartetes Institut, ODER Konto noch ohne Institut
+      // Match: account institution == expected institution, OR account has no institution yet
       return a.institution_id === expectedInstitutionId || a.institution_id === null;
     })
   );
 
-  // Bei Parser-Wechsel: accountId zurücksetzen wenn die Auswahl nicht mehr
-  // im Filter ist.
+  // On parser change: reset accountId if the current selection is no longer
+  // in the filtered list.
   $effect(() => {
     parser; // re-evaluate
     if (accountId !== null && !eligibleAccounts.some((a) => a.id === accountId)) {
@@ -85,8 +85,8 @@
     }
     const arr: File[] = [];
     for (let i = 0; i < list.length; i++) arr.push(list[i]);
-    // Sortieren nach Dateiname (chronologisch dank Flatex-Naming "YYYYMMDD_…").
-    // Macht den Import deterministisch und FIFO-stabil bei gleichdatigen Tx.
+    // Sort by filename (chronological thanks to Flatex naming "YYYYMMDD_…").
+    // Makes the import deterministic and FIFO-stable for same-day transactions.
     arr.sort((a, b) => a.name.localeCompare(b.name));
     pickedFiles = arr;
   }
@@ -96,7 +96,7 @@
   }
 
   function onParserChange() {
-    // Bei Parser-Wechsel: Files reset (anderes Format)
+    // On parser change: reset files (different format)
     pickedFiles = [];
     report = null;
     error = null;
