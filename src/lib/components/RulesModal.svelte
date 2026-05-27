@@ -8,7 +8,7 @@
     type RuleCombinator,
     type MatchFieldId,
     type MatchOpId,
-    type NewRulePayload, errMsg} from '$lib/api';
+    type NewRulePayload, errMsg, parseEur, fmtEurInput } from '$lib/api';
   import Icon from './Icon.svelte';
   import { t } from '$lib/settings.svelte';
   import Sheet from './Sheet.svelte';
@@ -75,11 +75,11 @@
     f.op = c.op;
     if (c.field === 'amount' && c.op === 'range') {
       const [mi, ma] = c.value.split('..');
-      f.rangeMinEur = mi ? (Number(mi) / 100).toFixed(2) : '';
-      f.rangeMaxEur = ma ? (Number(ma) / 100).toFixed(2) : '';
+      f.rangeMinEur = mi ? fmtEurInput(Number(mi)) : '';
+      f.rangeMaxEur = ma ? fmtEurInput(Number(ma)) : '';
     } else if (c.field === 'amount' && c.op === 'equals') {
       const n = Number(c.value);
-      f.amountEur = Number.isFinite(n) ? (n / 100).toFixed(2) : '';
+      f.amountEur = Number.isFinite(n) ? fmtEurInput(n) : '';
     } else if (c.field === 'account') {
       const id = Number(c.value);
       f.accountId = Number.isFinite(id) && accounts.some((a) => a.id === id) ? id : null;
@@ -90,9 +90,7 @@
   }
 
   function eurStringToCents(s: string): number | null {
-    const cleaned = s.replace(',', '.').trim();
-    if (!cleaned) return null;
-    const n = Number(cleaned);
+    const n = parseEur(s);
     if (!Number.isFinite(n)) return null;
     return Math.round(n * 100);
   }

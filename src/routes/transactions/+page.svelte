@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { api, fmtEur, type Account, type Bucket, type Category, type Transaction, errMsg, listInstitutions, isTradeTx } from '$lib/api';
+  import { api, fmtEur, type Account, type Bucket, type Category, type Transaction, type TxFilter, type TxAggregate, errMsg, listInstitutions, isTradeTx } from '$lib/api';
   import DepotTxModal from '$lib/components/DepotTxModal.svelte';
   import type { ExportFilter, Institution } from '$lib/api';
   import Icon from '$lib/components/Icon.svelte';
@@ -10,6 +10,7 @@
   import ExportButton from '$lib/components/ExportButton.svelte';
   import ImportStatementsModal from '$lib/components/ImportStatementsModal.svelte';
   import Skeleton from '$lib/components/Skeleton.svelte';
+  import DateField from '$lib/components/DateField.svelte';
   import { settings, t } from '$lib/settings.svelte';
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
@@ -70,7 +71,7 @@
     selectedIds = new Set(selectedIds);
   }
   function selectAllVisible() {
-    selectedIds = new Set(filtered.map((t) => t.id));
+    selectedIds = new Set(transactions.map((t) => t.id));
   }
   function clearSelection() {
     selectedIds = new Set();
@@ -232,22 +233,60 @@
     transactions = transactions.filter((t) => t.id !== id);
   }
 
-  async function load() {
+  // ── Server-side paginated loading ───────────────────────────────────────
+  const PAGE_SIZE = 200;
+  let cursor = $state<string | null>(null);
+  let hasMore = $state(false);
+  let loadingMore = $state(false);
+  let aggregate = $state<TxAggregate>({ inCents: 0, outCents: 0, count: 0 });
+  /** Lokale Anzeige der Kategorien-Vielfalt, baut sich aus geladenen Pages auf. */
+  let usedCategoryIds = $state<Set<number>>(new Set());
+
+  function buildServerFilter(): TxFilter {
+    const f: TxFilter = { limit: PAGE_SIZE };
+    if (search.trim() !== '') f.search = search.trim();
+    if (filterCat !== 'all') f.categoryId = filterCat as number;
+    if (filterAcc !== 'all') f.accountId = filterAcc as number;
+    if (filterInstitution !== 'all') f.institutionId = filterInstitution as number;
+    if (filterBucket !== 'all') f.bucketId = filterBucket as number;
+    if (filterFrom) f.from = filterFrom;
+    if (filterTo) f.to = filterTo;
+    if (filterUncategorized) f.uncategorized = true;
+    if (filterMinAmount !== null) f.minAmountCents = filterMinAmount;
+    return f;
+  }
+
+  async function loadMetadata() {
+    const [accs, cats, bks, insts] = await Promise.all([
+      api.listAccounts(),
+      api.listCategories(),
+      api.listBuckets(true),
+      listInstitutions(false),
+    ]);
+    accounts = accs;
+    categories = cats;
+    buckets = bks;
+    institutions = insts;
+  }
+
+  async function loadFirstPage() {
     loading = true;
     error = null;
+    cursor = null;
+    transactions = [];
     try {
-      const [txs, accs, cats, bks, insts] = await Promise.all([
-        api.listTransactions({ limit: 1000 }),
-        api.listAccounts(),
-        api.listCategories(),
-        api.listBuckets(true),
-        listInstitutions(false),
+      const filter = buildServerFilter();
+      const [page, agg] = await Promise.all([
+        api.listTransactions(filter),
+        api.aggregateTransactions(filter),
       ]);
-      transactions = txs;
-      accounts = accs;
-      categories = cats;
-      buckets = bks;
-      institutions = insts;
+      transactions = page.rows;
+      cursor = page.nextCursor;
+      hasMore = page.hasMore;
+      aggregate = agg;
+      const ids = new Set<number>();
+      for (const tx of page.rows) if (tx.category_id) ids.add(tx.category_id);
+      usedCategoryIds = ids;
     } catch (e) {
       error = errMsg(e);
     } finally {
@@ -255,59 +294,47 @@
     }
   }
 
-  $effect(() => {
-    load();
-  });
-
-  const filtered = $derived.by(() => {
-    const s = search.trim().toLowerCase();
-    return transactions.filter((tx) => {
-      if (
-        filterAcc !== 'all' &&
-        tx.account_id !== filterAcc &&
-        tx.holding_account_id !== filterAcc
-      ) {
-        return false;
-      }
-      if (filterInstitution !== 'all') {
-        const txAcc = accounts.find((a) => a.id === tx.account_id);
-        if (txAcc?.institution_id !== filterInstitution) return false;
-      }
-      if (filterCat !== 'all' && tx.category_id !== filterCat) return false;
-      if (filterBucket !== 'all' && tx.bucket_id !== filterBucket) return false;
-      if (filterFrom && tx.booking_date < filterFrom) return false;
-      if (filterTo && tx.booking_date > filterTo) return false;
-      if (filterUncategorized && tx.category_id !== null) return false;
-      if (filterMinAmount !== null && Math.abs(tx.amount_cents) < filterMinAmount) return false;
-      if (s) {
-        const hay = `${tx.counterparty ?? ''} ${tx.purpose ?? ''} ${tx.manual_note ?? ''}`.toLowerCase();
-        if (!hay.includes(s)) return false;
-      }
-      return true;
-    });
-  });
-
-  const EXCLUDED_KINDS = new Set(['transfer', 'buy', 'sell', 'corporate_action']);
-  function isCashflowKind(k: string): boolean {
-    return !EXCLUDED_KINDS.has(k);
+  async function loadMore() {
+    if (loadingMore || !hasMore || cursor === null) return;
+    loadingMore = true;
+    try {
+      const filter = { ...buildServerFilter(), cursor };
+      const page = await api.listTransactions(filter);
+      transactions = [...transactions, ...page.rows];
+      cursor = page.nextCursor;
+      hasMore = page.hasMore;
+      const ids = new Set(usedCategoryIds);
+      for (const tx of page.rows) if (tx.category_id) ids.add(tx.category_id);
+      usedCategoryIds = ids;
+    } catch (e) {
+      error = errMsg(e);
+    } finally {
+      loadingMore = false;
+    }
   }
 
-  const cashflowTxs = $derived(filtered.filter((x) => isCashflowKind(x.kind)));
-  const inSum = $derived(
-    cashflowTxs.filter((x) => x.amount_cents > 0).reduce((s, x) => s + x.amount_cents, 0)
-  );
-  const outSum = $derived(
-    -cashflowTxs.filter((x) => x.amount_cents < 0).reduce((s, x) => s + x.amount_cents, 0)
-  );
+  // Initial metadata + erster Page-Load.
+  $effect(() => {
+    void loadMetadata();
+  });
+
+  // Debounced reload bei Filter-Change.
+  const filterKey = $derived(JSON.stringify({
+    search, filterCat, filterAcc, filterInstitution, filterBucket,
+    filterFrom, filterTo, filterUncategorized, filterMinAmount,
+  }));
+  let reloadTimer: ReturnType<typeof setTimeout> | null = null;
+  $effect(() => {
+    void filterKey;
+    if (reloadTimer) clearTimeout(reloadTimer);
+    reloadTimer = setTimeout(() => { void loadFirstPage(); }, 250);
+  });
+
+  const inSum = $derived(aggregate.inCents);
+  const outSum = $derived(aggregate.outCents);
   const total = $derived(inSum - outSum);
 
-  const groupedFiltered = $derived(groupByDay(filtered));
-
-  const usedCategoryIds = $derived.by(() => {
-    const ids = new Set<number>();
-    for (const tx of transactions) if (tx.category_id) ids.add(tx.category_id);
-    return ids;
-  });
+  const groupedFiltered = $derived(groupByDay(transactions));
 
   function clearFilters() {
     search = '';
@@ -361,7 +388,7 @@
   <div>
     <h1>{t().nav.transactions}</h1>
     <div class="sub">
-      {filtered.length} ·
+      {aggregate.count} ·
       <span class="num">{t().common.net}: {fmtEur(total, { hide: settings.hide, signed: true })}</span>
     </div>
   </div>
@@ -487,11 +514,11 @@
             <div class="filter-section-body">
               <label class="date-row">
                 <span class="date-label">{t().common.from}</span>
-                <input type="date" class="input" bind:value={filterFrom} />
+                <DateField bind:value={filterFrom} />
               </label>
               <label class="date-row">
                 <span class="date-label">{t().common.to}</span>
-                <input type="date" class="input" bind:value={filterTo} />
+                <DateField bind:value={filterTo} />
               </label>
             </div>
           </div>
@@ -641,6 +668,14 @@
         {/each}
       </div>
     {/each}
+
+    {#if hasMore}
+      <div class="load-more">
+        <button class="btn" onclick={() => void loadMore()} disabled={loadingMore}>
+          {loadingMore ? '…' : `${transactions.length} / ${aggregate.count} · weitere laden`}
+        </button>
+      </div>
+    {/if}
   {/if}
 </div>
 
@@ -671,7 +706,7 @@
 {#if tradeModalOpen}
   <TradeModal
     onClose={() => (tradeModalOpen = false)}
-    onSaved={() => { tradeModalOpen = false; load(); }}
+    onSaved={() => { tradeModalOpen = false; void loadFirstPage(); }}
   />
 {/if}
 
@@ -681,7 +716,7 @@
     {institutions}
     defaultAccountId={filterAcc === 'all' ? null : (filterAcc as number)}
     onClose={() => { showImportModal = false; }}
-    onImported={() => { load(); }}
+    onImported={() => { void loadFirstPage(); }}
   />
 {/if}
 
@@ -692,6 +727,11 @@
 }} />
 
 <style>
+  .load-more {
+    display: flex;
+    justify-content: center;
+    padding: 16px 0;
+  }
   .new-dropdown { position: relative; display: inline-block; }
   .chev { font-size: 10px; opacity: 0.7; margin-left: 4px; transition: transform 0.15s; display: inline-block; }
   .chev.open { transform: rotate(180deg); }

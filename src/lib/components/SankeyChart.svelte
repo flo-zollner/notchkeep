@@ -287,16 +287,12 @@
   type Link = { d: string; color: string; nodeId: string };
   /** Y-Range auf dem Center-Node pro Side-Knoten — für Cross-Highlight beim Hover. */
   type CenterSegment = { y: number; h: number; color: string };
-  let centerSegments = $state<Map<string, CenterSegment>>(new Map());
 
-  const links = $derived.by<Link[]>(() => {
-    const result: Link[] = [];
-    const segs = new Map<string, CenterSegment>();
+  const linkData = $derived.by<{ links: Link[]; segments: Map<string, CenterSegment> }>(() => {
+    const links: Link[] = [];
+    const segments = new Map<string, CenterSegment>();
     const central = layout.find((n) => n.side === 'cashflow');
-    if (!central) {
-      centerSegments = segs;
-      return result;
-    }
+    if (!central) return { links, segments };
 
     let centralCursor = central.y;
     for (const n of layout.filter((nn) => nn.side === 'income')) {
@@ -306,12 +302,12 @@
       const targetX = central.x;
       const targetY1 = centralCursor;
       const targetY2 = centralCursor + n.h;
-      result.push({
+      links.push({
         d: bezierPath(sourceX, sourceY1, sourceY2, targetX, targetY1, targetY2),
         color: n.color,
         nodeId: n.id,
       });
-      segs.set(n.id, { y: targetY1, h: targetY2 - targetY1, color: n.color });
+      segments.set(n.id, { y: targetY1, h: targetY2 - targetY1, color: n.color });
       centralCursor += n.h;
     }
 
@@ -323,18 +319,20 @@
       const targetX = n.x;
       const targetY1 = n.y;
       const targetY2 = n.y + n.h;
-      result.push({
+      links.push({
         d: bezierPath(sourceX, sourceY1, sourceY2, targetX, targetY1, targetY2),
         color: n.color,
         nodeId: n.id,
       });
-      segs.set(n.id, { y: sourceY1, h: sourceY2 - sourceY1, color: n.color });
+      segments.set(n.id, { y: sourceY1, h: sourceY2 - sourceY1, color: n.color });
       centralCursor += n.h;
     }
 
-    centerSegments = segs;
-    return result;
+    return { links, segments };
   });
+
+  const links = $derived(linkData.links);
+  const centerSegments = $derived(linkData.segments);
 
   const hoverCenterSegment = $derived(
     hoverNodeId !== null && hoverNodeId !== 'cashflow'

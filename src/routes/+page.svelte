@@ -13,6 +13,7 @@
   import Skeleton from '$lib/components/Skeleton.svelte';
   import { settings, t } from '$lib/settings.svelte';
   import { groupByDay } from '$lib/tx-grouping';
+  import DateField from '$lib/components/DateField.svelte';
 
   let transactions = $state<Transaction[]>([]);
   let accounts = $state<Account[]>([]);
@@ -39,6 +40,19 @@
   function setSavingsMode(m: SavingsChartMode) {
     savingsMode = m;
     if (typeof localStorage !== 'undefined') localStorage.setItem(SAVINGS_MODE_KEY, m);
+  }
+
+  const SAVINGS_EXCL_INV_KEY = 'saldo.savings.excl_inv';
+  function loadSavingsExclInv(): boolean {
+    if (typeof localStorage === 'undefined') return false;
+    return localStorage.getItem(SAVINGS_EXCL_INV_KEY) === 'true';
+  }
+  let savingsExclInv = $state<boolean>(loadSavingsExclInv());
+  function toggleSavingsExclInv() {
+    savingsExclInv = !savingsExclInv;
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(SAVINGS_EXCL_INV_KEY, savingsExclInv ? 'true' : 'false');
+    }
   }
 
   type RangePreset = '1m' | '12m' | 'ytd' | 'custom';
@@ -126,11 +140,14 @@
   async function loadCashflow() {
     try {
       const now = new Date();
-      monthlyFlows = await api.monthlyCashflow(now.getFullYear(), now.getMonth() + 1, 12);
+      monthlyFlows = await api.monthlyCashflow(now.getFullYear(), now.getMonth() + 1, 12, savingsExclInv);
     } catch { /* ignore */ }
   }
 
-  $effect(() => { void loadCashflow(); });
+  $effect(() => {
+    void savingsExclInv;  // re-load wenn Toggle wechselt
+    void loadCashflow();
+  });
 
   const avgSavingsRate12m = $derived.by(() => {
     const rates = monthlyFlows
@@ -140,21 +157,25 @@
     return rates.reduce((s, r) => s + r, 0) / rates.length;
   });
 
-  async function load() {
+  // Static-Daten (Konten/Kategorien/Buckets/Net-Worth-Inputs) werden einmal geladen,
+  // `transactions` wird dagegen serverseitig nach aktuellem Range gefiltert nachgeladen.
+  // `recentTx` ist eine separate "Top 6 neueste"-Liste unabhängig vom Range.
+  let recentTx = $state<Transaction[]>([]);
+
+  async function loadStatic() {
     loading = true;
     error = null;
     try {
-      const [txs, accs, cats, bks] = await Promise.all([
-        api.listTransactions({ limit: 1000 }),
+      const [accs, cats, bks, recent] = await Promise.all([
         api.listAccounts(),
         api.listCategories(),
         api.listBuckets(true),
+        api.listTransactions({ limit: 6 }),
       ]);
-      transactions = txs;
       accounts = accs;
       categories = cats;
       buckets = bks;
-      // Net-Worth-Inputs nachladen (braucht accounts-Liste)
+      recentTx = recent.rows;
       await loadNetWorthInputs();
     } catch (e) {
       error = errMsg(e);
@@ -163,8 +184,28 @@
     }
   }
 
+  async function loadRangeTx() {
+    try {
+      const page = await api.listTransactions({
+        from: range.from,
+        to: range.to,
+        limit: 5000,
+      });
+      transactions = page.rows;
+    } catch (e) {
+      error = errMsg(e);
+    }
+  }
+
   $effect(() => {
-    load();
+    void loadStatic();
+  });
+
+  // Range-Change → range-spezifische Tx serverseitig nachladen.
+  $effect(() => {
+    void range.from;
+    void range.to;
+    void loadRangeTx();
   });
 
   $effect(() => {
@@ -208,14 +249,15 @@
     type Status = { stage: 'started' | 'completed' | 'failed' };
     const unlisten = listen<Status>('price_refresh_status', (e) => {
       if (e.payload.stage === 'completed') {
-        void load();
+        void loadStatic();
+        void loadRangeTx();
         void loadInstitutions();
       }
     });
     return () => { unlisten.then((u) => u()); };
   });
 
-  const EXCLUDED_KINDS = new Set(['transfer', 'buy', 'sell', 'corporate_action']);
+  const EXCLUDED_KINDS = new Set(['transfer', 'corporate_action']);
   function isCashflowKind(k: string): boolean {
     return !EXCLUDED_KINDS.has(k);
   }
@@ -245,12 +287,24 @@
   const netInvestedCents = $derived(investBuysCents - investSellsCents);
   const investmentRate = $derived(income > 0 ? (netInvestedCents / income) * 100 : 0);
 
+  // Sparquote ohne Investitionen: rechnet buy/sell aus income/expenses raus.
+  // Logik: Wenn man 1000 € verdient und 500 € in ETFs investiert, ist das
+  // "500 € gespart", nicht "1000 € verdient & 500 € ausgegeben → 50%".
+  const incomeExclInv = $derived(income - investSellsCents);
+  const expensesExclInv = $derived(expenses - investBuysCents);
+  const netExclInv = $derived(incomeExclInv - expensesExclInv);
+  const savingsRateExclInv = $derived(
+    incomeExclInv > 0 ? (netExclInv / incomeExclInv) * 100 : 0,
+  );
+  const displaySavingsRate = $derived(savingsExclInv ? savingsRateExclInv : savingsRate);
+  const displaySavingsIncome = $derived(savingsExclInv ? incomeExclInv : income);
+
   const cashOnlyCents = $derived(
     accounts.filter((a) => !a.archived).reduce((s, a) => s + (accountBalances[a.id] ?? 0), 0)
   );
   const netWorthCents = $derived(cashOnlyCents + portfolioCents);
 
-  const recent = $derived(transactions.slice(0, 6));
+  const recent = $derived(recentTx);
 
   let modalOpen = $state(false);
   let modalTx = $state<Transaction | null>(null);
@@ -262,13 +316,14 @@
   function closeModal() {
     modalOpen = false;
   }
-  function onSaved(saved: Transaction) {
-    const idx = transactions.findIndex((t) => t.id === saved.id);
-    if (idx >= 0) transactions[idx] = saved;
-    else transactions = [saved, ...transactions];
+  function onSaved(_saved: Transaction) {
+    // Pragmatisch: nach Edit beides neu laden (range-Tx + recent).
+    void loadRangeTx();
+    void api.listTransactions({ limit: 6 }).then((p) => (recentTx = p.rows));
   }
-  function onDeleted(id: number) {
-    transactions = transactions.filter((t) => t.id !== id);
+  function onDeleted(_id: number) {
+    void loadRangeTx();
+    void api.listTransactions({ limit: 6 }).then((p) => (recentTx = p.rows));
   }
 
   const topCats = $derived.by(() => {
@@ -315,9 +370,9 @@
   </div>
   {#if rangePreset === 'custom'}
     <div class="custom-dates">
-      <input type="date" bind:value={customFrom} onchange={onCustomChange} max={customTo || todayStr()} />
+      <DateField bind:value={customFrom} onChange={onCustomChange} max={customTo || todayStr()} />
       <span class="dash">–</span>
-      <input type="date" bind:value={customTo} onchange={onCustomChange} min={customFrom} max={todayStr()} />
+      <DateField bind:value={customTo} onChange={onCustomChange} min={customFrom} max={todayStr()} />
     </div>
   {:else}
     <span class="range-label">{rangeLabel}</span>
@@ -330,8 +385,30 @@
   <KPI label={t().common.expenses} value={fmtEur(expenses, { hide: settings.hide })} />
   <KPI
     label={t().common.savingsRate}
-    value={income > 0 ? `${savingsRate.toFixed(0)}%` : '—'}
-  />
+    value={displaySavingsIncome > 0 ? `${displaySavingsRate.toFixed(0)}%` : '—'}
+    title={savingsExclInv ? 'Investitionen nicht eingerechnet' : 'Investitionen eingerechnet (buy = Ausgabe, sell = Einnahme)'}
+  >
+    {#snippet topRight()}
+      <div class="seg sav-toggle" role="tablist" aria-label="Investitionen ein-/ausrechnen">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={!savingsExclInv}
+          class:active={!savingsExclInv}
+          onclick={() => { if (savingsExclInv) toggleSavingsExclInv(); }}
+          title="Investitionen einrechnen"
+        >+Inv</button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={savingsExclInv}
+          class:active={savingsExclInv}
+          onclick={() => { if (!savingsExclInv) toggleSavingsExclInv(); }}
+          title="Investitionen ausrechnen"
+        >−Inv</button>
+      </div>
+    {/snippet}
+  </KPI>
   <KPI
     label="Investitionsquote"
     value={income > 0 ? `${investmentRate.toFixed(0)}%` : '—'}
@@ -521,11 +598,19 @@
     {accounts}
     institutions={institutionSummaries}
     onClose={() => { showImportModal = false; }}
-    onImported={() => { load(); }}
+    onImported={() => { void loadStatic(); void loadRangeTx(); }}
   />
 {/if}
 
 <style>
+  .sav-toggle {
+    padding: 1px;
+  }
+  .sav-toggle button {
+    font-size: 9.5px;
+    padding: 2px 6px;
+    line-height: 1.1;
+  }
   .stack {
     display: flex;
     flex-direction: column;

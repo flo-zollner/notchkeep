@@ -37,7 +37,7 @@
   <p class="target">{targetDir}</p>
   {#if check.kind === 'existing'}
     <p class="hint">
-      {(check.dbSizeBytes / 1024).toFixed(1)} kB · {check.valid ? '✓ valid' : '⚠ keine valid budget-app-DB'}
+      {(check.dbSizeBytes / 1024).toFixed(1)} kB · {check.valid ? '✓ valid' : '⚠ keine valide Notchkeep-DB'}
     </p>
   {/if}
 

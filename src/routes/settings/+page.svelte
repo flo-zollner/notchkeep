@@ -6,10 +6,11 @@
   import ExportButton from '$lib/components/ExportButton.svelte';
   import KursRefreshButton from '$lib/components/KursRefreshButton.svelte';
   import { api, type Account, type Category, type ExportFilter } from '$lib/api';
+  import DateField from '$lib/components/DateField.svelte';
   import { openUrl } from '@tauri-apps/plugin-opener';
   import { onMount } from 'svelte';
 
-  const SOURCE_URL = 'https://github.com/TODO/budget-app';
+  const SOURCE_URL = 'https://github.com/TODO/notchkeep';
   async function openSource() {
     try { await openUrl(SOURCE_URL); } catch { window.open(SOURCE_URL, '_blank'); }
   }
@@ -205,11 +206,11 @@
     <div class="export-grid">
       <label>
         <span>{t().common.exportDateFrom}</span>
-        <input type="date" bind:value={from} />
+        <DateField bind:value={from} />
       </label>
       <label>
         <span>{t().common.exportDateTo}</span>
-        <input type="date" bind:value={to} />
+        <DateField bind:value={to} />
       </label>
       <label>
         <span>{t().common.account}</span>
@@ -258,7 +259,7 @@
   </div>
 
   <div class="card col-12 card-pad-lg">
-    <div class="card-h"><h3>Über budget-app</h3></div>
+    <div class="card-h"><h3>Über Notchkeep</h3></div>
     <dl class="about">
       <dt>Lizenz</dt>
       <dd>

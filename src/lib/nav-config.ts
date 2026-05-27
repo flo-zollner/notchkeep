@@ -24,7 +24,6 @@ export const navMain: NavItem[] = [
   { id: 'recurring', href: '/recurring',    icon: 'repeat',    labelKey: 'recurring' },
   { id: 'tx',        href: '/transactions', icon: 'tx',        labelKey: 'transactions' },
   { id: 'budgets',   href: '/budgets',      icon: 'budget',    labelKey: 'budgets' },
-  { id: 'cashflow',  href: '/cashflow',     icon: 'cashflow',  labelKey: 'cashflow' },
   { id: 'reports',   href: '/reports',      icon: 'reports',   labelKey: 'reports' },
 ];
 
@@ -50,7 +49,6 @@ export const moreItems: NavItem[] = [
   { id: 'goals',     href: '/goals',       icon: 'goal',      labelKey: 'goals' },
   { id: 'buckets',   href: '/buckets',     icon: 'tag',       labelKey: 'buckets' },
   { id: 'recurring', href: '/recurring',   icon: 'repeat',    labelKey: 'recurring' },
-  { id: 'cashflow',  href: '/cashflow',    icon: 'cashflow',  labelKey: 'cashflow' },
   { id: 'reports',   href: '/reports',     icon: 'reports',   labelKey: 'reports' },
   ...navManage,
 ];

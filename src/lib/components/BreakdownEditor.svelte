@@ -1,7 +1,7 @@
 <script lang="ts">
   import Icon from './Icon.svelte';
   import { t } from '$lib/settings.svelte';
-  import type { BreakdownRowInput } from '$lib/api';
+  import { parseEur, type BreakdownRowInput } from '$lib/api';
 
   interface Props {
     rows: BreakdownRowInput[];
@@ -29,9 +29,7 @@
   }
 
   function parsePct(s: string): number {
-    const cleaned = s.replace(',', '.').trim();
-    if (cleaned === '') return 0;
-    const n = Number(cleaned);
+    const n = parseEur(s);
     if (!Number.isFinite(n)) return 0;
     return Math.round(n * 100);
   }

@@ -98,12 +98,12 @@
         break;
       case 't': goto('/transactions'); break;
       case 'b': goto('/budgets'); break;
-      case 'c': goto('/cashflow'); break;
+      case 'r': goto('/reports'); break;
       case 'p': goto('/portfolio'); break;
       case 'd': goto('/'); break;
       case '?': {
         e.preventDefault();
-        alert('Keyboard-Shortcuts:\n  d = Dashboard\n  t = Transaktionen\n  b = Budgets\n  c = Cashflow\n  p = Portfolio\n  ? = diese Hilfe');
+        alert('Keyboard-Shortcuts:\n  d = Dashboard\n  t = Transaktionen\n  b = Budgets\n  r = Reports\n  p = Portfolio\n  ? = diese Hilfe');
         break;
       }
     }

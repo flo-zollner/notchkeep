@@ -39,7 +39,7 @@ pub async fn backup_to(pool: &SqlitePool, target_path: &Path) -> DbResult<u64> {
 }
 
 /// Öffnet `source_path` readonly, prüft Schema und liefert Row-Counts.
-/// Returnt `ok = false` mit `error`-Message wenn keine valid budget-app-DB.
+/// Returnt `ok = false` mit `error`-Message wenn keine valid Notchkeep-DB.
 pub async fn validate_backup(source_path: &Path) -> BackupValidation {
     let zero_counts = BackupRowCounts {
         transactions: 0,
@@ -87,7 +87,7 @@ pub async fn validate_backup(source_path: &Path) -> BackupValidation {
             ok: false,
             schema_version: None,
             row_counts: zero_counts,
-            error: Some("Keine budget-app-DB (Tabelle _sqlx_migrations fehlt)".to_string()),
+            error: Some("Keine Notchkeep-DB (Tabelle _sqlx_migrations fehlt)".to_string()),
         };
     }
 

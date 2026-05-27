@@ -71,7 +71,7 @@ pub async fn create_security(
     tauri::async_runtime::spawn(async move {
         let provider = crate::pricing_provider::yahoo::YahooProvider::new();
         if let Err(e) = crate::db::portfolio::refresh_all_prices(&pool_for_bg, &provider).await {
-            eprintln!("[budget-app] history fetch after create_security failed: {e}");
+            eprintln!("[notchkeep] history fetch after create_security failed: {e}");
         }
     });
 

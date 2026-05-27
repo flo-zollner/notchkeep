@@ -55,7 +55,7 @@
   async function startBackup() {
     const today = new Date().toISOString().slice(0, 10);
     const target = await saveDialog({
-      defaultPath: `budget-app-backup-${today}.sqlite`,
+      defaultPath: `notchkeep-backup-${today}.sqlite`,
       filters: [{ name: 'SQLite', extensions: ['sqlite'] }],
     });
     if (typeof target !== 'string') return;

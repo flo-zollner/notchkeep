@@ -1,4 +1,6 @@
-# budget-app
+# Notchkeep
+
+**Simple Personal Networth.**
 
 Lokales Haushaltsbuch (Tauri 2 + SvelteKit + TypeScript + SQLite/sqlx).
 

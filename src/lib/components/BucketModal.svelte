@@ -1,6 +1,8 @@
 <script lang="ts">
   import Icon from './Icon.svelte';
   import Sheet from './Sheet.svelte';
+  import DateField from './DateField.svelte';
+  import { fmtEurInput, parseEur } from '$lib/api';
   import { t } from '$lib/settings.svelte';
   import {
     api,
@@ -45,7 +47,7 @@
   let note = $state(bucket?.note ?? '');
   /* svelte-ignore state_referenced_locally */
   let targetEur = $state(
-    bucket?.targetCents != null ? (bucket.targetCents / 100).toFixed(2) : '',
+    bucket?.targetCents != null ? fmtEurInput(bucket.targetCents) : '',
   );
   /* svelte-ignore state_referenced_locally */
   let startDate = $state(bucket?.startDate ?? '');
@@ -67,7 +69,7 @@
     let targetCents: number | null = null;
     const targetTrimmed = targetEur.trim();
     if (targetTrimmed !== '') {
-      const parsed = Math.round(Number(targetTrimmed.replace(',', '.')) * 100);
+      const parsed = Math.round(parseEur(targetTrimmed) * 100);
       if (!Number.isFinite(parsed) || parsed < 0) {
         error = tb.errTargetInvalid ?? tg.errTargetInvalid ?? 'Ungültiger Zielbetrag';
         return;
@@ -176,12 +178,12 @@
 
     <label>
       <span>{tb.startDate ?? tg.startDate ?? 'Startdatum'}</span>
-      <input bind:value={startDate} type="date" />
+      <DateField bind:value={startDate} />
     </label>
 
     <label>
       <span>{tb.targetDate ?? tg.targetDate ?? 'Zieldatum'}</span>
-      <input bind:value={targetDate} type="date" />
+      <DateField bind:value={targetDate} />
     </label>
 
     <div class="full">

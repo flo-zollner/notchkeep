@@ -6,9 +6,10 @@
   import SecurityPriceChart from '$lib/components/SecurityPriceChart.svelte';
   import DividendHistoryList from '$lib/components/DividendHistoryList.svelte';
   import SecurityForm from '$lib/components/SecurityForm.svelte';
+  import DateField from '$lib/components/DateField.svelte';
   import { settings, t, eurDecimals } from '$lib/settings.svelte';
   import {
-    api, fmtEur,
+    api, fmtEur, parseEur,
     type Security, type Holding, type DividendEntry,
     type TradeWithTx, type SecurityBreakdown,
     type Bucket, type SecurityBucketAllocation, type AllocationItem, errMsg} from '$lib/api';
@@ -101,7 +102,7 @@
 
   async function saveManualPrice() {
     if (security === null) return;
-    const eur = parseFloat(manualPrice.replace(',', '.'));
+    const eur = parseEur(manualPrice);
     if (!Number.isFinite(eur) || eur < 0) {
       manualMsg = 'Ungültiger Preis';
       return;
@@ -196,7 +197,7 @@
   );
 
   function sharesInputToMicro(s: string): number {
-    const n = parseFloat(s.replace(',', '.')) || 0;
+    const n = parseEur(s) || 0;
     return Math.round(n * 1_000_000);
   }
 
@@ -206,7 +207,7 @@
 
   const draftSumMicro = $derived(
     allocDraft.reduce((sum, row) => {
-      const n = parseFloat(row.sharesMicroInput.replace(',', '.')) || 0;
+      const n = parseEur(row.sharesMicroInput) || 0;
       return sum + Math.round(n * 1_000_000);
     }, 0),
   );
@@ -233,7 +234,7 @@
     try {
       const items: AllocationItem[] = allocDraft
         .map((row) => {
-          const n = parseFloat(row.sharesMicroInput.replace(',', '.')) || 0;
+          const n = parseEur(row.sharesMicroInput) || 0;
           return { bucketId: row.bucketId, sharesMicro: Math.round(n * 1_000_000) };
         })
         .filter((i) => i.sharesMicro > 0);
@@ -314,7 +315,7 @@
       <div class="manual-price-row">
         <label>
           Datum
-          <input type="date" bind:value={manualDate} disabled={manualBusy} />
+          <DateField bind:value={manualDate} disabled={manualBusy} />
         </label>
         <label>
           Preis (€)

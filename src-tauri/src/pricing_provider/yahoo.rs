@@ -13,7 +13,7 @@ pub struct YahooProvider {
 impl YahooProvider {
     pub fn new() -> Self {
         let client = reqwest::Client::builder()
-            .user_agent("Mozilla/5.0 (budget-app)")
+            .user_agent("Mozilla/5.0 (Notchkeep)")
             .timeout(Duration::from_secs(10))
             .build()
             .expect("reqwest client");

@@ -1,4 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
+import { settings } from '$lib/settings.svelte';
 
 export interface Account {
   id: number;
@@ -130,7 +131,30 @@ export interface TxFilter {
   categoryId?: number;
   bucketId?: number;
   search?: string;
+  /** Inklusiv (YYYY-MM-DD). Tx mit booking_date >= from. */
+  from?: string;
+  /** Inklusiv (YYYY-MM-DD). Tx mit booking_date <= to. */
+  to?: string;
+  /** Nur Tx ohne Kategorie. */
+  uncategorized?: boolean;
+  /** abs(amount_cents) >= min. */
+  minAmountCents?: number;
+  /** Page-Größe; default 200, clamp [1, 5000]. */
   limit?: number;
+  /** Opaker Cursor 'YYYY-MM-DD|<id>'. */
+  cursor?: string;
+}
+
+export interface ListTransactionsPage {
+  rows: Transaction[];
+  nextCursor: string | null;
+  hasMore: boolean;
+}
+
+export interface TxAggregate {
+  inCents: number;
+  outCents: number;
+  count: number;
 }
 
 export interface NewTransactionPayload {
@@ -727,7 +751,9 @@ export const api = {
 
   // Transactions
   listTransactions: (filter?: TxFilter) =>
-    invoke<Transaction[]>('list_transactions', { filter: filter ?? null }),
+    invoke<ListTransactionsPage>('list_transactions', { filter: filter ?? null }),
+  aggregateTransactions: (filter?: TxFilter) =>
+    invoke<TxAggregate>('aggregate_transactions', { filter: filter ?? null }),
   createTransaction: (tx: NewTransactionPayload) =>
     invoke<Transaction>('create_transaction', { tx }),
   updateTransaction: (tx: UpdateTransactionPayload) =>
@@ -784,8 +810,8 @@ export const api = {
   // Aggregates
   monthlySpending: (year: number, month: number) =>
     invoke<CategorySpending[]>('monthly_spending', { year, month }),
-  monthlyCashflow: (endYear: number, endMonth: number, months: number) =>
-    invoke<MonthlyFlow[]>('monthly_cashflow', { endYear, endMonth, months }),
+  monthlyCashflow: (endYear: number, endMonth: number, months: number, excludeInvest?: boolean) =>
+    invoke<MonthlyFlow[]>('monthly_cashflow', { endYear, endMonth, months, excludeInvest: excludeInvest ?? null }),
   categoryBreakdown: (from: string, to: string) =>
     invoke<CategorySpending[]>('category_breakdown', { from, to }),
   cashflowBreakdown: (from: string, to: string) =>
@@ -1064,13 +1090,86 @@ export function fmtEur(cents: number, opts: { hide?: boolean; signed?: boolean; 
   if (opts.hide) return '•••• €';
   const decimals = opts.decimals ?? 2;
   const value = cents / 100;
-  const formatter = new Intl.NumberFormat('de-DE', {
+  const locale = settings.lang === 'en' ? 'en-US' : 'de-DE';
+  const formatter = new Intl.NumberFormat(locale, {
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals,
   });
   const formatted = formatter.format(Math.abs(value));
   const sign = value < 0 ? '−' : opts.signed && value > 0 ? '+' : '';
   return `${sign}${formatted} €`;
+}
+
+/**
+ * Parst einen Eur-String aus Eingabefeldern. Akzeptiert beide Locale-Formate
+ * tolerant: '1.234,56', '1,234.56', '1234.56', '1234,56', '-12,5', '5'.
+ * Liefert NaN bei ungültiger Eingabe (Callers prüfen selbst).
+ */
+export function parseEur(input: string): number {
+  if (input == null) return NaN;
+  const trimmed = String(input).trim();
+  if (trimmed === '') return NaN;
+  const lastComma = trimmed.lastIndexOf(',');
+  const lastDot = trimmed.lastIndexOf('.');
+  let normalized: string;
+  if (lastComma > lastDot) {
+    // Komma ist Dezimaltrenner → Punkte sind Tausender (entfernen).
+    normalized = trimmed.replace(/\./g, '').replace(',', '.');
+  } else if (lastDot > lastComma) {
+    // Punkt ist Dezimaltrenner → Kommas sind Tausender (entfernen).
+    normalized = trimmed.replace(/,/g, '');
+  } else {
+    // Kein Trennzeichen — Eingabe ist ganzzahlig.
+    normalized = trimmed;
+  }
+  return parseFloat(normalized);
+}
+
+/** Lokal-spezifischer Dezimal-Separator (für Placeholders / Hilfetexte). */
+export function decimalSep(): string {
+  return settings.lang === 'en' ? '.' : ',';
+}
+
+/** Variante von `parseEur`, die direkt Cents als gerundeten Integer liefert.
+ *  Bei ungültiger Eingabe wird 0 zurückgegeben. */
+export function parseEurCents(input: string): number {
+  const n = parseEur(input);
+  return Number.isFinite(n) ? Math.round(n * 100) : 0;
+}
+
+/**
+ * Formatiert einen Cent-Betrag als Plain-Number-String für Eingabefelder
+ * (Locale-Dezimal-Separator, ohne Tausender-Gruppierung, ohne Währungs-Symbol).
+ * Beispiel: 12345 → "123,45" (de) bzw. "123.45" (en).
+ */
+export function fmtEurInput(cents: number, decimals = 2): string {
+  const value = Math.abs(cents) / 100;
+  const locale = settings.lang === 'en' ? 'en-US' : 'de-DE';
+  return value.toLocaleString(locale, {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+    useGrouping: false,
+  });
+}
+
+/**
+ * Formatiert einen beliebigen Float als Locale-aware Plain-Number-String
+ * (z. B. für Anteile/Mengen mit variabler Decimal-Stelligkeit).
+ * `decimals` weggelassen → natürliche Stelligkeit (wie Number.toString()).
+ */
+export function fmtNumInput(value: number, decimals?: number): string {
+  if (!Number.isFinite(value)) return '';
+  const locale = settings.lang === 'en' ? 'en-US' : 'de-DE';
+  if (decimals != null) {
+    return value.toLocaleString(locale, {
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals,
+      useGrouping: false,
+    });
+  }
+  // Natural representation: use toString then swap '.' for ',' on de-locale.
+  const s = value.toString();
+  return settings.lang === 'en' ? s : s.replace('.', ',');
 }
 
 export function fmtDate(iso: string, lang: 'de' | 'en' = 'de'): string {

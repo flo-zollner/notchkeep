@@ -77,14 +77,125 @@ pub struct TxFilter {
     pub bucket_id: Option<i64>,
     pub institution_id: Option<i64>,
     pub search: Option<String>,
+    /// Inklusiv ('YYYY-MM-DD'). Tx mit booking_date >= from.
+    pub from: Option<String>,
+    /// Inklusiv ('YYYY-MM-DD'). Tx mit booking_date <= to.
+    pub to: Option<String>,
+    /// Wenn true: nur Tx ohne Kategorie (category_id IS NULL).
+    pub uncategorized: Option<bool>,
+    /// abs(amount_cents) >= min_amount_cents.
+    pub min_amount_cents: Option<i64>,
+    /// Page size; default 200, clamped to [1, 5000].
     pub limit: Option<i64>,
+    /// Opaker Cursor 'YYYY-MM-DD|<id>' — Tx davor (in DESC-Order) holen.
+    pub cursor: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ListTransactionsPage {
+    pub rows: Vec<Transaction>,
+    pub next_cursor: Option<String>,
+    pub has_more: bool,
+}
+
+/// Aggregat-Summen über alle Tx im Filter (ohne LIMIT/Cursor).
+/// Excludiert Transfer/Buy/Sell/Corporate-Action (= keine echten Cashflows).
+#[derive(Debug, Serialize, sqlx::FromRow)]
+#[serde(rename_all = "camelCase")]
+pub struct TxAggregate {
+    pub in_cents: i64,
+    pub out_cents: i64,
+    pub count: i64,
+}
+
+fn parse_cursor(s: &str) -> Option<(String, i64)> {
+    let (d, idstr) = s.split_once('|')?;
+    let id = idstr.parse::<i64>().ok()?;
+    Some((d.to_string(), id))
+}
+
+/// Baut die WHERE-Clauses für den TxFilter (ohne ORDER/LIMIT) und liefert
+/// das SQL-Fragment plus die Binding-Reihenfolge zurück. Wird sowohl von
+/// `list_transactions_inner` als auch `aggregate_transactions_inner` genutzt.
+fn build_tx_where(f: &TxFilter) -> (String, Vec<TxBind>) {
+    let mut sql = String::new();
+    let mut binds: Vec<TxBind> = Vec::new();
+
+    if let Some(aid) = f.account_id {
+        sql.push_str(
+            " AND (account_id = ? OR id IN (\
+                SELECT tx_id FROM securities_trades \
+                 WHERE account_id = ? \
+                   AND side IN ('buy','sell','corporate_action','fusion_out','fusion_in')\
+             ))"
+        );
+        binds.push(TxBind::I64(aid));
+        binds.push(TxBind::I64(aid));
+    }
+    if let Some(cid) = f.category_id {
+        sql.push_str(" AND category_id = ?");
+        binds.push(TxBind::I64(cid));
+    }
+    if let Some(bid) = f.bucket_id {
+        sql.push_str(" AND bucket_id = ?");
+        binds.push(TxBind::I64(bid));
+    }
+    if let Some(iid) = f.institution_id {
+        sql.push_str(" AND account_id IN (SELECT id FROM accounts WHERE institution_id = ?)");
+        binds.push(TxBind::I64(iid));
+    }
+    if let Some(s) = f.search.as_deref().filter(|s| !s.is_empty()) {
+        sql.push_str(" AND (counterparty LIKE ? OR purpose LIKE ? OR manual_note LIKE ?)");
+        let needle = format!("%{s}%");
+        binds.push(TxBind::Str(needle.clone()));
+        binds.push(TxBind::Str(needle.clone()));
+        binds.push(TxBind::Str(needle));
+    }
+    if let Some(from) = f.from.as_deref().filter(|s| !s.is_empty()) {
+        sql.push_str(" AND booking_date >= ?");
+        binds.push(TxBind::Str(from.to_string()));
+    }
+    if let Some(to) = f.to.as_deref().filter(|s| !s.is_empty()) {
+        sql.push_str(" AND booking_date <= ?");
+        binds.push(TxBind::Str(to.to_string()));
+    }
+    if f.uncategorized == Some(true) {
+        sql.push_str(" AND category_id IS NULL");
+    }
+    if let Some(min) = f.min_amount_cents.filter(|n| *n > 0) {
+        sql.push_str(" AND ABS(amount_cents) >= ?");
+        binds.push(TxBind::I64(min));
+    }
+    (sql, binds)
+}
+
+enum TxBind {
+    I64(i64),
+    Str(String),
+}
+
+fn bind_all<'q, O>(
+    mut q: sqlx::query::QueryAs<'q, sqlx::Sqlite, O, sqlx::sqlite::SqliteArguments<'q>>,
+    binds: Vec<TxBind>,
+) -> sqlx::query::QueryAs<'q, sqlx::Sqlite, O, sqlx::sqlite::SqliteArguments<'q>>
+where
+    O: for<'r> sqlx::FromRow<'r, sqlx::sqlite::SqliteRow> + Send + Unpin,
+{
+    for b in binds {
+        q = match b {
+            TxBind::I64(v) => q.bind(v),
+            TxBind::Str(v) => q.bind(v),
+        };
+    }
+    q
 }
 
 pub(crate) async fn list_transactions_inner(
     pool: &sqlx::SqlitePool,
     f: &TxFilter,
-) -> Result<Vec<Transaction>, sqlx::Error> {
-    let limit = f.limit.unwrap_or(500).clamp(1, 5000);
+) -> Result<ListTransactionsPage, sqlx::Error> {
+    let limit = f.limit.unwrap_or(200).clamp(1, 5000);
 
     let mut sql = String::from(
         "SELECT id, account_id, booking_date, value_date, amount_cents, currency,
@@ -102,67 +213,74 @@ pub(crate) async fn list_transactions_inner(
          WHERE 1=1",
     );
 
-    if f.account_id.is_some() {
-        // Tx zählt zum Konto, wenn entweder `tx.account_id` direkt matcht
-        // (Cash-Seite mit allen Geldflüssen) ODER eine bestandsändernde
-        // `securities_trades`-Detail-Zeile dort hängt (Depot-Seite mit
-        // Käufen/Verkäufen/Corp-Actions). Dividenden/KESt erscheinen NICHT
-        // im Depot-View — die ändern keinen Bestand.
-        //
-        // Sides die Bestand ändern: buy, sell, corporate_action (Splits),
-        // fusion_out (Ausbuchung), fusion_in (Einbuchung).
-        sql.push_str(
-            " AND (account_id = ? OR id IN (\
-                SELECT tx_id FROM securities_trades \
-                 WHERE account_id = ? \
-                   AND side IN ('buy','sell','corporate_action','fusion_out','fusion_in')\
-             ))"
-        );
-    }
-    if f.category_id.is_some() {
-        sql.push_str(" AND category_id = ?");
-    }
-    if f.bucket_id.is_some() {
-        sql.push_str(" AND bucket_id = ?");
-    }
-    if f.institution_id.is_some() {
-        sql.push_str(" AND account_id IN (SELECT id FROM accounts WHERE institution_id = ?)");
-    }
-    if f.search.as_deref().map(|s| !s.is_empty()).unwrap_or(false) {
-        sql.push_str(" AND (counterparty LIKE ? OR purpose LIKE ? OR manual_note LIKE ?)");
+    let (where_sql, mut binds) = build_tx_where(f);
+    sql.push_str(&where_sql);
+
+    if let Some(cur) = f.cursor.as_deref().filter(|s| !s.is_empty()) {
+        if let Some((date, id)) = parse_cursor(cur) {
+            sql.push_str(" AND (booking_date < ? OR (booking_date = ? AND id < ?))");
+            binds.push(TxBind::Str(date.clone()));
+            binds.push(TxBind::Str(date));
+            binds.push(TxBind::I64(id));
+        }
     }
     sql.push_str(" ORDER BY booking_date DESC, id DESC LIMIT ?");
+    binds.push(TxBind::I64(limit + 1)); // +1 für has_more-Detection
 
-    let mut q = sqlx::query_as::<_, Transaction>(&sql);
-    if let Some(aid) = f.account_id {
-        // Zweimal binden — einmal für tx.account_id, einmal für st.account_id.
-        q = q.bind(aid).bind(aid);
-    }
-    if let Some(cid) = f.category_id {
-        q = q.bind(cid);
-    }
-    if let Some(bid) = f.bucket_id {
-        q = q.bind(bid);
-    }
-    if let Some(iid) = f.institution_id {
-        q = q.bind(iid);
-    }
-    if let Some(s) = f.search.as_deref().filter(|s| !s.is_empty()) {
-        let needle = format!("%{s}%");
-        q = q.bind(needle.clone()).bind(needle.clone()).bind(needle);
-    }
-    q = q.bind(limit);
+    let q = sqlx::query_as::<_, Transaction>(&sql);
+    let mut rows: Vec<Transaction> = bind_all(q, binds).fetch_all(pool).await?;
 
-    q.fetch_all(pool).await
+    let has_more = rows.len() as i64 > limit;
+    if has_more {
+        rows.truncate(limit as usize);
+    }
+    let next_cursor = if has_more {
+        rows.last().map(|t| format!("{}|{}", t.booking_date, t.id))
+    } else {
+        None
+    };
+
+    Ok(ListTransactionsPage { rows, next_cursor, has_more })
 }
 
 #[tauri::command]
 pub async fn list_transactions(
     state: State<'_, DbState>,
     filter: Option<TxFilter>,
-) -> Result<Vec<Transaction>, CommandError> {
+) -> Result<ListTransactionsPage, CommandError> {
     let f = filter.unwrap_or_default();
     Ok(list_transactions_inner(&state.pool(), &f).await?)
+}
+
+/// Aggregat-Summen über alle gefilterten Tx ohne LIMIT/Cursor.
+/// `in_cents` = SUM(amount > 0), `out_cents` = SUM(-amount) für amount < 0.
+/// Excludiert Transfer/Buy/Sell/Corporate-Action (= keine echten Cashflows).
+pub(crate) async fn aggregate_transactions_inner(
+    pool: &sqlx::SqlitePool,
+    f: &TxFilter,
+) -> Result<TxAggregate, sqlx::Error> {
+    let mut sql = String::from(
+        "SELECT
+            COALESCE(SUM(CASE WHEN amount_cents > 0 THEN amount_cents ELSE 0 END), 0) AS in_cents,
+            COALESCE(SUM(CASE WHEN amount_cents < 0 THEN -amount_cents ELSE 0 END), 0) AS out_cents,
+            COUNT(*) AS count
+         FROM transactions
+         WHERE kind NOT IN ('transfer','corporate_action')"
+    );
+    let (where_sql, binds) = build_tx_where(f);
+    sql.push_str(&where_sql);
+
+    let q = sqlx::query_as::<_, TxAggregate>(&sql);
+    bind_all(q, binds).fetch_one(pool).await
+}
+
+#[tauri::command]
+pub async fn aggregate_transactions(
+    state: State<'_, DbState>,
+    filter: Option<TxFilter>,
+) -> Result<TxAggregate, CommandError> {
+    let f = filter.unwrap_or_default();
+    Ok(aggregate_transactions_inner(&state.pool(), &f).await?)
 }
 
 #[derive(Debug, Deserialize)]
@@ -1070,9 +1188,105 @@ mod tests {
         insert_simple_tx(&pool, acc_b, 200, "y").await;
 
         let f = TxFilter { institution_id: Some(iid_a), ..Default::default() };
-        let rows = list_transactions_inner(&pool, &f).await.unwrap();
+        let rows = list_transactions_inner(&pool, &f).await.unwrap().rows;
         assert_eq!(rows.len(), 1);
         assert_eq!(rows[0].counterparty.as_deref(), Some("x"));
+    }
+
+    #[tokio::test]
+    async fn list_transactions_paginates_via_cursor() {
+        let pool = connect_memory().await.unwrap();
+        let acc = crate::db::accounts::create_account(&pool, "A", "bank", "EUR", None, None, None).await.unwrap();
+        // 5 Tx an verschiedenen Tagen (DESC: 5, 4, 3, 2, 1).
+        for d in 1..=5 {
+            sqlx::query(
+                "INSERT INTO transactions (account_id, booking_date, amount_cents, currency, counterparty, source, kind)
+                 VALUES (?1, ?2, -1000, 'EUR', ?3, 't', 'expense')",
+            )
+            .bind(acc.id)
+            .bind(format!("2026-05-{:02}", d))
+            .bind(format!("c{d}"))
+            .execute(&pool).await.unwrap();
+        }
+
+        let f = TxFilter { limit: Some(2), ..Default::default() };
+        let p1 = list_transactions_inner(&pool, &f).await.unwrap();
+        assert_eq!(p1.rows.len(), 2);
+        assert!(p1.has_more);
+        assert_eq!(p1.rows[0].counterparty.as_deref(), Some("c5"));
+        assert_eq!(p1.rows[1].counterparty.as_deref(), Some("c4"));
+        let cur = p1.next_cursor.expect("next_cursor expected");
+
+        let f2 = TxFilter { limit: Some(2), cursor: Some(cur), ..Default::default() };
+        let p2 = list_transactions_inner(&pool, &f2).await.unwrap();
+        assert_eq!(p2.rows.len(), 2);
+        assert_eq!(p2.rows[0].counterparty.as_deref(), Some("c3"));
+        assert_eq!(p2.rows[1].counterparty.as_deref(), Some("c2"));
+        assert!(p2.has_more);
+
+        let f3 = TxFilter { limit: Some(2), cursor: p2.next_cursor.clone(), ..Default::default() };
+        let p3 = list_transactions_inner(&pool, &f3).await.unwrap();
+        assert_eq!(p3.rows.len(), 1);
+        assert!(!p3.has_more);
+        assert!(p3.next_cursor.is_none());
+    }
+
+    #[tokio::test]
+    async fn list_transactions_filters_date_range_uncategorized_min_amount() {
+        let pool = connect_memory().await.unwrap();
+        let acc = crate::db::accounts::create_account(&pool, "A", "bank", "EUR", None, None, None).await.unwrap();
+        let cat = sqlx::query_scalar::<_, i64>(
+            "INSERT INTO categories (name) VALUES ('Food') RETURNING id"
+        ).fetch_one(&pool).await.unwrap();
+
+        // tx1: 2026-04-01, -500, kat=Food
+        sqlx::query("INSERT INTO transactions (account_id, booking_date, amount_cents, currency, source, kind, category_id) VALUES (?1, '2026-04-01', -500, 'EUR', 't', 'expense', ?2)")
+            .bind(acc.id).bind(cat).execute(&pool).await.unwrap();
+        // tx2: 2026-05-01, -5000, kat=NULL
+        sqlx::query("INSERT INTO transactions (account_id, booking_date, amount_cents, currency, source, kind) VALUES (?1, '2026-05-01', -5000, 'EUR', 't', 'expense')")
+            .bind(acc.id).execute(&pool).await.unwrap();
+        // tx3: 2026-06-01, -100, kat=NULL
+        sqlx::query("INSERT INTO transactions (account_id, booking_date, amount_cents, currency, source, kind) VALUES (?1, '2026-06-01', -100, 'EUR', 't', 'expense')")
+            .bind(acc.id).execute(&pool).await.unwrap();
+
+        let f = TxFilter {
+            from: Some("2026-05-01".into()),
+            to: Some("2026-05-31".into()),
+            ..Default::default()
+        };
+        let rows = list_transactions_inner(&pool, &f).await.unwrap().rows;
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].booking_date, "2026-05-01");
+
+        let f2 = TxFilter { uncategorized: Some(true), ..Default::default() };
+        let rows = list_transactions_inner(&pool, &f2).await.unwrap().rows;
+        assert_eq!(rows.len(), 2);
+        assert!(rows.iter().all(|t| t.category_id.is_none()));
+
+        let f3 = TxFilter { min_amount_cents: Some(1000), ..Default::default() };
+        let rows = list_transactions_inner(&pool, &f3).await.unwrap().rows;
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].booking_date, "2026-05-01");
+    }
+
+    #[tokio::test]
+    async fn aggregate_transactions_sums_filtered_in_out() {
+        let pool = connect_memory().await.unwrap();
+        let acc = crate::db::accounts::create_account(&pool, "A", "bank", "EUR", None, None, None).await.unwrap();
+        for (date, amt, kind) in [
+            ("2026-05-01", 10000_i64, "income"),
+            ("2026-05-02", -3000_i64, "expense"),
+            ("2026-05-03", -2000_i64, "expense"),
+            ("2026-05-04", 5000_i64, "transfer"), // excluded (Aggregate filtert kind)
+        ] {
+            sqlx::query("INSERT INTO transactions (account_id, booking_date, amount_cents, currency, source, kind) VALUES (?1, ?2, ?3, 'EUR', 't', ?4)")
+                .bind(acc.id).bind(date).bind(amt).bind(kind).execute(&pool).await.unwrap();
+        }
+
+        let agg = aggregate_transactions_inner(&pool, &TxFilter::default()).await.unwrap();
+        assert_eq!(agg.in_cents, 10000);
+        assert_eq!(agg.out_cents, 5000);
+        assert_eq!(agg.count, 3); // transfer ist excluded
     }
 
     #[tokio::test]
@@ -1120,12 +1334,12 @@ mod tests {
 
         // Cash-View: sieht beide (Geldfluss-Sicht)
         let f_cash = TxFilter { account_id: Some(cash.id), ..Default::default() };
-        let cash_rows = list_transactions_inner(&pool, &f_cash).await.unwrap();
+        let cash_rows = list_transactions_inner(&pool, &f_cash).await.unwrap().rows;
         assert_eq!(cash_rows.len(), 2, "Cash-View zeigt Buy + Dividende");
 
         // Depot-View: nur Buy, NICHT Dividende
         let f_depot = TxFilter { account_id: Some(depot.id), ..Default::default() };
-        let depot_rows = list_transactions_inner(&pool, &f_depot).await.unwrap();
+        let depot_rows = list_transactions_inner(&pool, &f_depot).await.unwrap().rows;
         assert_eq!(depot_rows.len(), 1, "Depot-View zeigt nur bestandsändernde Tx");
         assert_eq!(depot_rows[0].id, buy_tx_id, "Es ist die Buy-Tx, nicht die Dividende");
     }
@@ -1145,7 +1359,7 @@ mod tests {
 
         // Institut-Filter alleine → beide
         let f1 = TxFilter { institution_id: Some(iid), ..Default::default() };
-        assert_eq!(list_transactions_inner(&pool, &f1).await.unwrap().len(), 2);
+        assert_eq!(list_transactions_inner(&pool, &f1).await.unwrap().rows.len(), 2);
 
         // Institut + Konto-Filter → nur ein Konto
         let f2 = TxFilter {
@@ -1153,7 +1367,7 @@ mod tests {
             account_id: Some(acc_a),
             ..Default::default()
         };
-        let rows = list_transactions_inner(&pool, &f2).await.unwrap();
+        let rows = list_transactions_inner(&pool, &f2).await.unwrap().rows;
         assert_eq!(rows.len(), 1);
         assert_eq!(rows[0].counterparty.as_deref(), Some("giro-tx"));
     }

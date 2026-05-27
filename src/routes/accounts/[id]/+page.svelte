@@ -71,7 +71,7 @@
       ]);
       account = acc;
       balance = bal;
-      txs = list;
+      txs = list.rows;
       cashflow = cf;
       categories = cats;
       buckets = bks;

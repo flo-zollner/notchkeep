@@ -1,6 +1,6 @@
 # Drittanbieter-Lizenzen
 
-Diese Datei listet die direkten Abhängigkeiten von `budget-app` und ihre
+Diese Datei listet die direkten Abhängigkeiten von `Notchkeep` und ihre
 Lizenzen auf. Alle Lizenzen sind kompatibel mit GPL-3.0-or-later.
 
 Eine vollständige, automatisch generierte Liste inklusive transitiver

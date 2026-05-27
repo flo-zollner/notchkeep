@@ -2,10 +2,12 @@
   import Icon from './Icon.svelte';
   import SecurityPicker from './SecurityPicker.svelte';
   import Sheet from './Sheet.svelte';
+  import DateField from './DateField.svelte';
   import { t } from '$lib/settings.svelte';
   import {
     api,
     fmtEur,
+    parseEur,
     listInstitutions,
     type Account,
     type Institution,
@@ -85,9 +87,7 @@
   }
 
   function parseNum(s: string, unit = 1): number | null {
-    const cleaned = s.replace(',', '.').trim();
-    if (cleaned === '') return null;
-    const n = Number(cleaned);
+    const n = parseEur(s);
     if (!Number.isFinite(n)) return null;
     return Math.round(n * unit);
   }
@@ -216,7 +216,7 @@
         {/each}
       </select>
     </label>
-    <label>{tt.bookingDate}<input type="date" bind:value={bookingDate} /></label>
+    <label>{tt.bookingDate}<DateField bind:value={bookingDate} /></label>
     {#if !isTaxSide}
       <label>{tt.shares}<input type="text" inputmode="decimal" bind:value={sharesStr} /></label>
       <label>{tt.unitPrice}<input type="text" inputmode="decimal" bind:value={priceStr} /></label>

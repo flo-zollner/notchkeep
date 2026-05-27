@@ -1,7 +1,8 @@
 <script lang="ts">
-  import { api, fmtEur, isTradeTx, todayIso, type Account, type Bucket, type Category, type CategorySuggestion, type Transaction, errMsg} from '$lib/api';
+  import { api, fmtEur, fmtEurInput, parseEur, isTradeTx, todayIso, type Account, type Bucket, type Category, type CategorySuggestion, type Transaction, errMsg} from '$lib/api';
   import Icon from './Icon.svelte';
   import Sheet from './Sheet.svelte';
+  import DateField from './DateField.svelte';
   import { settings, t, eurDecimals } from '$lib/settings.svelte';
 
   interface Props {
@@ -78,7 +79,7 @@
   let direction = $state<'in' | 'out'>(tx && tx.amount_cents > 0 ? 'in' : 'out');
   // Absolute amount in cents, displayed/edited as decimal
   /* svelte-ignore state_referenced_locally */
-  let amountInput = $state(tx ? (Math.abs(tx.amount_cents) / 100).toFixed(2) : '');
+  let amountInput = $state(tx ? fmtEurInput(tx.amount_cents) : '');
   /* svelte-ignore state_referenced_locally */
   let name = $state(tx?.counterparty ?? '');
   /* svelte-ignore state_referenced_locally */
@@ -157,9 +158,7 @@
   }
 
   function parseAmountCents(): number | null {
-    const cleaned = amountInput.replace(',', '.').trim();
-    if (!cleaned) return null;
-    const n = Number(cleaned);
+    const n = parseEur(amountInput);
     if (!Number.isFinite(n) || n < 0) return null;
     return Math.round(n * 100) * (direction === 'in' ? 1 : -1);
   }
@@ -343,7 +342,7 @@
         </label>
         <label class="field">
           <span class="field-label">{t().common.date}</span>
-          <input class="input" type="date" bind:value={bookingDate} />
+          <DateField bind:value={bookingDate} />
         </label>
       </div>
 

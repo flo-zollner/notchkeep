@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { api, fmtEur, type CategoryMonthBudget } from '$lib/api';
+  import { api, fmtEur, fmtEurInput, parseEur, type CategoryMonthBudget } from '$lib/api';
   import { settings, t, eurDecimals } from '$lib/settings.svelte';
 
   interface Props {
@@ -53,19 +53,19 @@
 
   function startEdit(catId: number, month1: number, value: number) {
     editing = { catId, month: month1 };
-    editValue = value > 0 ? (value / 100).toFixed(2) : '';
+    editValue = value > 0 ? fmtEurInput(value) : '';
   }
 
   async function commitEdit() {
     if (!editing) return;
     const { catId, month } = editing;
-    const raw = editValue.replace(',', '.').trim();
+    const raw = editValue.trim();
     editing = null;
     try {
       if (raw === '') {
         await api.clearBudget(catId, year, month);
       } else {
-        const n = Number(raw);
+        const n = parseEur(raw);
         if (Number.isFinite(n) && n >= 0) {
           await api.setBudget(catId, year, month, Math.round(n * 100));
         }

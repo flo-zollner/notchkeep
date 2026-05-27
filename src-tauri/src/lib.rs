@@ -73,8 +73,9 @@ use crate::commands::trades::{
     create_trade, delete_trade, get_trade, list_trades, update_trade,
 };
 use crate::commands::transactions::{
-    assign_account, assign_bucket, assign_category, cleanup_phantom_mirrors, create_transaction,
-    delete_transaction, detect_transfers, list_transactions, suggest_category, update_transaction,
+    aggregate_transactions, assign_account, assign_bucket, assign_category, cleanup_phantom_mirrors,
+    create_transaction, delete_transaction, detect_transfers, list_transactions, suggest_category,
+    update_transaction,
 };
 use crate::db::lock::AcquireOutcome;
 
@@ -99,6 +100,7 @@ pub fn run() {
             import_flatex_pdfs,
             import_sparkasse_csv,
             list_transactions,
+            aggregate_transactions,
             create_transaction,
             update_transaction,
             delete_transaction,
@@ -218,12 +220,12 @@ pub fn run() {
                 #[cfg(target_os = "android")]
                 {
                     // Auf Android: External-Files-Dir, damit Syncthing den Folder picken kann.
-                    // Pfad: /sdcard/Android/data/de.flo.budgetapp/files/
+                    // Pfad: /sdcard/Android/data/me.zollner.notchkeep/files/
                     app.path().app_data_dir().expect("app_data_dir")
                 }
                 #[cfg(not(target_os = "android"))]
                 {
-                    // Desktop: lokales Daten-Verzeichnis (z.B. ~/.local/share/de.flo.budgetapp/)
+                    // Desktop: lokales Daten-Verzeichnis (z.B. ~/.local/share/me.zollner.notchkeep/)
                     app.path().app_local_data_dir().expect("app_local_data_dir")
                 }
             };
@@ -261,7 +263,7 @@ pub fn run() {
             if let AcquireOutcome::HeldByOther(holder) = &outcome {
                 // MVP: nur loggen; UI-Warnung kommt mit dem Frontend-Hook.
                 eprintln!(
-                    "[budget-app] sync_lock gehört '{}' ({}), erworben {}",
+                    "[notchkeep] sync_lock gehört '{}' ({}), erworben {}",
                     holder.hostname, holder.device_id, holder.acquired_at
                 );
             }
@@ -293,7 +295,7 @@ pub fn run() {
                             .ok();
                     }
                     Err(e) => {
-                        eprintln!("[budget-app] background refresh failed: {e}");
+                        eprintln!("[notchkeep] background refresh failed: {e}");
                         handle_for_bg
                             .emit("price_refresh_status", serde_json::json!({
                                 "stage": "failed",

@@ -1,9 +1,11 @@
 <script lang="ts">
   import Icon from './Icon.svelte';
   import Sheet from './Sheet.svelte';
+  import DateField from './DateField.svelte';
   import { t } from '$lib/settings.svelte';
   import {
     api,
+    fmtEurInput, parseEur,
     type RecurringPayment, type Account, type Category,
     type NewRecurringPayload, type UpdateRecurringPayload, errMsg} from '$lib/api';
 
@@ -26,7 +28,7 @@
   /* svelte-ignore state_referenced_locally */
   let formCategoryId = $state<number | null>(recurring?.categoryId ?? null);
   /* svelte-ignore state_referenced_locally */
-  let formAmount = $state(Math.abs((recurring?.amountCents ?? 0) / 100).toFixed(2));
+  let formAmount = $state(recurring ? fmtEurInput(recurring.amountCents) : '');
   /* svelte-ignore state_referenced_locally */
   let formSign = $state<'income' | 'expense'>(
     recurring && recurring.amountCents > 0 ? 'income' : 'expense'
@@ -49,9 +51,7 @@
   const tr = $derived(t().recurring);
 
   function parseAmountCents(): number | null {
-    const cleaned = formAmount.replace(',', '.').trim();
-    if (!cleaned) return null;
-    const n = Number(cleaned);
+    const n = parseEur(formAmount);
     if (!Number.isFinite(n) || n <= 0) return null;
     const cents = Math.round(n * 100);
     return formSign === 'expense' ? -cents : cents;
@@ -186,7 +186,7 @@
 
   <label class="field">
     <span>{tr.anchorDate}</span>
-    <input type="date" bind:value={formAnchorDate} />
+    <DateField bind:value={formAnchorDate} />
   </label>
 
   <label class="field">

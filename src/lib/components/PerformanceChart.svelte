@@ -1,5 +1,6 @@
 <script lang="ts">
   import { api, fmtEur, type CostBasisPointDaily } from '$lib/api';
+  import DateField from './DateField.svelte';
   import { settings, t, eurDecimals } from '$lib/settings.svelte';
 
   type Range = '1d' | '1w' | '12m' | '3y' | '5y' | 'all' | 'manual';
@@ -151,8 +152,8 @@
 
 {#if range === 'manual'}
   <div class="manual-controls">
-    <label>{tp.rangeFrom} <input type="date" bind:value={manualFrom} /></label>
-    <label>{tp.rangeTo} <input type="date" bind:value={manualTo} /></label>
+    <label>{tp.rangeFrom} <DateField bind:value={manualFrom} /></label>
+    <label>{tp.rangeTo} <DateField bind:value={manualTo} /></label>
   </div>
 {/if}
 

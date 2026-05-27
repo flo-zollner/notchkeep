@@ -1,7 +1,7 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
   import { listen } from '@tauri-apps/api/event';
-  import { api, type CurrencyStatus, errMsg } from '$lib/api';
+  import { api, parseEur, type CurrencyStatus, errMsg } from '$lib/api';
   import AddCurrencyModal from '$lib/components/AddCurrencyModal.svelte';
   import Icon from '$lib/components/Icon.svelte';
   import { t } from '$lib/settings.svelte';
@@ -63,8 +63,7 @@
   }
   async function saveEdit(code: string) {
     editError = null;
-    const cleaned = editInput.replace(',', '.').trim();
-    const n = Number(cleaned);
+    const n = parseEur(editInput);
     if (!Number.isFinite(n) || n <= 0) {
       editError = tc.errSaveFailed;
       return;

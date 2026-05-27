@@ -6,6 +6,7 @@
   import {
     api,
     fmtEur,
+    parseEurCents,
     type Category,
     type CategoryMonthBudget,
     type InvestmentFlow,
@@ -328,10 +329,6 @@
     await reload();
   }
 
-  function parseEur(input: string): number {
-    const n = parseFloat(input.replace(',', '.'));
-    return Number.isFinite(n) ? Math.round(n * 100) : 0;
-  }
 
   let showAddPopover = $state(false);
   let addCategoryId = $state<number | ''>('');
@@ -674,7 +671,7 @@
                 min="0"
                 step="10"
                 value={budgetEur}
-                oninput={(e) => debouncedSetBudget(r.categoryId, parseEur((e.target as HTMLInputElement).value))}
+                oninput={(e) => debouncedSetBudget(r.categoryId, parseEurCents((e.target as HTMLInputElement).value))}
               />
             </div>
 
@@ -684,7 +681,7 @@
               max={sliderMaxEur.get(sliderKey(r.categoryId, viewYear, viewMonth)) ?? SLIDER_MIN_MAX_EUR}
               step={10}
               value={budgetEur}
-              oninput={(e) => debouncedSetBudget(r.categoryId, parseEur((e.target as HTMLInputElement).value))}
+              oninput={(e) => debouncedSetBudget(r.categoryId, parseEurCents((e.target as HTMLInputElement).value))}
               class="slider"
               aria-label={`${r.categoryName} budget`}
             />
@@ -760,7 +757,7 @@
                     min="0"
                     step="10"
                     value={budgetEur}
-                    oninput={(e) => debouncedSetBudget(r.categoryId, parseEur((e.target as HTMLInputElement).value))}
+                    oninput={(e) => debouncedSetBudget(r.categoryId, parseEurCents((e.target as HTMLInputElement).value))}
                   />
                 </div>
 
@@ -770,7 +767,7 @@
                   max={sliderMaxEur.get(sliderKey(r.categoryId, viewYear, viewMonth)) ?? SLIDER_MIN_MAX_EUR}
                   step={10}
                   value={budgetEur}
-                  oninput={(e) => debouncedSetBudget(r.categoryId, parseEur((e.target as HTMLInputElement).value))}
+                  oninput={(e) => debouncedSetBudget(r.categoryId, parseEurCents((e.target as HTMLInputElement).value))}
                   class="slider"
                   aria-label={`${r.categoryName} budget`}
                 />

@@ -1,9 +1,12 @@
 <script lang="ts">
   import Icon from './Icon.svelte';
   import Sheet from './Sheet.svelte';
+  import DateField from './DateField.svelte';
   import { t } from '$lib/settings.svelte';
   import {
     api,
+    parseEur,
+    fmtEurInput,
     type Goal,
     type Category,
     type NewGoalPayload,
@@ -39,7 +42,7 @@
   /* svelte-ignore state_referenced_locally */
   let categoryId = $state<number | null>(goal?.categoryId ?? null);
   /* svelte-ignore state_referenced_locally */
-  let targetEur = $state(goal ? (goal.targetCents / 100).toFixed(2) : '');
+  let targetEur = $state(goal ? fmtEurInput(goal.targetCents) : '');
   /* svelte-ignore state_referenced_locally */
   let startDate = $state(goal?.startDate ?? new Date().toISOString().slice(0, 10));
   /* svelte-ignore state_referenced_locally */
@@ -87,7 +90,7 @@
     error = null;
     if (!name.trim()) { error = tg.errNameRequired; return; }
     if (categoryId === null) { error = tg.errCategoryRequired; return; }
-    const target = Math.round(Number(targetEur.replace(',', '.')) * 100);
+    const target = Math.round(parseEur(targetEur) * 100);
     if (!Number.isFinite(target) || target <= 0) {
       error = tg.errTargetInvalid;
       return;
@@ -259,12 +262,12 @@
 
     <label>
       <span>{tg.startDate}</span>
-      <input bind:value={startDate} type="date" />
+      <DateField bind:value={startDate} />
     </label>
 
     <label>
       <span>{tg.targetDate}</span>
-      <input bind:value={targetDate} type="date" />
+      <DateField bind:value={targetDate} />
     </label>
 
     <div class="full">

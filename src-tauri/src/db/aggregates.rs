@@ -5,13 +5,14 @@ use sqlx::SqlitePool;
 
 use super::{DbError, DbResult};
 
-/// SQL-Fragment für `WHERE`-Klauseln, das Trade-Sides aus Cashflow-Aggregationen
-/// ausschließt. Wertpapierkäufe/-verkäufe und Corporate Actions sind keine
-/// echten Einnahmen/Ausgaben — Cash sinkt/steigt, aber das Vermögen bleibt
-/// gleich (Asset-Umshift). Transfers heben sich beidseitig durch Auto-Pair-
-/// Mirror auf, zählen aber konzeptionell auch nicht als Cashflow.
+/// SQL-Fragment für `WHERE`-Klauseln, das Tx aus Cashflow-Aggregationen
+/// ausschließt:
+/// - `transfer`: Auto-Pair-Mirror zwischen eigenen Konten, beidseitig 0-summig.
+/// - `corporate_action`: Splits/Mergers ohne Cashflow (typisch amount=0).
+/// `buy`/`sell` zählen mit als Ausgabe/Einnahme — der User behandelt
+/// Wertpapierkäufe wie reguläre Ausgaben des Cash-Kontos.
 pub(crate) const EXCLUDED_KINDS_SQL: &str =
-    "kind NOT IN ('transfer', 'buy', 'sell', 'corporate_action')";
+    "kind NOT IN ('transfer', 'corporate_action')";
 
 #[derive(Debug, Clone, Serialize, sqlx::FromRow, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
@@ -84,7 +85,18 @@ pub async fn monthly_cashflow(
     end_month: u32,
     months: u32,
 ) -> DbResult<Vec<MonthlyFlow>> {
-    monthly_cashflow_filtered(pool, None, end_year, end_month, months).await
+    monthly_cashflow_filtered(pool, None, end_year, end_month, months, false).await
+}
+
+/// Wie `monthly_cashflow`, aber buy/sell werden zusätzlich aus dem
+/// Cashflow herausgerechnet (für "Sparquote ohne Investitionen"-Sicht).
+pub async fn monthly_cashflow_excl_invest(
+    pool: &SqlitePool,
+    end_year: i32,
+    end_month: u32,
+    months: u32,
+) -> DbResult<Vec<MonthlyFlow>> {
+    monthly_cashflow_filtered(pool, None, end_year, end_month, months, true).await
 }
 
 /// Wie `monthly_cashflow`, aber nur Transaktionen des angegebenen Kontos.
@@ -95,7 +107,7 @@ pub async fn account_monthly_cashflow(
     end_month: u32,
     months: u32,
 ) -> DbResult<Vec<MonthlyFlow>> {
-    monthly_cashflow_filtered(pool, Some(account_id), end_year, end_month, months).await
+    monthly_cashflow_filtered(pool, Some(account_id), end_year, end_month, months, false).await
 }
 
 /// Monatlicher Cashflow (Einnahmen + Ausgaben) gefiltert auf einen Bucket.
@@ -158,6 +170,7 @@ async fn monthly_cashflow_filtered(
     end_year: i32,
     end_month: u32,
     months: u32,
+    exclude_invest: bool,
 ) -> DbResult<Vec<MonthlyFlow>> {
     let buckets = month_buckets(end_year, end_month, months);
     let (start_y, start_m) = buckets[0];
@@ -165,6 +178,7 @@ async fn monthly_cashflow_filtered(
     let (after_y, after_m) = step_month(end_year, end_month, 1);
     let to = format!("{after_y:04}-{after_m:02}-01");
 
+    let extra_kind_filter = if exclude_invest { " AND kind NOT IN ('buy','sell')" } else { "" };
     let base_sql = format!(
         "SELECT
             strftime('%Y', booking_date) AS year,
@@ -173,7 +187,7 @@ async fn monthly_cashflow_filtered(
             CAST(SUM(CASE WHEN amount_cents < 0 THEN -amount_cents ELSE 0 END) AS INTEGER) AS out_cents
          FROM transactions
          WHERE booking_date >= ?1 AND booking_date < ?2
-           AND {EXCLUDED_KINDS_SQL}"
+           AND {EXCLUDED_KINDS_SQL}{extra_kind_filter}"
     );
     let sql = if account_id.is_some() {
         // Inline subtree-CTE — keep in sync with `collect_subtree` in db::accounts.
@@ -912,23 +926,25 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn monthly_cashflow_excludes_trade_kinds() {
+    async fn monthly_cashflow_includes_trade_kinds() {
         let pool = connect_memory().await.unwrap();
         let acc: i64 = sqlx::query_scalar(
             "INSERT INTO accounts (name, kind, currency) VALUES ('TR', 'broker', 'EUR') RETURNING id"
         ).fetch_one(&pool).await.unwrap();
-        // Echte Ausgabe + Wertpapierkauf am gleichen Tag
+        // expense + buy + fee + transfer (exkludiert)
         sqlx::query(
             "INSERT INTO transactions (account_id, booking_date, amount_cents, currency, kind, source)
              VALUES (?1, '2026-05-15', -1000, 'EUR', 'expense', 'manual'),
                     (?1, '2026-05-15', -100000, 'EUR', 'buy', 'manual'),
-                    (?1, '2026-05-15', -100, 'EUR', 'fee', 'manual')"
+                    (?1, '2026-05-15', -100, 'EUR', 'fee', 'manual'),
+                    (?1, '2026-05-15', 50000, 'EUR', 'sell', 'manual'),
+                    (?1, '2026-05-15', -200, 'EUR', 'transfer', 'manual')"
         ).bind(acc).execute(&pool).await.unwrap();
 
         let flows = monthly_cashflow(&pool, 2026, 5, 1).await.unwrap();
         assert_eq!(flows.len(), 1);
-        // Nur expense + fee zählen: 1000 + 100 = 1100c expense; buy ist raus
-        assert_eq!(flows[0].in_cents, 0);
-        assert_eq!(flows[0].out_cents, 1100, "buy soll nicht als expense gezählt werden");
+        // buy zählt jetzt als expense, sell als income; transfer bleibt raus.
+        assert_eq!(flows[0].in_cents, 50000, "sell soll als income zählen");
+        assert_eq!(flows[0].out_cents, 101100, "expense+buy+fee = 1000+100000+100");
     }
 }

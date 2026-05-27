@@ -16,7 +16,7 @@ if (!existsSync(target)) {
 }
 
 const raw = execSync(
-  'npx --yes license-checker --production --json --excludePackages "budget-app@0.1.0"',
+  'npx --yes license-checker --production --json --excludePackages "notchkeep@0.1.0"',
   { cwd: root, encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 }
 );
 const data = JSON.parse(raw);

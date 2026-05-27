@@ -1,6 +1,6 @@
 # Release-Runbook
 
-Schritt-für-Schritt-Anleitung für jedes Release von `budget-app`. Erfüllt die
+Schritt-für-Schritt-Anleitung für jedes Release von `Notchkeep`. Erfüllt die
 Pflichten aus GPL-3.0 §§4–7 sowie die Notice-Pflichten aller Drittbibliotheken.
 
 > **Konvention**: Releases werden semver-versioniert (`vMAJOR.MINOR.PATCH`),
@@ -29,7 +29,7 @@ Vier Stellen müssen synchron sein:
 
 - [ ] Alle vier Stellen auf `X.Y.Z` gesetzt.
 - [ ] `pnpm install` einmal laufen lassen, damit `pnpm-lock.yaml` aktualisiert wird.
-- [ ] `cargo update -p budget-app` (aktualisiert `Cargo.lock` für die neue Version).
+- [ ] `cargo update -p notchkeep` (aktualisiert `Cargo.lock` für die neue Version).
 
 ### 1.3 Qualität sicherstellen
 
@@ -49,7 +49,7 @@ Vier Stellen müssen synchron sein:
 
 - [ ] Source-URL in `src/routes/settings/+page.svelte` (`SOURCE_URL`) zeigt auf
       das tatsächliche Repository.
-- [ ] „Über budget-app"-Karte in *Einstellungen* lokal geprüft (`pnpm tauri dev`):
+- [ ] „Über Notchkeep"-Karte in *Einstellungen* lokal geprüft (`pnpm tauri dev`):
       Lizenz, Copyright, Source-Link funktionieren, `licenses.html` öffnet sich.
 - [ ] README-Build-Anleitung passt zur aktuellen Toolchain.
 
@@ -113,7 +113,7 @@ gh release create vX.Y.Z \
 - [ ] Alle Binary-Bundles als Assets hochgeladen.
 - [ ] Release-Notes enthalten:
   - Versions-Highlights
-  - Lizenz-Hinweis: „budget-app ist freie Software unter
+  - Lizenz-Hinweis: „Notchkeep ist freie Software unter
     [GPL-3.0-or-later](../COPYING). Der vollständige Source-Code dieses
     Releases ist über den Tag `vX.Y.Z` und das automatisch erzeugte
     Source-Archiv (`Source code (tar.gz)`) verfügbar."
@@ -166,7 +166,7 @@ public ist**.
 # 1. Vorbereiten
 $EDITOR package.json src-tauri/Cargo.toml src-tauri/tauri.conf.json \
         src/lib/i18n/strings.ts CHANGELOG.md
-pnpm install && cargo update -p budget-app
+pnpm install && cargo update -p notchkeep
 npm run check && cargo test --manifest-path src-tauri/Cargo.toml
 pnpm gen:licenses
 git commit -am "chore: release vX.Y.Z" && git push

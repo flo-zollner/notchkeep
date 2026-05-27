@@ -32,6 +32,13 @@ pub async fn import_raw_transactions(
     let rules = list_rules(pool).await?;
     let history = load_history(pool).await?;
 
+    // Wertpapier-Tx (buy/sell oder mit Trade-Detail) bekommen als Fallback
+    // automatisch die Standard-Kategorie "Investitionen" zugewiesen, wenn
+    // weder Rule noch Fuzzy gegriffen haben.
+    let invest_cat_id: Option<i64> = sqlx::query_scalar(
+        "SELECT id FROM categories WHERE parent_id IS NULL AND name = 'Investitionen' LIMIT 1"
+    ).fetch_optional(pool).await?;
+
     let mut report = ImportReport {
         parsed: raws.len(),
         ..Default::default()
@@ -43,7 +50,11 @@ pub async fn import_raw_transactions(
         let category_id = match &outcome {
             CategorizationOutcome::Rule { category_id, .. } => Some(*category_id),
             CategorizationOutcome::Fuzzy { category_id, .. } => Some(*category_id),
-            CategorizationOutcome::None => None,
+            CategorizationOutcome::None => {
+                let is_invest = raw.trade.is_some()
+                    || matches!(raw.kind.as_deref(), Some("buy") | Some("sell"));
+                if is_invest { invest_cat_id } else { None }
+            }
         };
         match insert_raw_transaction(pool, account_id, source, source_file_hash, raw, category_id)
             .await?

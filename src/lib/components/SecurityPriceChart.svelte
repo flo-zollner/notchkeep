@@ -1,5 +1,6 @@
 <script lang="ts">
   import { api, type PriceRow } from '$lib/api';
+  import DateField from './DateField.svelte';
   import { settings, t } from '$lib/settings.svelte';
 
   interface Props {
@@ -141,8 +142,8 @@
 
 {#if range === 'manual'}
   <div class="manual-controls">
-    <label>{tp.rangeFrom} <input type="date" bind:value={manualFrom} /></label>
-    <label>{tp.rangeTo} <input type="date" bind:value={manualTo} /></label>
+    <label>{tp.rangeFrom} <DateField bind:value={manualFrom} /></label>
+    <label>{tp.rangeTo} <DateField bind:value={manualTo} /></label>
   </div>
 {/if}
 

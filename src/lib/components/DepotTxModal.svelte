@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { api, fmtEur, type Account, type Bucket, type Category, type SecurityTrade, type Security, type Transaction, type UpdateTradePayload, errMsg } from '$lib/api';
+  import { api, fmtEur, fmtNumInput, fmtEurInput, parseEur, type Account, type Bucket, type Category, type SecurityTrade, type Security, type Transaction, type UpdateTradePayload, errMsg } from '$lib/api';
   import Icon from './Icon.svelte';
   import SecurityPicker from './SecurityPicker.svelte';
   import { settings, t } from '$lib/settings.svelte';
@@ -48,14 +48,14 @@
 
   $effect(() => {
     if (!trade) return;
-    sharesStr = (trade.sharesMicro / 1_000_000).toString().replace('.', ',');
+    sharesStr = fmtNumInput(trade.sharesMicro / 1_000_000);
     priceStr = trade.unitPriceMicro != null
-      ? (trade.unitPriceMicro / 1_000_000).toString().replace('.', ',')
+      ? fmtNumInput(trade.unitPriceMicro / 1_000_000)
       : '';
-    amountStr = (tx.amount_cents / 100).toString().replace('.', ',');
-    feeStr = (trade.feeCents / 100).toString().replace('.', ',');
-    kestStr = (trade.kestCents / 100).toString().replace('.', ',');
-    whtStr = (trade.withholdingTaxCents / 100).toString().replace('.', ',');
+    amountStr = fmtEurInput(tx.amount_cents);
+    feeStr = fmtEurInput(trade.feeCents);
+    kestStr = fmtEurInput(trade.kestCents);
+    whtStr = fmtEurInput(trade.withholdingTaxCents);
     cashAccountId = tx.account_id;
     depotAccountId = trade.accountId;
   });
@@ -80,9 +80,7 @@
 
   // ── Save ─────────────────────────────────────────────────────────────────
   function parseNum(s: string, unit: number): number | null {
-    const cleaned = s.replace(',', '.').trim();
-    if (cleaned === '') return null;
-    const n = Number(cleaned);
+    const n = parseEur(s);
     if (!Number.isFinite(n)) return null;
     return Math.round(n * unit);
   }

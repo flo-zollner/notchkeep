@@ -6,7 +6,9 @@ use crate::db::aggregates::{
     bucket_monthly_flow as db_bucket_monthly_flow,
     cashflow_breakdown as db_cashflow_breakdown,
     category_breakdown as db_category_breakdown, daily_spending as db_daily_spending,
-    monthly_cashflow as db_monthly_cashflow, monthly_spending as db_monthly_spending,
+    monthly_cashflow as db_monthly_cashflow,
+    monthly_cashflow_excl_invest as db_monthly_cashflow_excl_invest,
+    monthly_spending as db_monthly_spending,
     CashflowSlice, CategorySpending, MonthlyFlow,
 };
 use crate::db::networth::{
@@ -34,6 +36,7 @@ pub async fn monthly_cashflow(
     end_year: i32,
     end_month: u32,
     months: u32,
+    exclude_invest: Option<bool>,
 ) -> Result<Vec<MonthlyFlow>, CommandError> {
     if !(1..=12).contains(&end_month) {
         return Err(CommandError {
@@ -45,7 +48,13 @@ pub async fn monthly_cashflow(
             message: format!("invalid months count: {months}"),
         });
     }
-    Ok(db_monthly_cashflow(&state.pool(), end_year, end_month, months).await?)
+    let pool = state.pool();
+    let rows = if exclude_invest.unwrap_or(false) {
+        db_monthly_cashflow_excl_invest(&pool, end_year, end_month, months).await?
+    } else {
+        db_monthly_cashflow(&pool, end_year, end_month, months).await?
+    };
+    Ok(rows)
 }
 
 #[tauri::command]

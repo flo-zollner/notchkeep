@@ -28,7 +28,7 @@ fn spawn_post_import_refresh(app: AppHandle, pool: sqlx::SqlitePool) {
                 );
             }
             Err(e) => {
-                eprintln!("[budget-app] post-import refresh failed: {e}");
+                eprintln!("[notchkeep] post-import refresh failed: {e}");
                 let _ = app.emit(
                     "price_refresh_status",
                     serde_json::json!({ "stage": "failed", "error": e.to_string() }),
@@ -361,7 +361,6 @@ async fn filter_sparplan_duplicates(
 mod tests {
     use crate::db::connect_memory;
     use crate::db::institutions::{get_institution_by_name, list_institutions};
-    use crate::importers::Importer;
 
     #[tokio::test]
     async fn ensure_tr_institution_creates_if_missing() {

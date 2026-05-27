@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "budget-app",
+  "productName": "Notchkeep",
   "version": "0.1.0",
-  "identifier": "de.flo.budgetapp",
+  "identifier": "me.zollner.notchkeep",
   "build": {
     "beforeDevCommand": "pnpm dev",
     "devUrl": "http://localhost:1420",
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "budget-app",
+        "title": "Notchkeep",
         "width": 800,
         "height": 600,
         "minWidth": 360,
