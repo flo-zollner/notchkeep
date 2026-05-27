@@ -1,0 +1,338 @@
+<script lang="ts">
+  import { api, fmtEur, type Account, type Bucket, type Category, type SecurityTrade, type Security, type Transaction, type UpdateTradePayload, errMsg } from '$lib/api';
+  import Icon from './Icon.svelte';
+  import SecurityPicker from './SecurityPicker.svelte';
+  import { settings, t } from '$lib/settings.svelte';
+  import Sheet from './Sheet.svelte';
+
+  interface Props {
+    tx: Transaction;
+    accounts: Account[];
+    categories: Category[];
+    bucketsById?: Map<number, Bucket>;
+    onClose: () => void;
+    onSaved: (tx: Transaction) => void;
+    onDeleted?: (id: number) => void;
+  }
+
+  let { tx, accounts, categories, bucketsById, onClose, onSaved, onDeleted }: Props = $props();
+
+  // ── Initial-Load: zugehörige Trade-Row + Security ─────────────────────────
+  let trade = $state<SecurityTrade | null>(null);
+  let security = $state<Security | null>(null);
+  let loading = $state(true);
+  let saving = $state(false);
+  let error = $state<string | null>(null);
+
+  $effect(() => {
+    loading = true;
+    error = null;
+    api.getTrade(tx.id)
+      .then(async (tw) => {
+        trade = tw.trade;
+        security = await api.getSecurity(tw.trade.securityId);
+      })
+      .catch((e) => { error = errMsg(e); })
+      .finally(() => { loading = false; });
+  });
+
+  // ── Editierbare Felder ────────────────────────────────────────────────────
+  let sharesStr = $state('');
+  let priceStr = $state('');
+  let amountStr = $state('');
+  let feeStr = $state('');
+  let kestStr = $state('');
+  let whtStr = $state('');
+  let cashAccountId = $state<number | null>(null);
+  let depotAccountId = $state<number | null>(null);
+
+  $effect(() => {
+    if (!trade) return;
+    sharesStr = (trade.sharesMicro / 1_000_000).toString().replace('.', ',');
+    priceStr = trade.unitPriceMicro != null
+      ? (trade.unitPriceMicro / 1_000_000).toString().replace('.', ',')
+      : '';
+    amountStr = (tx.amount_cents / 100).toString().replace('.', ',');
+    feeStr = (trade.feeCents / 100).toString().replace('.', ',');
+    kestStr = (trade.kestCents / 100).toString().replace('.', ',');
+    whtStr = (trade.withholdingTaxCents / 100).toString().replace('.', ',');
+    cashAccountId = tx.account_id;
+    depotAccountId = trade.accountId;
+  });
+
+  // ── Read-only-Kontext-Anzeige ─────────────────────────────────────────────
+  const cashAccount = $derived(accounts.find((a) => a.id === tx.account_id));
+  const category = $derived(
+    tx.category_id != null ? categories.find((c) => c.id === tx.category_id) : undefined
+  );
+  const bucket = $derived(
+    tx.bucket_id != null ? bucketsById?.get(tx.bucket_id) : undefined
+  );
+
+  // Side-Variante steuert, welche Felder editierbar/lock'd sind
+  const tradeSide = $derived((trade?.side ?? 'buy') as string);
+  const isDividend = $derived(tradeSide === 'dividend');
+  const isFusion = $derived(tradeSide === 'fusion_out' || tradeSide === 'fusion_in');
+  const isCorpAction = $derived(tradeSide === 'corporate_action');
+  const sharesEditable = $derived(!isDividend);
+  const priceEditable = $derived(!isDividend && !isFusion && !isCorpAction);
+  const amountEditable = $derived(!isFusion && !isCorpAction);
+
+  // ── Save ─────────────────────────────────────────────────────────────────
+  function parseNum(s: string, unit: number): number | null {
+    const cleaned = s.replace(',', '.').trim();
+    if (cleaned === '') return null;
+    const n = Number(cleaned);
+    if (!Number.isFinite(n)) return null;
+    return Math.round(n * unit);
+  }
+
+  async function save() {
+    if (!trade) return;
+    error = null;
+    saving = true;
+    try {
+      const payload: UpdateTradePayload = {};
+
+      const sharesNum = parseNum(sharesStr, 1_000_000);
+      if (sharesNum != null && sharesNum !== trade.sharesMicro) {
+        let signed = Math.abs(sharesNum);
+        if (tradeSide === 'sell' || tradeSide === 'fusion_out') signed = -signed;
+        payload.sharesMicro = signed;
+      }
+      const priceNum = parseNum(priceStr, 1_000_000);
+      if (priceEditable && priceNum !== trade.unitPriceMicro) {
+        payload.unitPriceMicro = priceNum;
+      }
+      const amountNum = parseNum(amountStr, 100);
+      if (amountEditable && amountNum != null && amountNum !== tx.amount_cents) {
+        payload.amountCents = amountNum;
+      }
+      const feeNum = parseNum(feeStr, 100);
+      if (feeNum != null && feeNum !== trade.feeCents) {
+        payload.feeCents = feeNum;
+      }
+      const kestNum = parseNum(kestStr, 100);
+      if (kestNum != null && kestNum !== trade.kestCents) {
+        payload.kestCents = kestNum;
+      }
+      const whtNum = parseNum(whtStr, 100);
+      if (whtNum != null && whtNum !== trade.withholdingTaxCents) {
+        payload.withholdingTaxCents = whtNum;
+      }
+      if (security && security.id !== trade.securityId) {
+        payload.securityId = security.id;
+      }
+      if (cashAccountId != null && cashAccountId !== tx.account_id) {
+        payload.txAccountId = cashAccountId;
+      }
+      if (depotAccountId !== trade.accountId) {
+        payload.accountId = depotAccountId ?? undefined;
+      }
+
+      await api.updateTrade(tx.id, payload);
+
+      const updated: Transaction = {
+        ...tx,
+        amount_cents: payload.amountCents ?? tx.amount_cents,
+        account_id: payload.txAccountId ?? tx.account_id,
+        holding_account_id: payload.accountId ?? tx.holding_account_id,
+      };
+      onSaved(updated);
+      onClose();
+    } catch (e) {
+      error = errMsg(e);
+    } finally {
+      saving = false;
+    }
+  }
+
+  async function deleteTx() {
+    if (!confirm('Diese Wertpapier-Transaktion wirklich löschen? Damit verschwindet auch der Bestandseintrag im Depot.')) {
+      return;
+    }
+    saving = true;
+    error = null;
+    try {
+      await api.deleteTrade(tx.id);
+      onDeleted?.(tx.id);
+      onClose();
+    } catch (e) {
+      error = errMsg(e);
+      saving = false;
+    }
+  }
+</script>
+
+<Sheet open={true} {onClose} title={security?.name ?? 'Depot-Transaktion'}>
+  {#snippet footer()}
+    <div class="footer-actions">
+      {#if onDeleted}
+        <button type="button" class="btn danger" onclick={deleteTx} disabled={saving}>
+          🗑 Löschen
+        </button>
+      {/if}
+      <span class="grow"></span>
+      <button type="button" class="btn cancel" onclick={onClose} disabled={saving}>Abbrechen</button>
+      <button type="button" class="btn save" onclick={save} disabled={saving}>
+        {saving ? 'Speichert …' : 'Speichern'}
+      </button>
+    </div>
+  {/snippet}
+
+    {#if loading}
+      <div class="empty">Lädt …</div>
+    {:else if error}
+      <div class="card err">{error}</div>
+    {:else}
+      <div class="info-block">
+        <div class="info-row">
+          <span class="lbl">{t().trade.bookingDate ?? 'Datum'}</span>
+          <span>{tx.booking_date}</span>
+          {#if tx.counterparty}
+            <span class="lbl">{t().trade.counterparty ?? 'Gegenseite'}</span>
+            <span>{tx.counterparty}</span>
+          {/if}
+        </div>
+        {#if tx.manual_note || tx.purpose}
+          <div class="info-row">
+            <span class="lbl">{t().trade.note ?? 'Notiz'}</span>
+            <span>{tx.manual_note || tx.purpose}</span>
+          </div>
+        {/if}
+        {#if category || bucket}
+          <div class="info-row">
+            {#if category}
+              <span class="lbl">{t().common.categories ?? 'Kategorie'}</span>
+              <span>{category.name}</span>
+            {/if}
+            {#if bucket}
+              <span class="lbl">{t().nav.buckets ?? 'Topf'}</span>
+              <span>{bucket.name}</span>
+            {/if}
+          </div>
+        {/if}
+        <div class="info-row">
+          <span class="lbl">{t().trade.side ?? 'Side'}</span>
+          <span class="badge side-{tradeSide}">{tradeSide}</span>
+        </div>
+      </div>
+
+      {#if isFusion}
+        <div class="banner">
+          ⚠ Fusion — die paired {tradeSide === 'fusion_out' ? 'Einbuchung' : 'Ausbuchung'} muss separat editiert werden.
+        </div>
+      {/if}
+
+      <div class="grid">
+        <label class="span2">
+          Wertpapier
+          <SecurityPicker value={security} onSelect={(s) => (security = s)} />
+        </label>
+
+        {#if sharesEditable}
+          <label>Stück<input type="text" inputmode="decimal" bind:value={sharesStr} /></label>
+        {/if}
+        {#if priceEditable}
+          <label>Preis €/Stück<input type="text" inputmode="decimal" bind:value={priceStr} /></label>
+        {/if}
+        {#if amountEditable}
+          <label class:span2={isDividend}>Cash €<input type="text" inputmode="decimal" bind:value={amountStr} /></label>
+        {/if}
+        {#if !isFusion}
+          <label>Gebühr €<input type="text" inputmode="decimal" bind:value={feeStr} /></label>
+          <label>KESt €<input type="text" inputmode="decimal" bind:value={kestStr} /></label>
+          <label>Quellenst. €<input type="text" inputmode="decimal" bind:value={whtStr} /></label>
+        {/if}
+
+        <label>
+          Cash-Konto
+          <select bind:value={cashAccountId}>
+            {#each accounts.filter((a) => a.kind !== 'broker') as a}
+              <option value={a.id}>{a.name}</option>
+            {/each}
+          </select>
+        </label>
+        <label>
+          Depot
+          <select bind:value={depotAccountId}>
+            <option value={null}>—</option>
+            {#each accounts.filter((a) => a.kind === 'broker') as a}
+              <option value={a.id}>{a.name}</option>
+            {/each}
+          </select>
+        </label>
+      </div>
+
+    {/if}
+</Sheet>
+
+<style>
+  .empty { padding: 24px; text-align: center; color: var(--text-faint); }
+  .err { color: var(--negative); padding: 12px; }
+
+  .info-block {
+    background: var(--surface-2);
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 16px;
+    font-size: 13px;
+  }
+  .info-row { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-bottom: 4px; }
+  .info-row:last-child { margin-bottom: 0; }
+  .lbl { color: var(--text-faint); }
+  .badge {
+    display: inline-block; padding: 1px 7px; border-radius: 999px;
+    font-size: 11px; background: var(--surface-3, var(--surface-2));
+  }
+  .side-buy { background: var(--positive-soft); color: var(--positive); }
+  .side-sell { background: var(--negative-soft); color: var(--negative); }
+  .side-dividend { background: var(--info-soft); color: var(--info); }
+  .side-corporate_action { background: var(--warning-soft); color: var(--warning); }
+  .side-tax { background: var(--warning-soft); color: var(--warning); }
+  .side-fusion_out, .side-fusion_in { background: var(--surface-3, var(--surface-2)); color: var(--text-muted); }
+
+  .banner {
+    background: var(--warning-soft);
+    color: var(--warning);
+    padding: 10px 12px;
+    border-radius: 6px;
+    margin-bottom: 14px;
+    font-size: 13px;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .grid label {
+    display: flex; flex-direction: column; gap: 4px;
+    font-size: 12px; color: var(--text-muted);
+  }
+  .grid label.span2 { grid-column: span 2; }
+  .grid input, .grid select {
+    padding: 6px 8px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+  }
+  .footer-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .footer-actions .btn.danger { margin-right: auto; background: var(--negative-soft); color: var(--negative); }
+  .btn {
+    padding: 8px 16px;
+    border-radius: 6px;
+    border: 0;
+    cursor: pointer;
+    font-size: 14px;
+  }
+  .btn.cancel { background: transparent; color: var(--text-muted); }
+  .btn.save { background: var(--accent, var(--positive)); color: white; }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .grow { flex: 1; }
+</style>

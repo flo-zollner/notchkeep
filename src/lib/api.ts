@@ -1,0 +1,1091 @@
+import { invoke } from '@tauri-apps/api/core';
+
+export interface Account {
+  id: number;
+  name: string;
+  kind: string;
+  currency: string;
+  icon: string | null;
+  color: string | null;
+  note: string | null;
+  last4: string | null;
+  archived: boolean;
+  parent_id: number | null;
+  iban: string | null;
+  institution_id: number | null;
+  created_at: string;
+}
+
+export interface Category {
+  id: number;
+  parent_id: number | null;
+  name: string;
+  color: string | null;
+  icon: string | null;
+  rollover_enabled: boolean;
+}
+
+export interface Transaction {
+  id: number;
+  account_id: number;
+  booking_date: string;
+  value_date: string | null;
+  amount_cents: number;
+  currency: string;
+  counterparty: string | null;
+  purpose: string | null;
+  raw_ref: string | null;
+  category_id: number | null;
+  source: string;
+  source_file_hash: string | null;
+  imported_at: string;
+  manual_note: string | null;
+  bucket_id: number | null;
+  kind: string;
+  counterparty_iban: string | null;
+  /** Depot/Holding-Konto bei Trade-Tx (buy/sell/corp_action/fusion).
+   *  Cash-only Tx + Dividenden/KESt liefern null. Wird vom Account-Filter
+   *  zusätzlich zu `account_id` ausgewertet → eine Buy-Tx erscheint in
+   *  beiden Account-Views (Cash und Depot). */
+  holding_account_id: number | null;
+  /** `securities_trades.side` der Trade-Detail-Zeile. Erlaubt es dem UI,
+   *  Fusion-Ausbuchung (`fusion_out`) und Einbuchung (`fusion_in`) zu
+   *  unterscheiden — beide haben `kind='corporate_action'`, aber
+   *  unterschiedliche Richtung. `null` für Cash-Tx ohne Trade-Row. */
+  trade_side: string | null;
+  /** Pointer auf die gepaarte Tx (Inter-Account-Transfer-Auto-Pair).
+   *  Null wenn die Tx kein Pair hat. */
+  paired_tx_id: number | null;
+}
+
+export type MatchFieldId = 'counterparty' | 'description' | 'amount' | 'account';
+export type MatchOpId =
+  | 'contains'
+  | 'equals'
+  | 'starts_with'
+  | 'ends_with'
+  | 'regex'
+  | 'range';
+export type RuleCombinator = 'and' | 'or';
+
+export interface RuleCondition {
+  field: MatchFieldId;
+  op: MatchOpId;
+  /** Range: `"<min_cents>..<max_cents>"`. Account: `"<account_id>"`. Sonst Klartext. */
+  value: string;
+}
+
+export interface Rule {
+  id: number;
+  priority: number;
+  name: string;
+  combinator: RuleCombinator;
+  conditions: RuleCondition[];
+  targetCategoryId: number;
+  enabled: boolean;
+}
+
+export interface NewRulePayload {
+  priority: number;
+  name: string;
+  combinator: RuleCombinator;
+  conditions: RuleCondition[];
+  targetCategoryId: number;
+  enabled: boolean;
+}
+
+export interface BucketRule {
+  id: number;
+  priority: number;
+  name: string;
+  counterpartyContains: string | null;
+  minAmountCents: number | null;
+  maxAmountCents: number | null;
+  targetBucketId: number;
+  enabled: boolean;
+}
+
+export interface NewBucketRulePayload {
+  priority: number;
+  name: string;
+  counterpartyContains: string | null;
+  minAmountCents: number | null;
+  maxAmountCents: number | null;
+  targetBucketId: number;
+  enabled: boolean;
+}
+
+export interface ImportReport {
+  parsed: number;
+  inserted: number;
+  skipped: number;
+  categorized_by_rule: number;
+  categorized_by_fuzzy: number;
+  warnings: string[];
+}
+
+export interface TxFilter {
+  accountId?: number;
+  institutionId?: number | null;
+  categoryId?: number;
+  bucketId?: number;
+  search?: string;
+  limit?: number;
+}
+
+export interface NewTransactionPayload {
+  accountId: number;
+  bookingDate: string; // YYYY-MM-DD
+  amountCents: number;
+  currency?: string;
+  counterparty?: string | null;
+  purpose?: string | null;
+  categoryId?: number | null;
+  bucketId?: number | null;
+  manualNote?: string | null;
+  counterpartyIban?: string | null;
+  /** Optional. Erlaubt: income, expense, transfer, fee. Trade-Kinds laufen
+   *  über createTrade. None = Auto aus Amount-Vorzeichen. */
+  kind?: string;
+}
+
+export interface UpdateTransactionPayload {
+  id: number;
+  accountId: number;
+  bookingDate: string;
+  amountCents: number;
+  currency: string;
+  counterparty: string | null;
+  purpose: string | null;
+  categoryId: number | null;
+  bucketId: number | null;
+  manualNote: string | null;
+  counterpartyIban: string | null;
+  /** Optional override. None = unverändert lassen. */
+  kind?: string;
+}
+
+export interface CategorySuggestion {
+  categoryId: number;
+  categoryName: string;
+  score: number;
+}
+
+export interface CategorySpending {
+  categoryId: number;
+  spentCents: number;
+}
+
+export interface MonthlyFlow {
+  year: number;
+  month: number;
+  inCents: number;
+  outCents: number;
+}
+
+export interface CashflowSlice {
+  categoryId: number | null;
+  sign: 1 | -1;
+  sumAbsCents: number;
+}
+
+export interface LockHolder {
+  deviceId: string;
+  hostname: string;
+  acquiredAt: string;  // ISO 8601 UTC
+}
+
+export interface AppConfigInfo {
+  dbPath: string;
+  dbSizeBytes: number;
+  dbModifiedIso: string;
+  lockHolder: LockHolder | null;
+}
+
+export interface OrphanTradeTx {
+  id: number;
+  kind: string;
+  bookingDate: string;
+  counterparty: string | null;
+  amountCents: number;
+}
+
+export interface AllocToArchivedBucket {
+  allocationId: number;
+  securityId: number;
+  securityName: string;
+  bucketId: number;
+  bucketName: string;
+  sharesMicro: number;
+}
+
+export interface ZombieSecurity {
+  id: number;
+  isin: string;
+  name: string;
+}
+
+export interface IntegrityReport {
+  tradeKindWithoutTradeRow: OrphanTradeTx[];
+  allocationsToArchivedBuckets: AllocToArchivedBucket[];
+  zombieSecurities: ZombieSecurity[];
+}
+
+export type PathCheckResult =
+  | { kind: 'existing'; dbSizeBytes: number; valid: boolean }
+  | { kind: 'empty' };
+
+export interface BackupResult {
+  bytes: number;
+  durationMs: number;
+}
+
+export interface BackupRowCounts {
+  transactions: number;
+  accounts: number;
+  categories: number;
+  securities: number;
+  recurringPayments: number;
+}
+
+export interface BackupValidation {
+  ok: boolean;
+  schemaVersion: number | null;
+  rowCounts: BackupRowCounts;
+  error: string | null;
+}
+
+export type ChangePathAction =
+  | 'useExisting'
+  | 'overwriteCopy'
+  | 'move'
+  | 'copy'
+  | 'startFresh';
+
+export interface SyncConflictFile {
+  path: string;
+  name: string;
+  modifiedUnix: number;
+}
+
+export interface NetWorthPoint {
+  year: number;
+  month: number;
+  totalCents: number;
+}
+
+export interface NetWorthForecastPoint {
+  year: number;
+  month: number;
+  midCents: number;
+  loCents: number;
+  hiCents: number;
+}
+
+export interface NewCategoryPayload {
+  name: string;
+  parentId?: number | null;
+  color?: string | null;
+  icon?: string | null;
+  rolloverEnabled: boolean;
+}
+
+export interface Goal {
+  id: number;
+  name: string;
+  categoryId: number;
+  targetCents: number;
+  startDate: string;            // YYYY-MM-DD
+  targetDate: string | null;
+  icon: string | null;
+  color: string | null;
+  note: string | null;
+  archived: boolean;
+  createdAt: string;
+}
+
+export interface NewGoalPayload {
+  name: string;
+  categoryId: number;
+  targetCents: number;
+  startDate?: string;
+  targetDate?: string | null;
+  icon?: string | null;
+  color?: string | null;
+  note?: string | null;
+}
+
+export interface UpdateGoalPayload {
+  name?: string;
+  categoryId?: number;
+  targetCents?: number;
+  startDate?: string;
+  targetDate?: string | null;
+  icon?: string | null;
+  color?: string | null;
+  note?: string | null;
+  archived?: boolean;
+}
+
+export interface GoalProgress {
+  goalId: number;
+  currentCents: number;
+  monthlyAvgCents: number;
+  forecastDate: string | null;  // YYYY-MM-01
+  onTrack: boolean | null;
+}
+
+export interface SecurityBucketAllocation {
+  id: number;
+  securityId: number;
+  bucketId: number;
+  sharesMicro: number;
+}
+
+export interface BucketHoldingRow {
+  securityId: number;
+  securityName: string;
+  isin: string;
+  sharesMicro: number;
+  valueCents: number;
+}
+
+export interface AllocationItem {
+  bucketId: number;
+  sharesMicro: number;
+}
+
+export interface Bucket {
+  id: number;
+  name: string;
+  icon: string | null;
+  color: string | null;
+  note: string | null;
+  targetCents: number | null;
+  startDate: string | null;
+  targetDate: string | null;
+  archived: boolean;
+  createdAt: string;
+}
+
+export interface NewBucketPayload {
+  name: string;
+  icon?: string | null;
+  color?: string | null;
+  note?: string | null;
+  targetCents?: number | null;
+  startDate?: string | null;
+  targetDate?: string | null;
+}
+
+export interface UpdateBucketPayload {
+  name?: string;
+  icon?: string | null;
+  color?: string | null;
+  note?: string | null;
+  targetCents?: number | null;
+  startDate?: string | null;
+  targetDate?: string | null;
+  archived?: boolean;
+}
+
+export interface BucketProgress {
+  bucketId: number;
+  currentCents: number;
+  txCount: number;
+}
+
+export type AssetType =
+  | 'stock'
+  | 'etf_equity'
+  | 'etf_bond'
+  | 'etf_reit'
+  | 'bond'
+  | 'crypto'
+  | 'other';
+
+export type BreakdownDimension = 'country' | 'sector';
+
+export interface Security {
+  id: number;
+  isin: string;
+  symbol: string | null;
+  name: string;
+  currency: string;
+  assetType: AssetType;
+  country: string | null;
+  sector: string | null;
+  note: string | null;
+  archived: boolean;
+  createdAt: string;
+}
+
+export interface NewSecurityPayload {
+  isin: string;
+  symbol: string | null;
+  name: string;
+  currency: string | null;
+  assetType: AssetType;
+  country: string | null;
+  sector: string | null;
+  note: string | null;
+}
+
+export interface UpdateSecurityPayload {
+  isin?: string;
+  symbol?: string | null;
+  name?: string;
+  currency?: string;
+  assetType?: AssetType;
+  country?: string | null;
+  sector?: string | null;
+  note?: string | null;
+  archived?: boolean;
+}
+
+export interface SecurityBreakdown {
+  securityId: number;
+  dimension: BreakdownDimension;
+  key: string;
+  weightBps: number;
+}
+
+export interface BreakdownRowInput {
+  key: string;
+  weightBps: number;
+}
+
+export interface BudgetEntry {
+  categoryId: number;
+  year: number;
+  month: number;
+  amountCents: number;
+  createdAt: string;
+}
+
+export interface CategoryMonthBudget {
+  categoryId: number;
+  categoryName: string;
+  budgetCents: number | null;       // effective (forward-filled)
+  overrideCents: number | null;     // explicit
+  spentCents: number;
+  rolloverCents: number;            // 0 in 6m1
+  rolloverEnabled: boolean;
+}
+
+export interface InvestmentFlow {
+  buysCents: number;
+  sellsCents: number;
+  dividendsCents: number;
+  netInvestedCents: number;
+}
+
+export type TxKind =
+  | 'income' | 'expense' | 'transfer'
+  | 'buy' | 'sell' | 'dividend' | 'corporate_action';
+
+export type TradeSide = 'buy' | 'sell' | 'dividend' | 'corporate_action' | 'tax';
+
+export interface SecurityTrade {
+  txId: number;
+  securityId: number;
+  side: TradeSide;
+  sharesMicro: number;
+  unitPriceMicro: number | null;
+  feeCents: number;
+  taxCents: number;
+  kestCents: number;
+  withholdingTaxCents: number;
+  fxRateMicro: number | null;
+  /** Optional explizites Depot-Konto. Null = fällt zurück auf tx.account_id. */
+  accountId: number | null;
+}
+
+export interface TradeWithTx {
+  trade: SecurityTrade;
+  tx: Transaction;
+}
+
+export interface NewTradePayload {
+  /** transactions.account_id (= Cashkonto). Wo der Cashflow gebucht wird. */
+  accountId: number;
+  securityId: number;
+  bookingDate: string;
+  side: TradeSide;
+  sharesMicro: number;
+  unitPriceMicro: number | null;
+  feeCents: number;
+  taxCents: number;
+  fxRateMicro: number | null;
+  amountCents: number;
+  currency: string | null;
+  counterparty: string | null;
+  manualNote: string | null;
+  /** Optionaler Override für securities_trades.account_id (= Depot).
+   *  Wenn null/undefined: Backend leitet automatisch ab (= einziges Broker-
+   *  Konto desselben Instituts via resolve_trade_account). */
+  holdingAccountId?: number | null;
+}
+
+export interface UpdateTradePayload {
+  sharesMicro?: number;
+  unitPriceMicro?: number | null;
+  feeCents?: number;
+  taxCents?: number;
+  fxRateMicro?: number | null;
+  // NEU für Depot-Dialog:
+  kestCents?: number;
+  withholdingTaxCents?: number;
+  /** securities_trades.account_id (= Depot, wenn explizit gesetzt). */
+  accountId?: number;
+  securityId?: number;
+  amountCents?: number;
+  /** transactions.account_id (= Cashkonto). Disambiguiert vom obigen accountId. */
+  txAccountId?: number;
+}
+
+export interface CurrencyStatus {
+  code: string;
+  rateMicro: number | null;
+  date: string | null;
+  source: string | null;
+  inUse: boolean;
+}
+
+// ─── Portfolio ───
+
+export interface Holding {
+  securityId: number;
+  isin: string;
+  symbol: string | null;
+  name: string;
+  currency: string;
+  sharesMicro: number;
+  costBasisCents: number;
+  avgCostPerShareMicro: number;
+  marketValueCents: number;
+  unrealizedCents: number;
+  lastPriceDate: string | null;
+}
+
+export interface PriceRow {
+  securityId: number;
+  date: string;
+  closeMicro: number;
+  source: string;
+}
+
+export interface RefreshReport {
+  securitiesTotal: number;
+  pricesUpdated: number;
+  pricesFailed: number;
+  fxUpdated: number;
+  fxFailed: number;
+}
+
+export interface DividendEntry {
+  txId: number;
+  bookingDate: string;
+  securityId: number;
+  securityName: string;
+  amountCents: number;
+  taxCents: number;
+}
+
+export interface CostBasisPoint {
+  year: number;
+  month: number;
+  costBasisCents: number;
+  marketValueCents: number;
+}
+
+export interface CostBasisPointDaily {
+  date: string;          // YYYY-MM-DD
+  costBasisCents: number;
+  marketValueCents: number;
+}
+
+export interface AllocationSlice {
+  key: string;
+  valueCents: number;
+}
+
+export interface PortfolioKpis {
+  marketValueCents: number;
+  costBasisCents: number;
+  unrealizedCents: number;
+  realizedYtdCents: number;
+}
+
+export interface AccountMarketValue {
+  accountId: number;
+  marketValueCents: number;
+}
+
+export interface ExportFilter {
+  from?: string;        // YYYY-MM-DD
+  to?: string;          // YYYY-MM-DD
+  accountId?: number;
+  institutionId?: number;
+  categoryId?: number;
+  search?: string;
+}
+
+export interface ExportResult {
+  rows: number;
+  bytes: number;
+}
+
+// ─── Recurring Payments ───
+
+export interface RecurringPayment {
+  id: number;
+  name: string;
+  accountId: number;
+  categoryId: number | null;
+  amountCents: number;
+  frequency: 'weekly' | 'monthly' | 'quarterly' | 'yearly';
+  anchorDate: string;
+  counterparty: string | null;
+  note: string | null;
+  archived: boolean;
+  createdAt: string;
+}
+
+export interface NewRecurringPayload {
+  name: string;
+  accountId: number;
+  categoryId?: number | null;
+  amountCents: number;
+  frequency: 'weekly' | 'monthly' | 'quarterly' | 'yearly';
+  anchorDate: string;
+  counterparty?: string | null;
+  note?: string | null;
+}
+
+export interface UpdateRecurringPayload {
+  name?: string;
+  categoryId?: number | null;
+  amountCents?: number;
+  frequency?: 'weekly' | 'monthly' | 'quarterly' | 'yearly';
+  anchorDate?: string;
+  counterparty?: string | null;
+  note?: string | null;
+  archived?: boolean;
+}
+
+export interface Occurrence {
+  dueDate: string;
+  status: 'paid' | 'pending';
+  matchedTxId: number | null;
+  matchedAmountCents: number | null;
+}
+
+export interface RecurringOverview {
+  recurring: RecurringPayment;
+  occurrences: Occurrence[];
+}
+
+export interface DetectedRecurring {
+  counterparty: string;
+  accountId: number;
+  amountCents: number;
+  frequency: 'weekly' | 'monthly' | 'quarterly' | 'yearly';
+  anchorDate: string;
+  sampleCount: number;
+}
+
+/** True wenn die Tx eine Wertpapier-Transaktion mit Trade-Detail-Row ist
+ *  (Buy/Sell/Dividend/Corp-Action/Tax-Thesaurierung). Routing-Entscheidung
+ *  für UI: Cash-Tx → TxModal, Trade-Tx → DepotTxModal.
+ *  `fee` ist bewusst NICHT drin — eine reine Gebühren-Tx ist Cash-Editing
+ *  und läuft über TxModal. */
+export function isTradeTx(tx: Transaction): boolean {
+  return ['buy', 'sell', 'dividend', 'corporate_action', 'tax'].includes(tx.kind);
+}
+
+export const api = {
+  // Accounts
+  listAccounts: () => invoke<Account[]>('get_accounts'),
+  createAccount: (
+    name: string,
+    kind: string,
+    currency?: string,
+    parentId?: number | null,
+    iban?: string | null,
+    institutionId?: number | null,
+  ) =>
+    invoke<Account>('create_account', {
+      name, kind, currency,
+      parentId: parentId ?? null,
+      iban: iban ?? null,
+      institutionId: institutionId ?? null,
+    }),
+  getAccount: (id: number) => invoke<Account>('get_account', { id }),
+  updateAccount: (account: Account) => invoke<void>('update_account', { account }),
+  accountBalance: (id: number) => invoke<number>('account_balance', { id }),
+
+  // Transactions
+  listTransactions: (filter?: TxFilter) =>
+    invoke<Transaction[]>('list_transactions', { filter: filter ?? null }),
+  createTransaction: (tx: NewTransactionPayload) =>
+    invoke<Transaction>('create_transaction', { tx }),
+  updateTransaction: (tx: UpdateTransactionPayload) =>
+    invoke<Transaction>('update_transaction', { tx }),
+  deleteTransaction: (id: number) => invoke<void>('delete_transaction', { id }),
+  detectTransfers: () => invoke<number>('detect_transfers'),
+  cleanupPhantomMirrors: () => invoke<number>('cleanup_phantom_mirrors'),
+  assignCategory: (transactionId: number, categoryId: number | null) =>
+    invoke<void>('assign_category', { transactionId, categoryId }),
+  assignAccount: (transactionId: number, accountId: number) =>
+    invoke<void>('assign_account', { transactionId, accountId }),
+  suggestCategory: (name: string, accountId?: number | null) =>
+    invoke<CategorySuggestion | null>('suggest_category', {
+      name,
+      accountId: accountId ?? null,
+    }),
+
+  // Categories
+  listCategories: () => invoke<Category[]>('list_categories'),
+  createCategory: (cat: NewCategoryPayload) =>
+    invoke<Category>('create_category', { cat }),
+  updateCategory: (cat: Category) => invoke<void>('update_category', { cat }),
+  deleteCategory: (id: number) => invoke<void>('delete_category', { id }),
+  mergeCategories: (fromId: number, toId: number) =>
+    invoke<number>('merge_categories', { fromId, toId }),
+
+  // Rules
+  listRules: () => invoke<Rule[]>('list_rules'),
+  createRule: (rule: NewRulePayload) => invoke<Rule>('create_rule', { rule }),
+  updateRule: (rule: Rule) => invoke<Rule>('update_rule', { rule }),
+  deleteRule: (id: number) => invoke<void>('delete_rule', { id }),
+  applyRuleToExisting: (ruleId: number) =>
+    invoke<number>('apply_rule_to_existing', { ruleId }),
+  previewRuleMatch: (rule: NewRulePayload) =>
+    invoke<number>('preview_rule_match', { rule }),
+
+  // Import
+  importTradeRepublicCsv: (accountId: number, bytes: Uint8Array) =>
+    invoke<ImportReport>('import_trade_republic_csv', {
+      accountId,
+      bytes: Array.from(bytes),
+    }),
+  importFlatexPdfs: (accountId: number, files: Uint8Array[]) =>
+    invoke<ImportReport>('import_flatex_pdfs', {
+      accountId,
+      files: files.map((f) => Array.from(f)),
+    }),
+  importSparkasseCsv: (accountId: number, bytes: Uint8Array) =>
+    invoke<ImportReport>('import_sparkasse_csv', {
+      accountId,
+      bytes: Array.from(bytes),
+    }),
+
+  // Aggregates
+  monthlySpending: (year: number, month: number) =>
+    invoke<CategorySpending[]>('monthly_spending', { year, month }),
+  monthlyCashflow: (endYear: number, endMonth: number, months: number) =>
+    invoke<MonthlyFlow[]>('monthly_cashflow', { endYear, endMonth, months }),
+  categoryBreakdown: (from: string, to: string) =>
+    invoke<CategorySpending[]>('category_breakdown', { from, to }),
+  cashflowBreakdown: (from: string, to: string) =>
+    invoke<CashflowSlice[]>('cashflow_breakdown', { from, to }),
+  dailySpending: (year: number, month: number) =>
+    invoke<number[]>('daily_spending', { year, month }),
+  accountMonthlyCashflow: (accountId: number, endYear: number, endMonth: number, months: number) =>
+    invoke<MonthlyFlow[]>('account_monthly_cashflow', { accountId, endYear, endMonth, months }),
+  netWorthHistory: (endYear: number, endMonth: number, months: number) =>
+    invoke<NetWorthPoint[]>('net_worth_history', { endYear, endMonth, months }),
+  netWorthForecast: (
+    endYear: number,
+    endMonth: number,
+    historyWindow: number,
+    forecastMonths: number,
+  ) =>
+    invoke<NetWorthForecastPoint[]>('net_worth_forecast', {
+      endYear,
+      endMonth,
+      historyWindow,
+      forecastMonths,
+    }),
+
+  // Goals
+  listGoals: (includeArchived = false) =>
+    invoke<Goal[]>('list_goals', { includeArchived }),
+  getGoal: (id: number) => invoke<Goal>('get_goal', { id }),
+  createGoal: (payload: NewGoalPayload) =>
+    invoke<Goal>('create_goal', { payload }),
+  updateGoal: (id: number, payload: UpdateGoalPayload) =>
+    invoke<Goal>('update_goal', { id, payload }),
+  deleteGoal: (id: number) => invoke<boolean>('delete_goal', { id }),
+  goalProgress: (id: number) =>
+    invoke<GoalProgress>('goal_progress', { id }),
+  listGoalProgress: (includeArchived = false) =>
+    invoke<GoalProgress[]>('list_goal_progress', { includeArchived }),
+
+  // Buckets
+  listBuckets: (includeArchived = false) =>
+    invoke<Bucket[]>('list_buckets', { includeArchived }),
+  getBucket: (id: number) => invoke<Bucket>('get_bucket', { id }),
+  createBucket: (payload: NewBucketPayload) =>
+    invoke<Bucket>('create_bucket', { payload }),
+  updateBucket: (id: number, payload: UpdateBucketPayload) =>
+    invoke<Bucket>('update_bucket', { id, payload }),
+  deleteBucket: (id: number) => invoke<boolean>('delete_bucket', { id }),
+  bucketBalance: (id: number) => invoke<number>('bucket_balance', { id }),
+  listBucketProgress: () =>
+    invoke<BucketProgress[]>('list_bucket_progress'),
+  assignBucket: (transactionId: number, bucketId: number | null) =>
+    invoke<void>('assign_bucket', { transactionId, bucketId }),
+
+  // Bucket Rules
+  listBucketRules: () => invoke<BucketRule[]>('list_bucket_rules'),
+  createBucketRule: (payload: NewBucketRulePayload) => invoke<number>('create_bucket_rule', { payload }),
+  updateBucketRule: (rule: BucketRule) => invoke<void>('update_bucket_rule', { rule }),
+  deleteBucketRule: (id: number) => invoke<void>('delete_bucket_rule', { id }),
+  applyBucketRulesNow: (days: number) => invoke<number>('apply_bucket_rules_now', { days }),
+
+  // Securities
+  listSecurities: (includeArchived = false) =>
+    invoke<Security[]>('list_securities', { includeArchived }),
+  getSecurity: (id: number) => invoke<Security>('get_security', { id }),
+  createSecurity: (payload: NewSecurityPayload) =>
+    invoke<Security>('create_security', { payload }),
+  updateSecurity: (id: number, payload: UpdateSecurityPayload) =>
+    invoke<Security>('update_security', { id, payload }),
+  deleteSecurity: (id: number) => invoke<boolean>('delete_security', { id }),
+
+  // Breakdowns
+  getBreakdown: (securityId: number, dimension: BreakdownDimension) =>
+    invoke<SecurityBreakdown[]>('get_breakdown', { securityId, dimension }),
+  setBreakdown: (
+    securityId: number,
+    dimension: BreakdownDimension,
+    rows: BreakdownRowInput[],
+  ) => invoke<null>('set_breakdown', { securityId, dimension, rows }),
+
+  // Trades
+  listTrades: (securityId?: number) =>
+    invoke<TradeWithTx[]>('list_trades', { securityId: securityId ?? null }),
+  getTrade: (txId: number) => invoke<TradeWithTx>('get_trade', { txId }),
+  createTrade: (payload: NewTradePayload) =>
+    invoke<TradeWithTx>('create_trade', { payload }),
+  updateTrade: (txId: number, payload: UpdateTradePayload) =>
+    invoke<SecurityTrade>('update_trade', { txId, payload }),
+  deleteTrade: (txId: number) => invoke<boolean>('delete_trade', { txId }),
+
+  // Prices
+  refreshPrices: () => invoke<RefreshReport>('refresh_prices'),
+  setManualPrice: (securityId: number, date: string, priceMicro: number) =>
+    invoke<null>('set_manual_price', { securityId, date, priceMicro }),
+  getPriceHistory: (securityId: number) =>
+    invoke<PriceRow[]>('get_price_history', { securityId }),
+  fetchSecurityHistory: (securityId: number, years: number) =>
+    invoke<number>('fetch_security_history', { securityId, years }),
+
+  // Portfolio
+  listHoldings: () => invoke<Holding[]>('list_holdings'),
+  assetAllocation: (dimension: 'asset_type' | 'country' | 'sector') =>
+    invoke<AllocationSlice[]>('asset_allocation', { dimension }),
+  realizedGainsSummary: (year: number | null) =>
+    invoke<number>('realized_gains_summary', { year }),
+  dividendHistory: () => invoke<DividendEntry[]>('dividend_history'),
+  costBasisHistory: (endYear: number, endMonth: number, months: number) =>
+    invoke<CostBasisPoint[]>('cost_basis_history', { endYear, endMonth, months }),
+  costBasisHistoryDaily: (endDate: string, days: number) =>
+    invoke<CostBasisPointDaily[]>('cost_basis_history_daily', { endDate, days }),
+  portfolioKpis: (year: number) =>
+    invoke<PortfolioKpis>('portfolio_kpis', { year }),
+  portfolioValueByAccount: () =>
+    invoke<AccountMarketValue[]>('portfolio_value_by_account_today'),
+
+  // Security ↔ Bucket Allocations
+  listSecurityAllocations: (securityId: number) =>
+    invoke<SecurityBucketAllocation[]>('list_security_allocations', { securityId }),
+  setSecurityAllocations: (securityId: number, items: AllocationItem[]) =>
+    invoke<void>('set_security_allocations', { securityId, items }),
+  bucketHoldings: (bucketId: number) =>
+    invoke<BucketHoldingRow[]>('bucket_holdings', { bucketId }),
+
+  // Monthly budgets
+  setBudget: (categoryId: number, year: number, month: number, amountCents: number) =>
+    invoke<null>('set_budget', { categoryId, year, month, amountCents }),
+  clearBudget: (categoryId: number, year: number, month: number) =>
+    invoke<boolean>('clear_budget', { categoryId, year, month }),
+  listBudgetOverrides: (categoryId: number) =>
+    invoke<BudgetEntry[]>('list_budget_overrides', { categoryId }),
+  monthOverview: (year: number, month: number) =>
+    invoke<CategoryMonthBudget[]>('month_overview', { year, month }),
+  uncategorizedMonthlySpent: (year: number, month: number) =>
+    invoke<number>('uncategorized_monthly_spent', { year, month }),
+  investmentFlowForMonth: (year: number, month: number) =>
+    invoke<InvestmentFlow>('investment_flow_for_month', { year, month }),
+
+  // Export
+  exportTransactionsCsv(filter: ExportFilter, targetPath: string): Promise<ExportResult> {
+    return invoke<ExportResult>('export_transactions_csv', { filter, targetPath });
+  },
+
+  // Recurring
+  listRecurring: (includeArchived: boolean = false) =>
+    invoke<RecurringPayment[]>('list_recurring', { includeArchived }),
+  getRecurring: (id: number) =>
+    invoke<RecurringPayment>('get_recurring', { id }),
+  createRecurring: (payload: NewRecurringPayload) =>
+    invoke<RecurringPayment>('create_recurring', { payload }),
+  updateRecurring: (id: number, payload: UpdateRecurringPayload) =>
+    invoke<RecurringPayment>('update_recurring', { id, payload }),
+  deleteRecurring: (id: number) =>
+    invoke<boolean>('delete_recurring', { id }),
+  recurringOverview: (monthsAhead: number) =>
+    invoke<RecurringOverview[]>('recurring_overview', { monthsAhead }),
+  detectRecurring: () =>
+    invoke<DetectedRecurring[]>('detect_recurring'),
+
+  // Currencies
+  listCurrencies: () =>
+    invoke<CurrencyStatus[]>('list_currencies'),
+  updateCurrencyRate: (currency: string, rateMicro: number) =>
+    invoke<CurrencyStatus>('update_currency_rate', { currency, rateMicro }),
+  refreshCurrencyRate: (currency: string) =>
+    invoke<CurrencyStatus>('refresh_currency_rate', { currency }),
+
+  // Datenverwaltung (7c)
+  getDataPathInfo: () => invoke<AppConfigInfo>('get_data_path_info'),
+  checkTargetPath: (targetDir: string) =>
+    invoke<PathCheckResult>('check_target_path', { targetDir }),
+  changeDataPath: (targetDir: string, action: ChangePathAction) =>
+    invoke<void>('change_data_path', { targetDir, action }),
+  backupDatabase: (targetPath: string) =>
+    invoke<BackupResult>('backup_database', { targetPath }),
+  validateBackup: (sourcePath: string) =>
+    invoke<BackupValidation>('validate_backup', { sourcePath }),
+  restoreDatabase: (sourcePath: string) =>
+    invoke<void>('restore_database', { sourcePath }),
+  wipeDatabase: () => invoke<void>('wipe_database'),
+  retryStartup: () => invoke<void>('retry_startup'),
+  setPathAndInit: (targetDir: string) => invoke<void>('set_path_and_init', { targetDir }),
+  resetPathToDefault: () => invoke<void>('reset_path_to_default'),
+  findDataIssues: () => invoke<IntegrityReport>('find_data_issues'),
+  forceAcquireSyncLock: () => invoke<void>('force_acquire_sync_lock'),
+  async checkSyncConflicts(): Promise<SyncConflictFile[]> {
+    return await invoke<SyncConflictFile[]>('check_sync_conflicts');
+  },
+  async resolveConflictKeepCurrent(): Promise<void> {
+    await invoke<void>('resolve_conflict_keep_current');
+  },
+  async resolveConflictUseOther(otherPath: string): Promise<void> {
+    await invoke<void>('resolve_conflict_use_other', { otherPath });
+  },
+  bucketMonthlyFlow: (bucketId: number, endYear: number, endMonth: number, months: number) =>
+    invoke<MonthlyFlow[]>('bucket_monthly_flow', { bucketId, endYear, endMonth, months }),
+};
+
+// ─── Institutions ───
+
+export interface Institution {
+  id: number;
+  name: string;
+  icon: string | null;
+  color: string | null;
+  bic: string | null;
+  country: string | null;
+  note: string | null;
+  archived: boolean;
+  createdAt: string;
+}
+
+export interface InstitutionSummary extends Institution {
+  accountCount: number;
+  balanceCents: number;
+}
+
+export interface NewInstitutionPayload {
+  name: string;
+  icon?: string | null;
+  color?: string | null;
+  bic?: string | null;
+  country?: string | null;
+  note?: string | null;
+}
+
+export interface UpdateInstitutionPayload {
+  name?: string | null;
+  icon?: string | null;
+  color?: string | null;
+  bic?: string | null;
+  country?: string | null;
+  note?: string | null;
+  archived?: boolean | null;
+}
+
+export function listInstitutions(includeArchived = false): Promise<Institution[]> {
+  return invoke('list_institutions', { includeArchived });
+}
+
+export function listInstitutionsWithSummary(): Promise<InstitutionSummary[]> {
+  return invoke('list_institutions_with_summary');
+}
+
+export function getInstitution(id: number): Promise<Institution> {
+  return invoke('get_institution', { id });
+}
+
+export function createInstitution(payload: NewInstitutionPayload): Promise<Institution> {
+  return invoke('create_institution', { payload });
+}
+
+export function updateInstitution(id: number, payload: UpdateInstitutionPayload): Promise<Institution> {
+  return invoke('update_institution', { id, payload });
+}
+
+export function deleteInstitution(id: number): Promise<void> {
+  return invoke('delete_institution', { id });
+}
+
+// ─── Formatters ───
+
+/**
+ * Extrahiert eine lesbare Fehlermeldung aus einem Tauri-invoke-Reject.
+ * Backend wirft `CommandError { message }` als Objekt — `String(e)` würde
+ * `[object Object]` ergeben. Diese Funktion holt `e.message` raus.
+ */
+export function errMsg(e: unknown): string {
+  if (typeof e === 'string') return e;
+  if (e && typeof e === 'object') {
+    const o = e as Record<string, unknown>;
+    if (typeof o.message === 'string') return o.message;
+    try { return JSON.stringify(o); } catch { /* fall through */ }
+  }
+  return String(e);
+}
+
+export function fmtEur(cents: number, opts: { hide?: boolean; signed?: boolean; decimals?: number } = {}): string {
+  if (opts.hide) return '•••• €';
+  const decimals = opts.decimals ?? 2;
+  const value = cents / 100;
+  const formatter = new Intl.NumberFormat('de-DE', {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  });
+  const formatted = formatter.format(Math.abs(value));
+  const sign = value < 0 ? '−' : opts.signed && value > 0 ? '+' : '';
+  return `${sign}${formatted} €`;
+}
+
+export function fmtDate(iso: string, lang: 'de' | 'en' = 'de'): string {
+  const parts = iso.split('-');
+  if (parts.length !== 3) return iso;
+  const [, m, d] = parts;
+  const months = lang === 'de'
+    ? ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez']
+    : ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  return `${parseInt(d, 10)}. ${months[parseInt(m, 10) - 1]}`;
+}
+
+export function todayIso(): string {
+  const d = new Date();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${d.getFullYear()}-${m}-${day}`;
+}

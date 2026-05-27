@@ -1,0 +1,75 @@
+# OS / Editor
+.DS_Store
+.idea/
+*.swp
+*.swo
+*~
+
+# Node / SvelteKit / Vite
+node_modules
+/build
+/.svelte-kit
+/package
+vite.config.js.timestamp-*
+vite.config.ts.timestamp-*
+
+# Env-Dateien (Geheimnisse)
+.env
+.env.*
+!.env.example
+
+# Echte Bewegungsdaten – nie ins Repo
+/test-material/
+
+# Dev-DBs und SQLite-Snapshots (Syncthing-synchronisiert, enthalten PII)
+*.sqlite
+*.sqlite3
+*.sqlite-journal
+*.sqlite-wal
+*.sqlite-shm
+*.db
+budget.sqlite*
+
+# Logs und Crash-Dumps
+*.log
+*.log.*
+crash-*.dmp
+
+# Screenshots / Anhänge (können Realdaten enthalten)
+*.screenshot.png
+pasted*.png
+pasted file.*
+
+# Backup-Verzeichnisse (z. B. .git.backup-*)
+*.backup-*
+*.bak
+*-backup/
+
+# Rust / Tauri Build-Output
+/src-tauri/target/
+
+# cargo-mutants Output (lokal, nicht ins Repo)
+/src-tauri/mutants.out/
+/src-tauri/mutants.out.old/
+
+# Tauri Signing Keys (NIE committen!)
+*.tauri.key
+*.signing-key
+.tauri-keystore/
+/src-tauri/*.jks
+/src-tauri/*.keystore
+
+# Tauri Mobile auto-generierter Gradle-Projekt-Ordner — pro Checkout via `pnpm tauri android init` regenerieren
+/src-tauri/gen/
+
+# Sonstige lokale Notizen
+/further
+/further.save
+
+# Claude Code lokale Settings und State (Memory liegt bewusst in ~/.claude/)
+.claude/
+.claude/settings.local.json
+/CLAUDE.md
+
+# Brainstorming Companion Mockups
+.superpowers/

@@ -1,0 +1,12 @@
+{
+  "identifier": "mobile",
+  "description": "Capability für Android (Tauri Mobile)",
+  "platforms": ["android"],
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "opener:default",
+    "dialog:allow-open",
+    "dialog:allow-save"
+  ]
+}

@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <title>Drittanbieter-Lizenzen · budget-app</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root { color-scheme: light dark; }
+    * { box-sizing: border-box; }
+    body {
+      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 24px 20px 80px;
+      line-height: 1.55;
+      color: #1c1c1f;
+      background: #fafafa;
+    }
+    @media (prefers-color-scheme: dark) {
+      body { color: #e6e6e8; background: #15151a; }
+      h2 { border-color: #2a2a32; }
+      details, .summary-card { background: #1d1d23; border-color: #2a2a32; }
+      summary { color: #d6d6dc; }
+      .meta { color: #9a9aa3; }
+      pre { background: #0e0e12; border-color: #2a2a32; }
+      a { color: #6ab8ff; }
+      .pill { background: #2a2a32; color: #d6d6dc; }
+    }
+    h1 { font-size: 24px; margin: 0 0 4px; }
+    .lead { color: #6a6a73; margin: 0 0 24px; font-size: 13px; }
+    h2 {
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #6a6a73;
+      margin: 32px 0 12px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid #e3e3e8;
+    }
+    .summary-card {
+      background: #fff;
+      border: 1px solid #e3e3e8;
+      border-radius: 8px;
+      padding: 14px 16px;
+      margin-bottom: 24px;
+    }
+    .summary-card ul {
+      margin: 0;
+      padding-left: 18px;
+      columns: 2;
+      column-gap: 32px;
+      font-size: 13px;
+    }
+    .summary-card li { margin: 2px 0; break-inside: avoid; }
+    .pill {
+      display: inline-block;
+      background: #eef0f3;
+      color: #1c1c1f;
+      font-size: 11px;
+      padding: 1px 6px;
+      border-radius: 4px;
+      margin-left: 6px;
+      font-variant-numeric: tabular-nums;
+    }
+    details {
+      background: #fff;
+      border: 1px solid #e3e3e8;
+      border-radius: 8px;
+      padding: 10px 14px;
+      margin: 6px 0;
+    }
+    summary {
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 13.5px;
+      color: #1c1c1f;
+    }
+    .meta {
+      display: block;
+      font-size: 12px;
+      color: #6a6a73;
+      margin-top: 2px;
+      font-weight: 400;
+    }
+    .used-by {
+      font-size: 11.5px;
+      color: #6a6a73;
+      margin: 8px 0 10px;
+    }
+    .used-by code {
+      font-family: ui-monospace, "SF Mono", Menlo, monospace;
+      background: rgba(127,127,140,0.12);
+      padding: 1px 4px;
+      border-radius: 3px;
+    }
+    pre {
+      background: #f4f4f6;
+      border: 1px solid #e3e3e8;
+      border-radius: 6px;
+      padding: 12px;
+      overflow: auto;
+      font-size: 11.5px;
+      line-height: 1.5;
+      max-height: 60vh;
+      white-space: pre-wrap;
+    }
+    a { color: #0a6cff; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <h1>Drittanbieter-Lizenzen</h1>
+  <p class="lead">
+    <strong>budget-app</strong> ist lizenziert unter
+    <strong>GPL-3.0-or-later</strong> (siehe <code>COPYING</code> im Source-Repository).
+    Dieser Bericht listet alle Rust-Abhängigkeiten der nativen Binary und ihre Lizenzen
+    nach SPDX-ID, gefolgt vom jeweiligen Lizenztext.
+    Eine entsprechende Liste für JavaScript-Pakete erzeugt
+    <code>pnpm licenses:js</code>.
+  </p>
+
+  <h2>Übersicht</h2>
+  <div class="summary-card">
+    <ul>
+      {{#each overview}}
+        <li><strong>{{name}}</strong> <span class="pill">{{count}}</span></li>
+      {{/each}}
+    </ul>
+  </div>
+
+  {{#each licenses}}
+    <h2>{{name}} <span class="pill">{{id}}</span></h2>
+    {{#each used_by}}
+      <details>
+        <summary>
+          {{crate.name}}
+          <span class="meta">
+            v{{crate.version}}{{#if crate.repository}} ·
+              <a href="{{crate.repository}}">{{crate.repository}}</a>
+            {{/if}}
+          </span>
+        </summary>
+      </details>
+    {{/each}}
+    <details>
+      <summary>Volltext der Lizenz</summary>
+      <pre>{{text}}</pre>
+    </details>
+  {{/each}}
+
+  <h2>Hinweis</h2>
+  <p class="meta">
+    Dieser Bericht wird automatisch von
+    <a href="https://github.com/EmbarkStudios/cargo-about">cargo-about</a>
+    erzeugt und sollte bei jedem Release aktualisiert werden
+    (<code>pnpm licenses</code>).
+  </p>
+</body>
+</html>
