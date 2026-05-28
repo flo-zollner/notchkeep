@@ -150,6 +150,11 @@ body {
   line-height: 1.45;
   -webkit-font-smoothing: antialiased;
 }
+@media (min-width: 601px) {
+  body {
+    padding-top: 32px;
+  }
+}
 
 button {
   font-family: inherit;
