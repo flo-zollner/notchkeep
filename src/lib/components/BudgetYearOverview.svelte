@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { api, fmtEur, fmtEurInput, parseEur, type CategoryMonthBudget } from '$lib/api';
+  import { api, type CategoryMonthBudget } from '$lib/api';
+  import { fmtEur, fmtEurInput, parseEur } from '$lib/format';
   import { settings, t, eurDecimals } from '$lib/settings.svelte';
 
   interface Props {

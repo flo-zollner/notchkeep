@@ -2,7 +2,8 @@
   import type { Snippet } from 'svelte';
   import Icon from './Icon.svelte';
   import { settings, t } from '$lib/settings.svelte';
-  import { fmtEur, type Institution, type InstitutionSummary } from '$lib/api';
+  import { type Institution, type InstitutionSummary } from '$lib/api';
+  import { fmtEur } from '$lib/format';
 
   interface Props {
     institution: Institution | InstitutionSummary;

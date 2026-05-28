@@ -7,12 +7,12 @@
   import { settings, t, eurDecimals } from '$lib/settings.svelte';
   import {
     api,
-    fmtEur,
     type CashflowSlice,
     type Category,
     type CategorySpending,
     type MonthlyFlow,
   } from '$lib/api';
+  import { fmtEur } from '$lib/format';
 
   type RangeId = '1M' | '3M' | '6M' | '12M' | 'all';
   const RANGE_MONTHS: Record<RangeId, number> = {

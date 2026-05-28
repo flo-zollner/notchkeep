@@ -1,7 +1,8 @@
 <script lang="ts">
   import {
-    api, fmtEur,
+    api,
     type DetectedRecurring, type Account, errMsg} from '$lib/api';
+  import { fmtEur } from '$lib/format';
   import { settings, t } from '$lib/settings.svelte';
   import Sheet from './Sheet.svelte';
 

@@ -1,6 +1,7 @@
 <script lang="ts">
   import Icon from './Icon.svelte';
-  import { type RecurringPayment, fmtEur } from '$lib/api';
+  import { type RecurringPayment } from '$lib/api';
+  import { fmtEur } from '$lib/format';
   import { settings, t } from '$lib/settings.svelte';
 
   interface Props {

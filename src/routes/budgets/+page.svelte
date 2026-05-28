@@ -5,12 +5,11 @@
   import { settings, t, eurDecimals } from '$lib/settings.svelte';
   import {
     api,
-    fmtEur,
-    parseEurCents,
     type Category,
     type CategoryMonthBudget,
     type InvestmentFlow,
   } from '$lib/api';
+  import { fmtEur, parseEurCents } from '$lib/format';
 
   const MONTH_LABELS_DE = [
     'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',

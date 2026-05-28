@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { type DividendEntry, fmtEur } from '$lib/api';
+  import { type DividendEntry } from '$lib/api';
+  import { fmtEur } from '$lib/format';
   import { settings, t } from '$lib/settings.svelte';
 
   interface Props {

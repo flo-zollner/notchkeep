@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { type Occurrence, type RecurringPayment, fmtEur } from '$lib/api';
+  import { type Occurrence, type RecurringPayment } from '$lib/api';
+  import { fmtEur } from '$lib/format';
   import { settings, t } from '$lib/settings.svelte';
 
   interface Props {

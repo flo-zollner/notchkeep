@@ -1,6 +1,7 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
-  import { api, fmtEur, listInstitutionsWithSummary, type Account, type InstitutionSummary, errMsg} from '$lib/api';
+  import { api, listInstitutionsWithSummary, type Account, type InstitutionSummary, errMsg} from '$lib/api';
+  import { fmtEur } from '$lib/format';
   import AccountEditModal from '$lib/components/AccountEditModal.svelte';
   import AccountTreeItem from '$lib/components/AccountTreeItem.svelte';
   import ImportStatementsModal from '$lib/components/ImportStatementsModal.svelte';

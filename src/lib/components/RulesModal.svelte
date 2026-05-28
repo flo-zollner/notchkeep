@@ -8,7 +8,8 @@
     type RuleCombinator,
     type MatchFieldId,
     type MatchOpId,
-    type NewRulePayload, errMsg, parseEur, fmtEurInput } from '$lib/api';
+    type NewRulePayload, errMsg } from '$lib/api';
+  import { parseEur, fmtEurInput } from '$lib/format';
   import Icon from './Icon.svelte';
   import { t } from '$lib/settings.svelte';
   import Sheet from './Sheet.svelte';

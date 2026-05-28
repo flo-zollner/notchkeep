@@ -1,7 +1,8 @@
 <script lang="ts">
   import Icon from './Icon.svelte';
   import { settings, t, eurDecimals } from '$lib/settings.svelte';
-  import { fmtEur, type Bucket, type BucketProgress } from '$lib/api';
+  import { type Bucket, type BucketProgress } from '$lib/api';
+  import { fmtEur } from '$lib/format';
 
   interface Props {
     bucket: Bucket;

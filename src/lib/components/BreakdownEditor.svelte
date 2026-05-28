@@ -1,7 +1,8 @@
 <script lang="ts">
   import Icon from './Icon.svelte';
   import { t } from '$lib/settings.svelte';
-  import { parseEur, type BreakdownRowInput } from '$lib/api';
+  import { type BreakdownRowInput } from '$lib/api';
+  import { parseEur } from '$lib/format';
 
   interface Props {
     rows: BreakdownRowInput[];

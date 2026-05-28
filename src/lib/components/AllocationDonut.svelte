@@ -1,6 +1,7 @@
 <script lang="ts">
   import Donut from './Donut.svelte';
-  import { type AllocationSlice, fmtEur } from '$lib/api';
+  import { type AllocationSlice } from '$lib/api';
+  import { fmtEur } from '$lib/format';
   import { settings, eurDecimals } from '$lib/settings.svelte';
 
   interface Props {

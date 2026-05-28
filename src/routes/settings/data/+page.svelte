@@ -2,7 +2,8 @@
   import { onMount } from 'svelte';
   import { open as openDialog, save as saveDialog } from '@tauri-apps/plugin-dialog';
   import { invalidateAll } from '$app/navigation';
-  import { api, type AppConfigInfo, type PathCheckResult, type BackupValidation, type IntegrityReport, fmtEur, errMsg} from '$lib/api';
+  import { api, type AppConfigInfo, type PathCheckResult, type BackupValidation, type IntegrityReport, errMsg} from '$lib/api';
+  import { fmtEur } from '$lib/format';
   import { t, settings } from '$lib/settings.svelte';
   import PathChangeModal from '$lib/components/PathChangeModal.svelte';
   import RestoreConfirmModal from '$lib/components/RestoreConfirmModal.svelte';

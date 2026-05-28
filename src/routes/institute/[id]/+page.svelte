@@ -4,12 +4,12 @@
   import {
     getInstitution,
     listInstitutionsWithSummary,
-    fmtEur,
     type Institution,
     type InstitutionSummary,
     type Account,
     api,
   } from '$lib/api';
+  import { fmtEur } from '$lib/format';
   import Icon from '$lib/components/Icon.svelte';
   import InstitutionModal from '$lib/components/InstitutionModal.svelte';
   import KPI from '$lib/components/KPI.svelte';

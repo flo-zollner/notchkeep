@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { api, fmtEur, type CostBasisPointDaily } from '$lib/api';
+  import { api, type CostBasisPointDaily } from '$lib/api';
+  import { fmtEur } from '$lib/format';
   import DateField from './DateField.svelte';
   import { settings, t, eurDecimals } from '$lib/settings.svelte';
 

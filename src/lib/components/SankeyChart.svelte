@@ -1,6 +1,7 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
-  import { type CashflowSlice, type Category, fmtEur } from '$lib/api';
+  import { type CashflowSlice, type Category } from '$lib/api';
+  import { fmtEur } from '$lib/format';
   import { settings, t, eurDecimals } from '$lib/settings.svelte';
 
   interface Props {

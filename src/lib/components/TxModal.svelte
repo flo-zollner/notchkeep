@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { api, fmtEur, fmtEurInput, parseEur, isTradeTx, todayIso, type Account, type Bucket, type Category, type CategorySuggestion, type Transaction, errMsg} from '$lib/api';
+  import { api, isTradeTx, todayIso, type Account, type Bucket, type Category, type CategorySuggestion, type Transaction, errMsg} from '$lib/api';
+  import { fmtEur, fmtEurInput, parseEur } from '$lib/format';
   import Icon from './Icon.svelte';
   import Sheet from './Sheet.svelte';
   import DateField from './DateField.svelte';

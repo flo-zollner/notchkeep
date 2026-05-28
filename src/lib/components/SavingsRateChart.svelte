@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { fmtEur } from '$lib/api';
+  import { fmtEur } from '$lib/format';
 
   export type SavingsChartMode = 'bars' | 'line' | 'inout';
 

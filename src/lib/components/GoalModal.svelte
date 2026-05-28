@@ -5,13 +5,12 @@
   import { t } from '$lib/settings.svelte';
   import {
     api,
-    parseEur,
-    fmtEurInput,
     type Goal,
     type Category,
     type NewGoalPayload,
     type UpdateGoalPayload,
   } from '$lib/api';
+  import { parseEur, fmtEurInput } from '$lib/format';
 
   interface Props {
     goal?: Goal;

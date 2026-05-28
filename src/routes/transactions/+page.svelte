@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { api, fmtEur, type Account, type Bucket, type Category, type Transaction, type TxFilter, type TxAggregate, errMsg, listInstitutions, isTradeTx } from '$lib/api';
+  import { api, type Account, type Bucket, type Category, type Transaction, type TxFilter, type TxAggregate, errMsg, listInstitutions, isTradeTx } from '$lib/api';
+  import { fmtEur } from '$lib/format';
   import DepotTxModal from '$lib/components/DepotTxModal.svelte';
   import type { ExportFilter, Institution } from '$lib/api';
   import Icon from '$lib/components/Icon.svelte';

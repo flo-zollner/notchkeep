@@ -5,9 +5,9 @@
   import { t } from '$lib/settings.svelte';
   import {
     api,
-    fmtEurInput, parseEur,
     type RecurringPayment, type Account, type Category,
     type NewRecurringPayload, type UpdateRecurringPayload, errMsg} from '$lib/api';
+  import { fmtEurInput, parseEur } from '$lib/format';
 
   interface Props {
     recurring: RecurringPayment | null;

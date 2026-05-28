@@ -1,7 +1,7 @@
 <script lang="ts">
   import Icon from '$lib/components/Icon.svelte';
   import type { Account } from '$lib/api';
-  import { fmtEur } from '$lib/api';
+  import { fmtEur } from '$lib/format';
   import { settings } from '$lib/settings.svelte';
   import AccountTreeItem from './AccountTreeItem.svelte';
 

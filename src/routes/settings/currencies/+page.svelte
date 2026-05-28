@@ -1,7 +1,8 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
   import { listen } from '@tauri-apps/api/event';
-  import { api, parseEur, type CurrencyStatus, errMsg } from '$lib/api';
+  import { api, type CurrencyStatus, errMsg } from '$lib/api';
+  import { parseEur } from '$lib/format';
   import AddCurrencyModal from '$lib/components/AddCurrencyModal.svelte';
   import Icon from '$lib/components/Icon.svelte';
   import { t } from '$lib/settings.svelte';

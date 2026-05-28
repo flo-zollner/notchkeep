@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { api, fmtEur, fmtNumInput, fmtEurInput, parseEur, type Account, type Bucket, type Category, type SecurityTrade, type Security, type Transaction, type UpdateTradePayload, errMsg } from '$lib/api';
+  import { api, type Account, type Bucket, type Category, type SecurityTrade, type Security, type Transaction, type UpdateTradePayload, errMsg } from '$lib/api';
+  import { fmtEur, fmtNumInput, fmtEurInput, parseEur } from '$lib/format';
   import Icon from './Icon.svelte';
   import SecurityPicker from './SecurityPicker.svelte';
   import { settings, t } from '$lib/settings.svelte';

@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { type Holding, fmtEur } from '$lib/api';
+  import { type Holding } from '$lib/api';
+  import { fmtEur } from '$lib/format';
   import { settings, t, eurDecimals } from '$lib/settings.svelte';
 
   interface Props {

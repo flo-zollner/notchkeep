@@ -6,8 +6,6 @@
   import { t } from '$lib/settings.svelte';
   import {
     api,
-    fmtEur,
-    parseEur,
     listInstitutions,
     type Account,
     type Institution,
@@ -16,6 +14,7 @@
     type TradeSide,
     type NewTradePayload,
   } from '$lib/api';
+  import { fmtEur, parseEur } from '$lib/format';
 
   interface Props {
     onClose: () => void;

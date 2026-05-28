@@ -9,10 +9,11 @@
   import DateField from '$lib/components/DateField.svelte';
   import { settings, t, eurDecimals } from '$lib/settings.svelte';
   import {
-    api, fmtEur, parseEur,
+    api,
     type Security, type Holding, type DividendEntry,
     type TradeWithTx, type SecurityBreakdown,
     type Bucket, type SecurityBucketAllocation, type AllocationItem, errMsg} from '$lib/api';
+  import { fmtEur, parseEur } from '$lib/format';
 
   const securityId = $derived(Number(page.params.securityId));
 

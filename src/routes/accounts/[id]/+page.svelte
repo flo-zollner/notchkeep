@@ -3,7 +3,6 @@
   import { goto } from '$app/navigation';
   import {
     api,
-    fmtEur,
     type Account,
     type Bucket,
     type MonthlyFlow,
@@ -11,6 +10,7 @@
     type Category,
     errMsg,
     isTradeTx} from '$lib/api';
+  import { fmtEur } from '$lib/format';
   import AccountSettingsForm from '$lib/components/AccountSettingsForm.svelte';
   import CashflowChart from '$lib/components/CashflowChart.svelte';
   import Icon from '$lib/components/Icon.svelte';

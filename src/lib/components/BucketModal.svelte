@@ -2,7 +2,6 @@
   import Icon from './Icon.svelte';
   import Sheet from './Sheet.svelte';
   import DateField from './DateField.svelte';
-  import { fmtEurInput, parseEur } from '$lib/api';
   import { t } from '$lib/settings.svelte';
   import {
     api,
@@ -10,6 +9,7 @@
     type NewBucketPayload,
     type UpdateBucketPayload,
   } from '$lib/api';
+  import { fmtEurInput, parseEur } from '$lib/format';
 
   interface Props {
     bucket: Bucket | null;

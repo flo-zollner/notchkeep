@@ -1,7 +1,8 @@
 <script lang="ts">
   import { listen } from '@tauri-apps/api/event';
   import { goto } from '$app/navigation';
-  import { api, fmtEur, listInstitutionsWithSummary, type Account, type Bucket, type Category, type Transaction, type Goal, type GoalProgress, type InstitutionSummary, errMsg, isTradeTx} from '$lib/api';
+  import { api, listInstitutionsWithSummary, type Account, type Bucket, type Category, type Transaction, type Goal, type GoalProgress, type InstitutionSummary, errMsg, isTradeTx} from '$lib/api';
+  import { fmtEur } from '$lib/format';
   import Icon from '$lib/components/Icon.svelte';
   import KPI from '$lib/components/KPI.svelte';
   import TxRow from '$lib/components/TxRow.svelte';

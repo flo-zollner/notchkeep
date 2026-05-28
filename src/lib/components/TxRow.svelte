@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { Account, Bucket, Category, Institution, Transaction } from '$lib/api';
-  import { fmtDate, fmtEur } from '$lib/api';
+  import { fmtDate } from '$lib/api';
+  import { fmtEur } from '$lib/format';
   import Icon from './Icon.svelte';
   import { t } from '$lib/settings.svelte';
 

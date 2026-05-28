@@ -11,10 +11,11 @@
   import { listen } from '@tauri-apps/api/event';
   import { settings, t, eurDecimals } from '$lib/settings.svelte';
   import {
-    api, fmtEur,
+    api,
     type Security, type Holding, type DividendEntry, type PortfolioKpis,
     type AllocationSlice,
   } from '$lib/api';
+  import { fmtEur } from '$lib/format';
 
   type Tab = 'positions' | 'dividends' | 'allocation' | 'securities';
   let activeTab = $state<Tab>('positions');
