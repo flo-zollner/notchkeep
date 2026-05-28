@@ -812,6 +812,13 @@ button:focus-visible,
 
 /* ── Global phone overrides (<600 px) ── */
 @media (max-width: 599px) {
+  /* Tap-target: ensure interactive form elements meet the 44 px minimum */
+  input,
+  select,
+  textarea {
+    min-height: var(--tap);
+  }
+
   /* grid-12 with col-* helpers → single column stack */
   .grid-12 {
     grid-template-columns: 1fr;
