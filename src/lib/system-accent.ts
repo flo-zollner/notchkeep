@@ -27,9 +27,9 @@ const RGB_RE = /^rgba?\(\s*(\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.
 export function parseRgbToHsl(input: string): HSL | null {
   const m = input.match(RGB_RE);
   if (!m) return null;
-  const r = parseInt(m[1], 10) / 255;
-  const g = parseInt(m[2], 10) / 255;
-  const b = parseInt(m[3], 10) / 255;
+  const r = parseFloat(m[1]) / 255;
+  const g = parseFloat(m[2]) / 255;
+  const b = parseFloat(m[3]) / 255;
   const max = Math.max(r, g, b);
   const min = Math.min(r, g, b);
   const l = (max + min) / 2;
@@ -58,14 +58,14 @@ function hslString(hsl: HSL): string {
   return `hsl(${hsl.h.toFixed(1)} ${hsl.s.toFixed(1)}% ${hsl.l.toFixed(1)}%)`;
 }
 
-export function deriveAccentTokens(base: HSL): AccentTokens {
+export function deriveAccentTokens(base: HSL, darkMode: boolean): AccentTokens {
   const hoverL = base.l > 50 ? Math.max(0, base.l - 6) : Math.min(100, base.l + 6);
-  const isLight = base.l > 60;
+  const isLightAccent = base.l > 60;
   return {
     accent: hslString(base),
     accentHover: hslString({ ...base, l: hoverL }),
-    accentSoft: hslString({ h: base.h, s: Math.min(base.s, 40), l: isLight ? 30 : 93 }),
-    accentFg: isLight ? 'oklch(0.18 0.01 80)' : 'oklch(0.98 0.005 90)',
+    accentSoft: hslString({ h: base.h, s: Math.min(base.s, 40), l: darkMode ? 30 : 93 }),
+    accentFg: isLightAccent ? 'oklch(0.18 0.01 80)' : 'oklch(0.98 0.005 90)',
   };
 }
 
@@ -85,10 +85,20 @@ export function readSystemAccent(): HSL | null {
 export function applySystemAccent(): void {
   const hsl = readSystemAccent();
   if (!hsl) return;
-  const tokens = deriveAccentTokens(hsl);
+  const darkMode = isDarkMode();
+  const tokens = deriveAccentTokens(hsl, darkMode);
   const root = document.documentElement.style;
   root.setProperty('--accent', tokens.accent);
   root.setProperty('--accent-hover', tokens.accentHover);
   root.setProperty('--accent-soft', tokens.accentSoft);
   root.setProperty('--accent-fg', tokens.accentFg);
+}
+
+function isDarkMode(): boolean {
+  if (typeof document === 'undefined' || typeof window === 'undefined') return false;
+  const theme = document.documentElement.dataset.theme;
+  if (theme === 'dark') return true;
+  if (theme === 'light') return false;
+  // 'auto' or unset
+  return window.matchMedia('(prefers-color-scheme: dark)').matches;
 }
