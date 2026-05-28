@@ -255,7 +255,8 @@
   }
   .chart {
     width: 100%;
-    height: 200px;
+    height: auto;
+    max-height: 200px;
     display: block;
     cursor: crosshair;
   }

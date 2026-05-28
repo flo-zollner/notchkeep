@@ -123,6 +123,7 @@
     border-radius: 2px;
   }
   .name {
+    min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;

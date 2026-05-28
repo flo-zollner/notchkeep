@@ -67,7 +67,7 @@
 </script>
 
 <div class="donut">
-  <svg width={size} height={size}>
+  <svg viewBox="0 0 {size} {size}" width="100%" style="height: auto; max-width: {size}px; flex-shrink: 0;">
     {#each arcs as a, i (i)}
       <path
         d={a.path}

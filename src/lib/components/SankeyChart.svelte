@@ -523,7 +523,8 @@
   }
   .chart {
     width: 100%;
-    height: 400px;
+    height: auto;
+    max-height: 400px;
   }
   .link {
     transition: opacity 0.15s ease;
