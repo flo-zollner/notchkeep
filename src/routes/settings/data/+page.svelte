@@ -257,7 +257,11 @@
   .force-lock:disabled { opacity: 0.5; cursor: wait; }
   h1 { margin: 0 0 18px 0; }
   .grid { display: grid; gap: 16px; max-width: 700px; }
-  dl { display: grid; grid-template-columns: 140px 1fr; gap: 6px 14px; font-size: 13px; margin: 0 0 14px 0; }
+  dl { display: grid; grid-template-columns: 140px minmax(0, 1fr); gap: 6px 14px; font-size: 13px; margin: 0 0 14px 0; }
+  @media (max-width: 599px) {
+    dl { grid-template-columns: 1fr; gap: 2px 0; }
+    dt { margin-top: 6px; }
+  }
   dt { color: var(--text-muted); }
   dd { margin: 0; word-break: break-all; }
   .mono { font-family: monospace; font-size: 11px; }

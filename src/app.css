@@ -283,6 +283,7 @@ textarea {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: 16px;
   margin-bottom: 24px;
 }
@@ -321,6 +322,8 @@ textarea {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
+  row-gap: 8px;
   margin-bottom: 14px;
 }
 .card-h h3 {
@@ -341,7 +344,12 @@ textarea {
 @media (min-width: 1600px) {
   .kpi-grid { grid-template-columns: repeat(5, 1fr); }
 }
-@media (min-width: 600px) and (max-width: 1023px) {
+/* Lower tablet band shares horizontal space with the Rail nav; 3 cols of
+   large currency values overflow there, so step down to 2 cols until ~900px. */
+@media (min-width: 600px) and (max-width: 899px) {
+  .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (min-width: 900px) and (max-width: 1023px) {
   .kpi-grid { grid-template-columns: repeat(3, 1fr); }
 }
 @media (max-width: 599px) {
@@ -416,7 +424,10 @@ textarea {
 /* Grid layouts */
 .grid-12 {
   display: grid;
-  grid-template-columns: repeat(12, 1fr);
+  /* minmax(0, 1fr) (not plain 1fr) lets tracks shrink below their content's
+     intrinsic width — otherwise a chart SVG with a viewBox-derived min width
+     blows the grid out past the viewport on narrow screens. */
+  grid-template-columns: repeat(12, minmax(0, 1fr));
   gap: 14px;
 }
 .col-8 {
@@ -745,8 +756,15 @@ textarea {
   gap: 4px;
   border-bottom: 1px solid var(--border);
   margin-bottom: 18px;
+  /* Narrow screens: scroll the tab strip rather than overflowing the page. */
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
+.tabs::-webkit-scrollbar { display: none; }
 .tab {
+  flex: 0 0 auto;
+  white-space: nowrap;
   padding: 9px 14px;
   font-size: 13.5px;
   font-weight: 500;
@@ -830,7 +848,7 @@ button:focus-visible,
 
   /* grid-12 with col-* helpers → single column stack */
   .grid-12 {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
   .col-3, .col-4, .col-5, .col-6, .col-7, .col-8, .col-12 {
     grid-column: span 1;

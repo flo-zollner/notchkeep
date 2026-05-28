@@ -393,7 +393,7 @@
       <span class="num">{t().common.net}: {fmtEur(total, { hide: settings.hide, signed: true })}</span>
     </div>
   </div>
-  <div style="display: flex; gap: 8px; align-items: center;">
+  <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: flex-end;">
     <button class="btn" onclick={() => (showImportModal = true)} disabled={accounts.filter((a) => !a.archived).length === 0}>
       <Icon name="arrow-up" size={13} />
       {t().common.importStatements}
@@ -925,6 +925,27 @@
   .tx-summary-divider {
     background: var(--border);
     margin: 8px 0;
+  }
+  /* Phone: three large currency values can't sit side by side — stack them
+     into rows (label left, value right) and swap the vertical rules for
+     horizontal ones. */
+  @media (max-width: 599px) {
+    .tx-summary {
+      grid-template-columns: 1fr;
+    }
+    .tx-summary-col {
+      flex-direction: row;
+      justify-content: space-between;
+      align-items: baseline;
+      padding: 8px 4px;
+    }
+    .tx-summary-value {
+      font-size: 18px;
+    }
+    .tx-summary-divider {
+      height: 1px;
+      margin: 0;
+    }
   }
   .filter-toggle {
     display: inline-flex;

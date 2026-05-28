@@ -247,7 +247,7 @@
     margin-bottom: 20px;
   }
   .page-h h1 { margin: 0; font-size: 22px; letter-spacing: -0.02em; }
-  .actions { display: flex; gap: 12px; align-items: center; }
+  .actions { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
 
   .kpi-row {
     display: grid;
@@ -289,8 +289,14 @@
     gap: 0;
     margin-bottom: 16px;
     border-bottom: 1px solid var(--border);
+    overflow-x: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
   }
+  .tabs::-webkit-scrollbar { display: none; }
   .tab {
+    flex: 0 0 auto;
+    white-space: nowrap;
     background: transparent;
     border: 0;
     padding: 10px 18px;

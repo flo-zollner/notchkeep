@@ -504,17 +504,17 @@
 <style>
   .acc-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 12px;
   }
   @media (min-width: 600px) and (max-width: 1023px) {
     .acc-grid {
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
     }
   }
   @media (max-width: 599px) {
     .acc-grid {
-      grid-template-columns: 1fr;
+      grid-template-columns: minmax(0, 1fr);
       gap: 8px;
     }
   }
@@ -569,10 +569,14 @@
   .acc-body {
     flex: 1;
     min-width: 0;
+    overflow: hidden;
   }
   .acc-name {
     font-weight: 500;
     font-size: 13.5px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   .acc-sub {
     font-size: 11.5px;

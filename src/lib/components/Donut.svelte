@@ -114,10 +114,12 @@
   .donut {
     display: flex;
     align-items: center;
+    flex-wrap: wrap;
     gap: 24px;
   }
   .legend {
-    flex: 1;
+    flex: 1 1 180px;
+    min-width: 0;
     display: flex;
     flex-direction: column;
     gap: 8px;

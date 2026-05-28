@@ -217,6 +217,8 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
     margin-bottom: 8px;
   }
   .head h3 {
@@ -227,8 +229,15 @@
   .seg {
     display: flex;
     gap: 0;
+    max-width: 100%;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
   }
+  .seg::-webkit-scrollbar { display: none; }
   .seg button {
+    flex: 0 0 auto;
+    white-space: nowrap;
     background: transparent;
     border: 1px solid var(--border);
     border-right: 0;

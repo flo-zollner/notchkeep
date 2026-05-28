@@ -45,7 +45,7 @@
 <style>
   .row {
     display: grid;
-    grid-template-columns: 1fr 1fr 110px 110px 110px auto;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 110px 110px 110px auto;
     gap: 10px;
     align-items: center;
     padding: 8px 12px;
@@ -55,8 +55,11 @@
     font-size: 13px;
   }
   .row.archived { opacity: 0.5; }
-  .name { font-weight: 500; }
-  .cp { color: var(--text-muted); font-size: 12px; }
+  /* min-width:0 lets the flexible columns shrink below their text's
+     intrinsic width (long names) instead of forcing the row to overflow
+     in the narrow tablet band where the Rail eats horizontal space. */
+  .name { font-weight: 500; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cp { color: var(--text-muted); font-size: 12px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .amount { font-variant-numeric: tabular-nums; text-align: right; }
   .amount.neg { color: var(--negative); }
   .freq, .anchor { color: var(--text-muted); font-size: 11px; }
