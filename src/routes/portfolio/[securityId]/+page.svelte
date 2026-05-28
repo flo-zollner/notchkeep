@@ -618,7 +618,7 @@
   }
   .tab.on { color: var(--text); border-bottom-color: var(--accent); }
 
-  .trades-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 4px; }
+  .trades-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 4px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
   .trades-list li {
     display: grid;
     grid-template-columns: 100px 100px 1fr 1fr 1fr;
@@ -629,6 +629,7 @@
     border-radius: 8px;
     font-size: 12px;
     align-items: center;
+    min-width: 480px;
   }
   .date { color: var(--text-muted); font-variant-numeric: tabular-nums; }
   .side {

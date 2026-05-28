@@ -874,7 +874,7 @@
   .search-wrap {
     position: relative;
     flex: 1 1 200px;
-    min-width: 180px;
+    min-width: 0;
   }
   .search-icon {
     position: absolute;
