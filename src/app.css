@@ -54,6 +54,7 @@
   scrollbar-color: auto;
 }
 
+/* Dark tokens — keep in sync with the @media (prefers-color-scheme: dark) block below */
 [data-theme='dark'] {
   color-scheme: dark;
   --bg: oklch(0.165 0.005 230);
@@ -92,6 +93,7 @@
   --shadow-lg: 0 24px 48px -16px rgba(0, 0, 0, 0.7);
 }
 
+/* Auto-mode dark tokens — keep in sync with the [data-theme='dark'] block above */
 @media (prefers-color-scheme: dark) {
   :root[data-theme='auto'] {
     color-scheme: dark;
@@ -147,8 +149,6 @@ body {
   font-size: 14px;
   line-height: 1.45;
   -webkit-font-smoothing: antialiased;
-  font-feature-settings: 'ss01', 'cv11';
-  letter-spacing: -0.005em;
 }
 
 button {
