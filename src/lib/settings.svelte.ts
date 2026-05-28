@@ -1,6 +1,11 @@
 import { I18N, type Lang } from './i18n/strings';
 
-type Theme = 'light' | 'dark';
+type Theme = 'auto' | 'light' | 'dark';
+
+const VALID_THEMES: readonly Theme[] = ['auto', 'light', 'dark'];
+function parseTheme(v: unknown): Theme {
+  return VALID_THEMES.includes(v as Theme) ? (v as Theme) : 'auto';
+}
 
 const STORAGE_KEY = 'saldo.settings';
 
@@ -11,7 +16,7 @@ interface PersistedSettings {
   showCents: boolean;
 }
 
-const DEFAULTS: PersistedSettings = { theme: 'light', lang: 'de', hide: false, showCents: false };
+const DEFAULTS: PersistedSettings = { theme: 'auto', lang: 'de', hide: false, showCents: false };
 
 function load(): PersistedSettings {
   if (typeof localStorage === 'undefined') return DEFAULTS;
@@ -20,7 +25,7 @@ function load(): PersistedSettings {
     if (!raw) return DEFAULTS;
     const parsed = JSON.parse(raw) as Partial<PersistedSettings>;
     return {
-      theme: parsed.theme === 'dark' ? 'dark' : 'light',
+      theme: parseTheme(parsed.theme),
       lang: parsed.lang === 'en' ? 'en' : 'de',
       hide: !!parsed.hide,
       showCents: !!parsed.showCents,
@@ -75,4 +80,14 @@ export function eurDecimals(): 0 | 2 {
 
 export function t() {
   return I18N[settings.lang];
+}
+
+/** Re-reads localStorage and re-initializes the singleton settings state.
+ *  Tests-only — never call from app code. */
+export function _reloadForTests(): void {
+  const fresh = load();
+  settings.theme = fresh.theme;
+  settings.lang = fresh.lang;
+  settings.hide = fresh.hide;
+  settings.showCents = fresh.showCents;
 }
