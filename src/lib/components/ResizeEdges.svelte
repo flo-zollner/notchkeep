@@ -17,14 +17,25 @@
   Eight invisible resize handles around the window edges.
   4 corners are 8x8px, 4 sides are 4px thick.
   Sits on top of everything (z-index: 1001 > titlebar 1000) so corners win.
+  Pure mouse-drag targets — keyboard users resize via WM shortcuts (Alt+F8 in KDE),
+  so a11y-static / no-keyboard-listener warnings are intentional here.
 -->
+<!-- svelte-ignore a11y_no_static_element_interactions -->
+<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 <div class="edge n" onmousedown={(e) => start('North', e)}></div>
+<!-- svelte-ignore a11y_no_static_element_interactions -->
 <div class="edge e" onmousedown={(e) => start('East', e)}></div>
+<!-- svelte-ignore a11y_no_static_element_interactions -->
 <div class="edge s" onmousedown={(e) => start('South', e)}></div>
+<!-- svelte-ignore a11y_no_static_element_interactions -->
 <div class="edge w" onmousedown={(e) => start('West', e)}></div>
+<!-- svelte-ignore a11y_no_static_element_interactions -->
 <div class="corner ne" onmousedown={(e) => start('NorthEast', e)}></div>
+<!-- svelte-ignore a11y_no_static_element_interactions -->
 <div class="corner se" onmousedown={(e) => start('SouthEast', e)}></div>
+<!-- svelte-ignore a11y_no_static_element_interactions -->
 <div class="corner sw" onmousedown={(e) => start('SouthWest', e)}></div>
+<!-- svelte-ignore a11y_no_static_element_interactions -->
 <div class="corner nw" onmousedown={(e) => start('NorthWest', e)}></div>
 
 <style>
