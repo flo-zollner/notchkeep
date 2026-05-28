@@ -5,7 +5,7 @@
     | 'plus' | 'search' | 'filter'
     | 'arrow-down' | 'arrow-up' | 'arrow-right'
     | 'chevron-right' | 'chevron-down' | 'chevron-up'
-    | 'check' | 'x' | 'sun' | 'moon' | 'monitor' | 'minus' | 'square'
+    | 'check' | 'x' | 'sun' | 'moon' | 'monitor'
     | 'cart' | 'home' | 'car' | 'utensils' | 'film' | 'bag' | 'bolt'
     | 'heart' | 'repeat' | 'plane' | 'shield' | 'briefcase' | 'wallet'
     | 'lock' | 'globe' | 'download' | 'refresh' | 'dots'
@@ -84,10 +84,6 @@
     <path d="M5 12l5 5 9-11" />
   {:else if name === 'x'}
     <path d="M6 6l12 12M18 6L6 18" />
-  {:else if name === 'minus'}
-    <path d="M5 12h14" />
-  {:else if name === 'square'}
-    <rect x="4" y="4" width="16" height="16" rx="1.5" />
   {:else if name === 'sun'}
     <circle cx="12" cy="12" r="4" />
     <path
