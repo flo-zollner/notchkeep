@@ -48,6 +48,7 @@ SQLite (über `sqlx`): **Public Domain**.
 | `typescript` | Apache-2.0 |
 | `svelte-check` | MIT |
 | `@types/node` | MIT |
+| `vitest`, `@vitest/ui`, `jsdom` | MIT |
 
 ## Hinweise zur Apache-2.0-Klausel
 
