@@ -69,4 +69,10 @@
   .status { font-size: 11px; padding: 2px 6px; border-radius: 4px;
             background: var(--surface-2); color: var(--text-muted); }
   .status.paid { color: var(--positive); background: var(--positive-soft, var(--surface-2)); }
+  @media (max-width: 600px) {
+    .row {
+      grid-template-columns: 92px minmax(0, 1fr) auto auto;
+      gap: 8px;
+    }
+  }
 </style>
