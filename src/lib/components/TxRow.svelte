@@ -236,4 +236,9 @@
     color: var(--text-muted);
     font-style: italic;
   }
+  @media (max-width: 600px) {
+    .bank-badge {
+      display: none;
+    }
+  }
 </style>
