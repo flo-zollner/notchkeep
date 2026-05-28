@@ -73,7 +73,7 @@
     font-size: 9px; font-weight: 600;
     display: inline-flex; align-items: center; justify-content: center;
   }
-  .tab-label { font-size: 10px; font-weight: 500; }
+  .tab-label { font-size: 11px; font-weight: 500; }
   @media (max-width: 599px) {
     .tabbar { display: flex; }
   }
