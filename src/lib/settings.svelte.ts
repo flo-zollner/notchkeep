@@ -1,10 +1,10 @@
 import { I18N, type Lang } from './i18n/strings';
 
-type Theme = 'auto' | 'light' | 'dark';
+export type Theme = 'auto' | 'light' | 'dark';
 
-const VALID_THEMES: readonly Theme[] = ['auto', 'light', 'dark'];
 function parseTheme(v: unknown): Theme {
-  return VALID_THEMES.includes(v as Theme) ? (v as Theme) : 'auto';
+  if (v === 'auto' || v === 'light' || v === 'dark') return v;
+  return 'auto';
 }
 
 const STORAGE_KEY = 'saldo.settings';
