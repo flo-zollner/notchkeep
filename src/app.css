@@ -1,11 +1,9 @@
 /* Saldo. — Design Tokens (portiert aus claude.ai/design Bundle) */
 
-@import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap');
-
 :root {
   color-scheme: light;
-  --font-sans: 'Geist', ui-sans-serif, system-ui, -apple-system, sans-serif;
-  --font-mono: 'Geist Mono', ui-monospace, 'SF Mono', monospace;
+  --font-sans: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Cantarell, 'Noto Sans', 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
 
   --bg: oklch(0.985 0.005 90);
   --surface: oklch(1 0 0);
@@ -52,6 +50,8 @@
   --bp-desktop: 1600px;
   --tap: 44px;
   --tabbar-height: 56px;
+  accent-color: auto;
+  scrollbar-color: auto;
 }
 
 [data-theme='dark'] {
@@ -90,6 +90,46 @@
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4), 0 0 0 0.5px rgba(255, 255, 255, 0.04);
   --shadow-md: 0 4px 14px -4px rgba(0, 0, 0, 0.5), 0 1px 3px rgba(0, 0, 0, 0.3);
   --shadow-lg: 0 24px 48px -16px rgba(0, 0, 0, 0.7);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root[data-theme='auto'] {
+    color-scheme: dark;
+    --bg: oklch(0.165 0.005 230);
+    --surface: oklch(0.205 0.006 230);
+    --surface-2: oklch(0.235 0.006 230);
+    --surface-hover: oklch(0.265 0.006 230);
+    --border: oklch(0.29 0.006 230);
+    --border-strong: oklch(0.38 0.008 230);
+    --text: oklch(0.96 0.005 90);
+    --text-muted: oklch(0.68 0.01 90);
+    --text-faint: oklch(0.52 0.01 90);
+
+    --accent: oklch(0.78 0.13 165);
+    --accent-hover: oklch(0.83 0.13 165);
+    --accent-soft: oklch(0.3 0.06 165);
+    --accent-fg: oklch(0.15 0.01 230);
+
+    --positive: oklch(0.78 0.13 150);
+    --positive-soft: oklch(0.3 0.06 150);
+    --negative: oklch(0.72 0.16 25);
+    --negative-soft: oklch(0.3 0.07 25);
+    --warning: oklch(0.82 0.13 75);
+    --warning-soft: oklch(0.32 0.06 75);
+    --info: oklch(0.75 0.12 230);
+    --info-soft: oklch(0.3 0.06 230);
+
+    --c1: oklch(0.78 0.13 165);
+    --c2: oklch(0.75 0.13 230);
+    --c3: oklch(0.82 0.13 75);
+    --c4: oklch(0.75 0.15 320);
+    --c5: oklch(0.78 0.13 30);
+    --c6: oklch(0.7 0.1 200);
+
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4), 0 0 0 0.5px rgba(255, 255, 255, 0.04);
+    --shadow-md: 0 4px 14px -4px rgba(0, 0, 0, 0.5), 0 1px 3px rgba(0, 0, 0, 0.3);
+    --shadow-lg: 0 24px 48px -16px rgba(0, 0, 0, 0.7);
+  }
 }
 
 * {
