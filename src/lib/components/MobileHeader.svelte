@@ -21,7 +21,7 @@
   .mobile-header {
     display: none;
     position: sticky; top: 0; z-index: 5;
-    padding: 12px 16px;
+    padding: calc(12px + env(safe-area-inset-top)) 16px 12px;
     background: var(--bg);
     border-bottom: 1px solid var(--border);
     align-items: center;
