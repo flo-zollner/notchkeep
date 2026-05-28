@@ -48,10 +48,10 @@
   </button>
   <button
     class="rail-item"
-    onclick={() => setTheme(settings.theme === 'dark' ? 'light' : 'dark')}
-    title={settings.theme === 'dark' ? 'Light' : 'Dark'}
+    onclick={() => setTheme(settings.theme === 'auto' ? 'light' : settings.theme === 'light' ? 'dark' : 'auto')}
+    title={settings.theme === 'auto' ? t().common.themeLight : settings.theme === 'light' ? t().common.themeDark : t().common.themeAuto}
   >
-    <Icon name={settings.theme === 'dark' ? 'sun' : 'moon'} size={20} />
+    <Icon name={settings.theme === 'auto' ? 'monitor' : settings.theme === 'light' ? 'sun' : 'moon'} size={20} />
   </button>
 
   {#if priceRefreshStage === 'started'}

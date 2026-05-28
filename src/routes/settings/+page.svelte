@@ -84,13 +84,31 @@
     <div class="setting-row">
       <div>
         <div class="sr-label">{t().common.theme}</div>
-        <div class="sr-sub">Light · Dark</div>
+        <div class="sr-sub">{t().common.themeAuto} · {t().common.themeLight} · {t().common.themeDark}</div>
       </div>
       <div class="seg">
-        <button class:on={settings.theme === 'light'} onclick={() => setTheme('light')}>
+        <button
+          class:on={settings.theme === 'auto'}
+          onclick={() => setTheme('auto')}
+          title={t().common.themeAuto}
+          aria-label={t().common.themeAuto}
+        >
+          <Icon name="monitor" size={13} />
+        </button>
+        <button
+          class:on={settings.theme === 'light'}
+          onclick={() => setTheme('light')}
+          title={t().common.themeLight}
+          aria-label={t().common.themeLight}
+        >
           <Icon name="sun" size={13} />
         </button>
-        <button class:on={settings.theme === 'dark'} onclick={() => setTheme('dark')}>
+        <button
+          class:on={settings.theme === 'dark'}
+          onclick={() => setTheme('dark')}
+          title={t().common.themeDark}
+          aria-label={t().common.themeDark}
+        >
           <Icon name="moon" size={13} />
         </button>
       </div>

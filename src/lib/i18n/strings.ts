@@ -54,7 +54,8 @@ export interface I18N {
     active: string; synced: string;
     back: string; detail: string; balance: string; type: string;
     iban: string; lastSync: string; counterpartyIban: string;
-    preferences: string; theme: string; language: string; currency: string;
+    preferences: string; theme: string; themeAuto: string; themeLight: string; themeDark: string;
+    language: string; currency: string;
     privacy: string; hideAmounts: string;
     showCents: string; showCentsDesc: string;
     sync: string; autoSync: string; autoSyncDesc: string;
@@ -545,6 +546,7 @@ export const I18N: Record<Lang, I18N> = {
       back: 'Zurück', detail: 'Konto-Detail', balance: 'Saldo', type: 'Typ',
       iban: 'IBAN', lastSync: 'Letzte Sync.', counterpartyIban: 'Gegenkonto-IBAN',
       preferences: 'Einstellungen', theme: 'Erscheinungsbild',
+      themeAuto: 'System', themeLight: 'Hell', themeDark: 'Dunkel',
       language: 'Sprache', currency: 'Währung',
       privacy: 'Datenschutz', hideAmounts: 'Beträge ausblenden',
       showCents: 'Cent-Werte anzeigen', showCentsDesc: '2 Nachkommastellen statt voller Euro',
@@ -1049,6 +1051,7 @@ export const I18N: Record<Lang, I18N> = {
       back: 'Back', detail: 'Account detail', balance: 'Balance', type: 'Type',
       iban: 'IBAN', lastSync: 'Last sync', counterpartyIban: 'Counterparty IBAN',
       preferences: 'Preferences', theme: 'Appearance',
+      themeAuto: 'System', themeLight: 'Light', themeDark: 'Dark',
       language: 'Language', currency: 'Currency',
       privacy: 'Privacy', hideAmounts: 'Hide amounts',
       showCents: 'Show cents', showCentsDesc: '2 decimal places instead of full euros',

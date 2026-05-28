@@ -34,9 +34,12 @@
       <Icon name={settings.hide ? 'eye-off' : 'eye'} size={20} />
       <span>{t().common.hideAmounts}</span>
     </button>
-    <button class="more-item" onclick={() => setTheme(settings.theme === 'dark' ? 'light' : 'dark')}>
-      <Icon name={settings.theme === 'dark' ? 'sun' : 'moon'} size={20} />
-      <span>{settings.theme === 'dark' ? 'Light' : 'Dark'}</span>
+    <button
+      class="more-item"
+      onclick={() => setTheme(settings.theme === 'auto' ? 'light' : settings.theme === 'light' ? 'dark' : 'auto')}
+    >
+      <Icon name={settings.theme === 'auto' ? 'monitor' : settings.theme === 'light' ? 'sun' : 'moon'} size={20} />
+      <span>{settings.theme === 'auto' ? t().common.themeAuto : settings.theme === 'light' ? t().common.themeLight : t().common.themeDark}</span>
     </button>
   </div>
 </Sheet>

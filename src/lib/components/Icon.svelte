@@ -5,7 +5,7 @@
     | 'plus' | 'search' | 'filter'
     | 'arrow-down' | 'arrow-up' | 'arrow-right'
     | 'chevron-right' | 'chevron-down' | 'chevron-up'
-    | 'check' | 'x' | 'sun' | 'moon'
+    | 'check' | 'x' | 'sun' | 'moon' | 'monitor'
     | 'cart' | 'home' | 'car' | 'utensils' | 'film' | 'bag' | 'bolt'
     | 'heart' | 'repeat' | 'plane' | 'shield' | 'briefcase' | 'wallet'
     | 'lock' | 'globe' | 'download' | 'refresh' | 'dots'
@@ -91,6 +91,10 @@
     />
   {:else if name === 'moon'}
     <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" />
+  {:else if name === 'monitor'}
+    <rect x="2" y="3" width="20" height="14" rx="2" />
+    <line x1="8" y1="21" x2="16" y2="21" />
+    <line x1="12" y1="17" x2="12" y2="21" />
   {:else if name === 'cart'}
     <path d="M3 4h2l2.4 12.5a2 2 0 0 0 2 1.5h8.2a2 2 0 0 0 2-1.5L21 8H6" />
     <circle cx="9" cy="21" r="1" />

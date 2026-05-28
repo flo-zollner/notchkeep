@@ -53,9 +53,12 @@
       <Icon name={settings.hide ? 'eye-off' : 'eye'} size={17} />
       {t().common.hideAmounts}
     </button>
-    <button class="nav-item" onclick={() => setTheme(settings.theme === 'dark' ? 'light' : 'dark')}>
-      <Icon name={settings.theme === 'dark' ? 'sun' : 'moon'} size={17} />
-      {settings.theme === 'dark' ? 'Light' : 'Dark'}
+    <button
+      class="nav-item"
+      onclick={() => setTheme(settings.theme === 'auto' ? 'light' : settings.theme === 'light' ? 'dark' : 'auto')}
+    >
+      <Icon name={settings.theme === 'auto' ? 'monitor' : settings.theme === 'light' ? 'sun' : 'moon'} size={17} />
+      {settings.theme === 'auto' ? t().common.themeAuto : settings.theme === 'light' ? t().common.themeLight : t().common.themeDark}
     </button>
   </div>
 </aside>
