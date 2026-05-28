@@ -320,9 +320,13 @@
     display: flex;
     justify-content: flex-end;
     gap: 8px;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
   }
   .footer-actions .btn.danger { margin-right: auto; background: var(--negative-soft); color: var(--negative); }
+  @media (max-width: 600px) {
+    .footer-actions button { flex: 1 1 0; min-width: 0; }
+    .footer-actions .btn.danger { flex: 0 0 auto; margin-right: auto; }
+  }
   .btn {
     padding: 8px 16px;
     border-radius: 6px;

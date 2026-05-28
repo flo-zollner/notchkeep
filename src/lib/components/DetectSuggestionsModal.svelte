@@ -136,7 +136,10 @@
   .amt { text-align: right; font-variant-numeric: tabular-nums; }
   .amt.neg { color: var(--negative); }
   .err { color: var(--negative); font-size: 12px; margin: 0; }
-  .footer-actions { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+  .footer-actions { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: nowrap; }
+  @media (max-width: 600px) {
+    .footer-actions button { flex: 1 1 0; min-width: 0; }
+  }
   .footer-actions button {
     background: var(--surface-2); border: 1px solid var(--border);
     border-radius: 6px; padding: 6px 12px; cursor: pointer;

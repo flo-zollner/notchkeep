@@ -83,7 +83,10 @@
     display: flex;
     justify-content: flex-end;
     gap: 8px;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
+  }
+  @media (max-width: 600px) {
+    .footer-actions button { flex: 1 1 0; min-width: 0; }
   }
   button {
     padding: 8px 14px; border-radius: 6px; border: 1px solid var(--border);
