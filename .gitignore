@@ -73,3 +73,6 @@ pasted file.*
 
 # Brainstorming Companion Mockups
 .superpowers/
+
+# Playwright MCP Artefakte (Snapshots, Screenshots, Console-Logs)
+.playwright-mcp/
