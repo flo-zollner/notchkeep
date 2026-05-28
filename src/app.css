@@ -441,6 +441,15 @@ textarea {
   grid-column: span 12;
 }
 
+/* Tablet: col-3 and col-4 act as half-width (col-6) so 2-column layouts
+   remain intact between 601 px and 1023 px rather than jumping to 3- or 4-col */
+@media (min-width: 601px) and (max-width: 1023px) {
+  .grid-12 > .col-3,
+  .grid-12 > .col-4 {
+    grid-column: span 6;
+  }
+}
+
 /* Buttons */
 .btn {
   display: inline-flex;
