@@ -6,6 +6,8 @@
   import BottomTabBar from '$lib/components/BottomTabBar.svelte';
   import Fab from '$lib/components/Fab.svelte';
   import { settings } from '$lib/settings.svelte';
+  import { applySystemAccent } from '$lib/system-accent';
+  import { onMount } from 'svelte';
   import { listen } from '@tauri-apps/api/event';
   import { goto } from '$app/navigation';
   import StartupErrorModal from '$lib/components/StartupErrorModal.svelte';
@@ -74,7 +76,20 @@
   $effect(() => {
     if (typeof document !== 'undefined') {
       document.documentElement.dataset.theme = settings.theme;
+      // After theme switch, accent must be re-derived (different fg contrast)
+      applySystemAccent();
     }
+  });
+
+  onMount(() => {
+    applySystemAccent();
+    const reapply = () => applySystemAccent();
+    window.addEventListener('focus', reapply);
+    document.addEventListener('visibilitychange', reapply);
+    return () => {
+      window.removeEventListener('focus', reapply);
+      document.removeEventListener('visibilitychange', reapply);
+    };
   });
 
   function onFabClick() {
