@@ -50,6 +50,7 @@
     class="rail-item"
     onclick={() => setTheme(settings.theme === 'auto' ? 'light' : settings.theme === 'light' ? 'dark' : 'auto')}
     title={settings.theme === 'auto' ? t().common.themeLight : settings.theme === 'light' ? t().common.themeDark : t().common.themeAuto}
+    aria-label={t().common.theme}
   >
     <Icon name={settings.theme === 'auto' ? 'monitor' : settings.theme === 'light' ? 'sun' : 'moon'} size={20} />
   </button>
