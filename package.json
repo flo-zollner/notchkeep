@@ -10,6 +10,8 @@
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
     "tauri": "tauri",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "gen:licenses": "cd src-tauri && cargo about generate about.hbs -o ../static/licenses.html && cd .. && node scripts/append-js-licenses.mjs",
     "gen:licenses:check": "cd src-tauri && cargo about generate about.hbs -o /dev/null"
   },
@@ -25,9 +27,12 @@
     "@sveltejs/vite-plugin-svelte": "^5.0.0",
     "@tauri-apps/cli": "^2",
     "@types/node": "^25.9.0",
+    "@vitest/ui": "^4.1.7",
+    "jsdom": "^29.1.1",
     "svelte": "^5.0.0",
     "svelte-check": "^4.0.0",
     "typescript": "~5.6.2",
-    "vite": "^6.0.3"
+    "vite": "^6.0.3",
+    "vitest": "^4.1.7"
   }
 }
