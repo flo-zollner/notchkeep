@@ -31,6 +31,7 @@
   </span>
   <span class="freq">{freqLabel}</span>
   <span class="anchor">{recurring.anchorDate}</span>
+  <span class="mobile-meta">{freqLabel} · {recurring.anchorDate}</span>
   <div class="actions">
     <button type="button" onclick={() => onEdit?.(recurring)} title={t().common.edit}>
       <Icon name="pencil" size={12} />
@@ -59,6 +60,7 @@
   .amount { font-variant-numeric: tabular-nums; text-align: right; }
   .amount.neg { color: var(--negative); }
   .freq, .anchor { color: var(--text-muted); font-size: 11px; }
+  .mobile-meta { display: none; }
   .actions { display: flex; gap: 4px; }
   .actions button {
     background: transparent; border: 0; color: var(--text-muted);
@@ -69,7 +71,7 @@
   @media (max-width: 599px) {
     .row {
       grid-template-columns: 1fr auto;
-      grid-template-rows: auto auto;
+      grid-template-rows: auto auto auto;
       gap: 2px 8px;
       padding: 10px 10px;
     }
@@ -94,5 +96,13 @@
       justify-content: flex-end;
     }
     .freq, .anchor { display: none; }
+    .mobile-meta {
+      display: block;
+      grid-column: 1 / -1;
+      grid-row: 3;
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
   }
 </style>
