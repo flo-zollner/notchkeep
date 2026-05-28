@@ -22,7 +22,7 @@ export interface AccentTokens {
   accentFg: string;
 }
 
-const RGB_RE = /^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/;
+const RGB_RE = /^rgba?\(\s*(\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)/;
 
 export function parseRgbToHsl(input: string): HSL | null {
   const m = input.match(RGB_RE);
@@ -70,7 +70,7 @@ export function deriveAccentTokens(base: HSL): AccentTokens {
 }
 
 export function readSystemAccent(): HSL | null {
-  if (typeof document === 'undefined') return null;
+  if (typeof document === 'undefined' || !document.body) return null;
   const el = document.createElement('div');
   el.style.position = 'absolute';
   el.style.visibility = 'hidden';

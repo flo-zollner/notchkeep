@@ -22,6 +22,13 @@ describe('parseRgbToHsl', () => {
     expect(r!.s).toBeGreaterThan(50);
   });
 
+  it('parses float RGB values from WebKitGTK (e.g. "rgb(50.196, 100.0, 200.392)")', () => {
+    const r = parseRgbToHsl('rgb(50.196, 100.0, 200.392)');
+    expect(r).not.toBeNull();
+    expect(r!.h).toBeGreaterThan(200);
+    expect(r!.h).toBeLessThan(230);
+  });
+
   it('returns null for unparseable strings', () => {
     expect(parseRgbToHsl('AccentColor')).toBeNull();
     expect(parseRgbToHsl('')).toBeNull();
