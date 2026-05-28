@@ -1,11 +1,27 @@
 import { defineConfig } from "vite";
 import { sveltekit } from "@sveltejs/kit/vite";
+import { fileURLToPath } from "node:url";
 
 const host = process.env.TAURI_DEV_HOST;
 
 // https://vite.dev/config/
-export default defineConfig(async () => ({
+export default defineConfig(async ({ mode }) => ({
   plugins: [sveltekit()],
+
+  // Mode `mock` ersetzt @tauri-apps/api/core durch die Mock-Schicht
+  // (src/lib/mocks/). Aktivierung über `pnpm dev:mock`. Erlaubt es,
+  // die App ohne Tauri-Backend im Browser zu fahren — für Playwright
+  // und manuelle Frontend-Arbeit.
+  resolve:
+    mode === "mock"
+      ? {
+          alias: {
+            "@tauri-apps/api/core": fileURLToPath(
+              new URL("./src/lib/mocks/index.ts", import.meta.url),
+            ),
+          },
+        }
+      : undefined,
 
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
   //
