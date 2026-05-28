@@ -65,7 +65,8 @@
           {@const pv = trendSeries[i - 1]}
           {@const py = 9 - (pv / max) * 7}
           <line x1={px} y1={py} x2={x} y2={y}
-            stroke="var(--text-muted)" stroke-width="1" fill="none" />
+            stroke="var(--text-muted)" stroke-width="1" fill="none"
+            vector-effect="non-scaling-stroke" />
         {/if}
         <circle cx={x} cy={y} r="1" fill={v >= 0 ? 'var(--positive)' : 'var(--negative)'} />
       {/each}

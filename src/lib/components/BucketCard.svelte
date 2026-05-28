@@ -61,7 +61,8 @@
           {@const px = (100 / Math.max(trend.length - 1, 1)) * (i - 1)}
           {@const py = 12 - (trend[i - 1] / max) * 10}
           <line x1={px} y1={py} x2={x} y2={y}
-            stroke={color} stroke-width="1.2" fill="none" opacity="0.6" />
+            stroke={color} stroke-width="1.2" fill="none" opacity="0.6"
+            vector-effect="non-scaling-stroke" />
         {/if}
         <circle cx={x} cy={y} r="1.3" fill={v >= 0 ? 'var(--positive)' : 'var(--negative)'} />
       {/each}
