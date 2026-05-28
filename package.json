@@ -12,6 +12,7 @@
     "tauri": "tauri",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:ui": "vitest --ui",
     "gen:licenses": "cd src-tauri && cargo about generate about.hbs -o ../static/licenses.html && cd .. && node scripts/append-js-licenses.mjs",
     "gen:licenses:check": "cd src-tauri && cargo about generate about.hbs -o /dev/null"
   },
