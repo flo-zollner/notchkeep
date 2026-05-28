@@ -97,12 +97,12 @@
   .rail-badge {
     position: absolute;
     top: 4px; right: 4px;
-    min-width: 16px; height: 16px;
-    padding: 0 4px;
-    border-radius: 8px;
+    min-width: 18px; height: 18px;
+    padding: 0 5px;
+    border-radius: 9px;
     background: var(--negative);
     color: white;
-    font-size: 9px; font-weight: 600;
+    font-size: 10px; font-weight: 600;
     display: inline-flex; align-items: center; justify-content: center;
   }
   .rail-refresh {
