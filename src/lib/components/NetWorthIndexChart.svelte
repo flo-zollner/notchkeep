@@ -15,7 +15,8 @@
 
   let { history, height = 220, hide = false, baselineIdx = null, onBaselineChange }: Props = $props();
 
-  const w = 700;
+  let containerWidth = $state(700);
+  const w = $derived(Math.max(360, containerWidth));
   const padL = 44;
   const padR = 12;
   const padT = 16;
@@ -132,12 +133,11 @@
 {#if baseline === null}
   <div class="empty">Kein positiver Startwert für Indexierung verfügbar</div>
 {:else}
-  <div class="wrap">
+  <div class="wrap" bind:clientWidth={containerWidth}>
     <svg
       viewBox="0 0 {w} {height}"
       width="100%"
       {height}
-      preserveAspectRatio="none"
     >
       <defs>
         <linearGradient id="nwiArea" x1="0" y1="0" x2="0" y2="1">

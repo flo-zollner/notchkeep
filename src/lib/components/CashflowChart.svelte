@@ -14,7 +14,8 @@
   }
   let { data, height = 200, hide = false, onPointClick }: Props = $props();
 
-  const w = 600;
+  let containerWidth = $state(600);
+  const w = $derived(Math.max(360, containerWidth));
   const padL = 40;
   const padR = 8;
   const padT = 12;
@@ -151,7 +152,7 @@
   const showBrush = $derived(dragging !== null && brushW > 4);
 </script>
 
-<div class="wrap">
+<div class="wrap" bind:clientWidth={containerWidth}>
   {#if zoomedRange}
     <button class="zoom-reset" type="button" onclick={() => (zoomedRange = null)}>
       ↺ Zoom zurücksetzen
@@ -159,7 +160,7 @@
   {/if}
   <svg
     bind:this={svgEl}
-    viewBox="0 0 {w} {height}" width="100%" {height} preserveAspectRatio="none"
+    viewBox="0 0 {w} {height}" width="100%" {height}
     style="cursor: {onPointClick ? 'pointer' : 'default'};"
     onpointermove={handlePointerMove}
     onpointerleave={handlePointerLeave}

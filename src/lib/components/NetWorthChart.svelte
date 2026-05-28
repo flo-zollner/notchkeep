@@ -23,7 +23,8 @@
 
   let { history, forecast, height = 220, hide = false, onPointClick }: Props = $props();
 
-  const w = 700;
+  let containerWidth = $state(700);
+  const w = $derived(Math.max(360, containerWidth));
   const padL = 36;
   const padR = 12;
   const padT = 16;
@@ -244,13 +245,13 @@
   const showBrush = $derived(dragging !== null && brushW > 4);
 </script>
 
-<div class="wrap">
+<div class="wrap" bind:clientWidth={containerWidth}>
   {#if zoomedRange}
     <button class="zoom-reset" type="button" onclick={() => (zoomedRange = null)}>
       ↺ Zoom zurücksetzen
     </button>
   {/if}
-  <svg viewBox="0 0 {w} {height}" width="100%" {height} preserveAspectRatio="none">
+  <svg viewBox="0 0 {w} {height}" width="100%" {height}>
     <defs>
       <linearGradient id="nwArea" x1="0" y1="0" x2="0" y2="1">
         <stop offset="0%" stop-color="var(--accent)" stop-opacity="0.18" />
