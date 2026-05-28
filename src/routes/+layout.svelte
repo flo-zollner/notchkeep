@@ -4,6 +4,7 @@
   import Rail from '$lib/components/Rail.svelte';
   import MobileHeader from '$lib/components/MobileHeader.svelte';
   import Titlebar from '$lib/components/Titlebar.svelte';
+  import ResizeEdges from '$lib/components/ResizeEdges.svelte';
   import BottomTabBar from '$lib/components/BottomTabBar.svelte';
   import Fab from '$lib/components/Fab.svelte';
   import { settings } from '$lib/settings.svelte';
@@ -143,6 +144,7 @@
 {/if}
 
 <Titlebar />
+<ResizeEdges />
 <MobileHeader />
 
 <div class="app">
