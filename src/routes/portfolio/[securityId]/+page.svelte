@@ -136,7 +136,8 @@
   }
 
   function fmtAvgCost(micro: number): string {
-    return fmtEur(Math.round(micro / 1_000_000), { hide: settings.hide, decimals: 2 });
+    // micro = millionths of a currency unit; fmtEur expects cents (1 cent = 10_000 micro).
+    return fmtEur(Math.round(micro / 10_000), { hide: settings.hide, decimals: 2 });
   }
 
   function fmtUnitPrice(micro: number | null): string {

@@ -196,6 +196,30 @@ function bucketRuleHandlers(store: MockStore): HandlerRegistry {
 }
 
 // ─── Recurring ───
+
+/**
+ * Advance an ISO date (YYYY-MM-DD) by `n` periods of the given frequency.
+ * Day-of-month is clamped to the target month's length (e.g. Jan 31 → Feb 28).
+ */
+function addPeriods(
+  anchor: string,
+  frequency: RecurringPayment['frequency'],
+  n: number,
+): string {
+  const [y, m, d] = anchor.split('-').map(Number);
+  if (frequency === 'weekly') {
+    const dt = new Date(Date.UTC(y, m - 1, d + n * 7));
+    return dt.toISOString().slice(0, 10);
+  }
+  const monthsToAdd = frequency === 'monthly' ? n : frequency === 'quarterly' ? n * 3 : n * 12;
+  const total = m - 1 + monthsToAdd;
+  const ny = y + Math.floor(total / 12);
+  const nm = (total % 12) + 1;
+  const daysInTargetMonth = new Date(Date.UTC(ny, nm, 0)).getUTCDate();
+  const nd = Math.min(d, daysInTargetMonth);
+  return `${ny}-${String(nm).padStart(2, '0')}-${String(nd).padStart(2, '0')}`;
+}
+
 function recurringHandlers(store: MockStore): HandlerRegistry {
   return {
     list_recurring: (raw) => {
@@ -250,7 +274,10 @@ function recurringHandlers(store: MockStore): HandlerRegistry {
         .map((r): RecurringOverview => ({
           recurring: { ...r },
           occurrences: Array.from({ length: monthsAhead }, (_, i) => ({
-            dueDate: r.anchorDate,
+            // Advance the anchor by `i` periods so each occurrence has a distinct
+            // due date — the real backend never returns two occurrences on the
+            // same day, and the upcoming list keys on (id, dueDate).
+            dueDate: addPeriods(r.anchorDate, r.frequency, i),
             status: i === 0 ? 'paid' : ('pending' as const),
             matchedTxId: null,
             matchedAmountCents: null,
@@ -431,6 +458,27 @@ function budgetHandlers(store: MockStore): HandlerRegistry {
     },
     month_overview: (raw) => {
       const { year, month } = raw as { year: number; month: number };
+      const ym = `${year}-${String(month).padStart(2, '0')}`;
+
+      // Resolve any category to its top-level ancestor so child spending rolls
+      // up to the budgeted parent — mirrors the real backend's month_overview.
+      const parentOf = new Map(store.categories.map((c) => [c.id, c.parent_id]));
+      const topLevelOf = (id: number): number => {
+        let cur = id;
+        for (let guard = 0; parentOf.get(cur) != null && guard < 20; guard++) {
+          cur = parentOf.get(cur) as number;
+        }
+        return cur;
+      };
+
+      const spentByTop = new Map<number, number>();
+      for (const t of store.transactions) {
+        if (t.category_id == null || t.amount_cents >= 0) continue; // expenses only
+        if (!t.booking_date.startsWith(ym)) continue;
+        const top = topLevelOf(t.category_id);
+        spentByTop.set(top, (spentByTop.get(top) ?? 0) - t.amount_cents);
+      }
+
       const result: CategoryMonthBudget[] = [];
       for (const c of store.categories.filter((cat) => cat.parent_id === null)) {
         const override = store.budgets.get(key(c.id, year, month));
@@ -439,7 +487,7 @@ function budgetHandlers(store: MockStore): HandlerRegistry {
           categoryName: c.name,
           budgetCents: override?.amountCents ?? null,
           overrideCents: override?.amountCents ?? null,
-          spentCents: 0,
+          spentCents: spentByTop.get(c.id) ?? 0,
           rolloverCents: 0,
           rolloverEnabled: c.rollover_enabled,
         });

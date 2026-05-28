@@ -11,6 +11,22 @@ interface CreateAccountArgs {
   institutionId?: number | null;
 }
 
+/**
+ * Deterministic fake balance based on account id, in cents.
+ * Spread across positive/negative to exercise sign-aware UI.
+ * Shared with the institution summary handler so both views agree.
+ */
+export function mockAccountBalanceCents(id: number): number {
+  const balances: Record<number, number> = {
+    1: 342_15,
+    2: 12_480_00,
+    3: 1_823_47,
+    4: 0,
+    5: -218_94,
+  };
+  return balances[id] ?? 0;
+}
+
 export function createAccountHandlers(store: MockStore): HandlerRegistry {
   return {
     // Snapshot statt Live-Array: Tauri-IPC ist eine Serialisierungs-Grenze,
@@ -55,16 +71,7 @@ export function createAccountHandlers(store: MockStore): HandlerRegistry {
 
     account_balance: (raw) => {
       const { id } = raw as { id: number };
-      // Deterministic fake balance based on id, in cents.
-      // Spread across positive/negative to exercise sign-aware UI.
-      const balances: Record<number, number> = {
-        1: 342_15,
-        2: 12_480_00,
-        3: 1_823_47,
-        4: 0,
-        5: -218_94,
-      };
-      return balances[id] ?? 0;
+      return mockAccountBalanceCents(id);
     },
   };
 }

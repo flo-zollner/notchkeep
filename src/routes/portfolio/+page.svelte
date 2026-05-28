@@ -183,7 +183,10 @@
   <DividendHistoryList entries={dividends} />
 {:else if activeTab === 'allocation'}
   <div class="alloc-grid">
-    <AllocationDonut title={tp.allocByAssetType} slices={allocAssetType} />
+    <AllocationDonut
+      title={tp.allocByAssetType}
+      slices={allocAssetType.map((s) => ({ ...s, key: typeLabel(s.key) }))}
+    />
     <AllocationDonut title={tp.allocByCountry} slices={allocCountry} />
     <AllocationDonut title={tp.allocBySector} slices={allocSector} />
   </div>

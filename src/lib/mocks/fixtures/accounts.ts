@@ -8,7 +8,7 @@ export const SEED_ACCOUNTS: Account[] = [
   {
     id: 1,
     name: 'Girokonto',
-    kind: 'checking',
+    kind: 'bank',
     currency: 'EUR',
     icon: 'wallet',
     color: 'var(--c2)',
@@ -38,7 +38,7 @@ export const SEED_ACCOUNTS: Account[] = [
   {
     id: 3,
     name: 'Verrechnungskonto Broker',
-    kind: 'broker_cash',
+    kind: 'cash',
     currency: 'EUR',
     icon: 'cash',
     color: 'var(--c4)',
@@ -53,7 +53,7 @@ export const SEED_ACCOUNTS: Account[] = [
   {
     id: 4,
     name: 'Depot',
-    kind: 'broker_depot',
+    kind: 'broker',
     currency: 'EUR',
     icon: 'chart-line',
     color: 'var(--c4)',

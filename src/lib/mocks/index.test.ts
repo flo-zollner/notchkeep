@@ -48,7 +48,7 @@ describe('Mock-Tauri invoke — accounts/categories/institutions', () => {
 
     const created = await invoke<Account>('create_account', {
       name: 'Test-Konto',
-      kind: 'checking',
+      kind: 'bank',
       currency: 'EUR',
       parentId: null,
       iban: null,

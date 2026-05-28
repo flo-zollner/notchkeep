@@ -46,6 +46,11 @@
 
   const total = $derived(groupedSlices.reduce((a, b) => a + b.v, 0));
 
+  // Donut expects euro values; groupedSlices carry cents (for fmtEur in the legend below).
+  const donutData = $derived(
+    groupedSlices.map((s) => ({ name: s.name, v: s.v / 100, color: s.color })),
+  );
+
   let hoverIdx = $state<number | null>(null);
 </script>
 
@@ -55,7 +60,7 @@
     <p class="muted">—</p>
   {:else}
     <div class="row">
-      <Donut data={groupedSlices} {size} hide={settings.hide} bind:hoverIdx />
+      <Donut data={donutData} {size} hide={settings.hide} legend={false} bind:hoverIdx />
       <ul class="legend">
         {#each groupedSlices as s, i (s.name)}
           <li

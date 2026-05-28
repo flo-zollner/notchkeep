@@ -1,6 +1,7 @@
 import type { Institution } from '$lib/api';
 import type { HandlerRegistry } from '../tauri-shim';
 import type { MockStore } from '../store';
+import { mockAccountBalanceCents } from './accounts';
 
 export function createInstitutionHandlers(store: MockStore): HandlerRegistry {
   return {
@@ -15,11 +16,19 @@ export function createInstitutionHandlers(store: MockStore): HandlerRegistry {
     list_institutions_with_summary: () =>
       store.institutions
         .filter((i) => !i.archived)
-        .map((i) => ({
-          ...i,
-          accountCount: 0,
-          balanceCents: 0,
-        })),
+        .map((i) => {
+          const accounts = store.accounts.filter(
+            (a) => a.institution_id === i.id && !a.archived,
+          );
+          return {
+            ...i,
+            accountCount: accounts.length,
+            balanceCents: accounts.reduce(
+              (sum, a) => sum + mockAccountBalanceCents(a.id),
+              0,
+            ),
+          };
+        }),
 
     get_institution: (raw) => {
       const { id } = raw as { id: number };

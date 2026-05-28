@@ -9,11 +9,13 @@
     size?: number;
     thick?: number;
     hide?: boolean;
+    /** Render the built-in legend next to the chart. Off when the parent supplies its own. */
+    legend?: boolean;
     /** Bindable: lets parent read/write hover index */
     hoverIdx?: number | null;
   }
 
-  let { data, size = 180, thick = 26, hide = false, hoverIdx = $bindable(null) }: Props = $props();
+  let { data, size = 180, thick = 26, hide = false, legend = true, hoverIdx = $bindable(null) }: Props = $props();
 
   function fmtPlain(n: number): string {
     return n.toLocaleString('de-DE', { maximumFractionDigits: 0 });
@@ -87,23 +89,25 @@
       <text x={cx} y={cy + 18} text-anchor="middle" font-size="10" fill="var(--text-faint)">{centerLabel.pct}</text>
     {/if}
   </svg>
-  <div class="legend">
-    {#each arcs as a, i (i)}
-      <div
-        class="legend-row"
-        class:hover={hoverIdx === i}
-        onpointerenter={() => hoverIdx = i}
-        onpointerleave={() => hoverIdx = null}
-        role="button"
-        tabindex="0"
-      >
-        <span class="swatch" style:background={a.color}></span>
-        <span class="legend-name">{a.name}</span>
-        <span class="num legend-val">{hide ? '••••' : fmtPlain(a.v) + ' €'}</span>
-        <span class="num legend-pct">{(a.frac * 100).toFixed(0)}%</span>
-      </div>
-    {/each}
-  </div>
+  {#if legend}
+    <div class="legend">
+      {#each arcs as a, i (i)}
+        <div
+          class="legend-row"
+          class:hover={hoverIdx === i}
+          onpointerenter={() => hoverIdx = i}
+          onpointerleave={() => hoverIdx = null}
+          role="button"
+          tabindex="0"
+        >
+          <span class="swatch" style:background={a.color}></span>
+          <span class="legend-name">{a.name}</span>
+          <span class="num legend-val">{hide ? '••••' : fmtPlain(a.v) + ' €'}</span>
+          <span class="num legend-pct">{(a.frac * 100).toFixed(0)}%</span>
+        </div>
+      {/each}
+    </div>
+  {/if}
 </div>
 
 <style>
