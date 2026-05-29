@@ -9,6 +9,7 @@ pub mod accounts;
 pub mod admin;
 pub mod aggregates;
 pub mod breakdowns;
+pub mod bucket_allocations;
 pub mod bucket_rules;
 pub mod buckets;
 pub mod budgets;
