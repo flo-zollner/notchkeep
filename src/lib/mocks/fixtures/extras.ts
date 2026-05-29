@@ -1,46 +1,4 @@
-import type { Goal, Bucket, RecurringPayment, Rule, CurrencyStatus, BucketRule } from '$lib/api';
-
-export const SEED_GOALS: Goal[] = [
-  {
-    id: 1,
-    name: 'Notgroschen',
-    categoryId: 1,
-    targetCents: 10_000_00,
-    startDate: '2025-01-01',
-    targetDate: null,
-    icon: 'shield',
-    color: 'var(--c2)',
-    note: null,
-    archived: false,
-    createdAt: '2025-01-01T10:00:00Z',
-  },
-  {
-    id: 2,
-    name: 'Urlaubskasse',
-    categoryId: 4,
-    targetCents: 2_500_00,
-    startDate: '2026-01-01',
-    targetDate: '2026-08-01',
-    icon: 'plane',
-    color: 'var(--c5)',
-    note: null,
-    archived: false,
-    createdAt: '2026-01-01T10:00:00Z',
-  },
-  {
-    id: 3,
-    name: 'Neue Couch',
-    categoryId: 4,
-    targetCents: 1_200_00,
-    startDate: '2026-03-01',
-    targetDate: '2026-12-01',
-    icon: 'sofa',
-    color: 'var(--c4)',
-    note: null,
-    archived: false,
-    createdAt: '2026-03-01T10:00:00Z',
-  },
-];
+import type { BucketAllocation, Bucket, RecurringPayment, Rule, CurrencyStatus, BucketRule } from '$lib/api';
 
 export const SEED_BUCKETS: Bucket[] = [
   {
@@ -78,6 +36,33 @@ export const SEED_BUCKETS: Bucket[] = [
     targetDate: '2026-08-01',
     archived: false,
     createdAt: '2026-01-01T10:00:00Z',
+  },
+];
+
+export const SEED_ALLOCATIONS: BucketAllocation[] = [
+  {
+    id: 1,
+    bucketId: 1,
+    amountCents: 30_000,
+    occurredOn: '2026-04-01',
+    note: null,
+    createdAt: '2026-04-01T10:00:00Z',
+  },
+  {
+    id: 2,
+    bucketId: 2,
+    amountCents: 50_000,
+    occurredOn: '2026-04-01',
+    note: 'Miete Rücklage',
+    createdAt: '2026-04-01T10:00:00Z',
+  },
+  {
+    id: 3,
+    bucketId: 3,
+    amountCents: 20_000,
+    occurredOn: '2026-05-01',
+    note: null,
+    createdAt: '2026-05-01T10:00:00Z',
   },
 ];
 

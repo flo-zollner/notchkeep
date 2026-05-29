@@ -1,14 +1,13 @@
 <script lang="ts">
   import { listen } from '@tauri-apps/api/event';
   import { goto } from '$app/navigation';
-  import { api, listInstitutionsWithSummary, type Account, type Bucket, type Category, type Transaction, type Goal, type GoalProgress, type InstitutionSummary, errMsg, isTradeTx} from '$lib/api';
+  import { api, listInstitutionsWithSummary, type Account, type Bucket, type Category, type Transaction, type InstitutionSummary, errMsg, isTradeTx} from '$lib/api';
   import { fmtEur } from '$lib/format';
   import Icon from '$lib/components/Icon.svelte';
   import KPI from '$lib/components/KPI.svelte';
   import TxRow from '$lib/components/TxRow.svelte';
   import TxModal from '$lib/components/TxModal.svelte';
   import DepotTxModal from '$lib/components/DepotTxModal.svelte';
-  import GoalCard from '$lib/components/GoalCard.svelte';
   import ImportStatementsModal from '$lib/components/ImportStatementsModal.svelte';
   import SavingsRateChart, { type SavingsChartMode } from '$lib/components/SavingsRateChart.svelte';
   import Skeleton from '$lib/components/Skeleton.svelte';
@@ -23,8 +22,6 @@
   const bucketsById = $derived(new Map(buckets.map((b) => [b.id, b])));
   let loading = $state(true);
   let error = $state<string | null>(null);
-  let goals = $state<Goal[]>([]);
-  let goalProgress = $state<Record<number, GoalProgress>>({});
   let monthlyFlows = $state<Array<{ year: number; month: number; inCents: number; outCents: number }>>([]);
   let institutionSummaries = $state<InstitutionSummary[]>([]);
   let accountBalances = $state<Record<number, number>>({});
@@ -208,16 +205,6 @@
     void range.to;
     void loadRangeTx();
   });
-
-  $effect(() => {
-    void loadGoals();
-  });
-
-  async function loadGoals() {
-    const [g, p] = await Promise.all([api.listGoals(false), api.listGoalProgress(false)]);
-    goals = g.slice(0, 3);
-    goalProgress = Object.fromEntries(p.map((x) => [x.goalId, x]));
-  }
 
   $effect(() => {
     void loadInstitutions();
@@ -546,27 +533,6 @@
       {/if}
     </div>
 
-    <div class="card">
-      <div class="card-h">
-        <h3>{t().common.goals}</h3>
-        <a class="see-all" href="/goals">{t().goals.seeAll}</a>
-      </div>
-      {#if goals.length === 0}
-        <div class="empty small">
-          <a href="/goals">{t().goals.emptyCta}</a>
-        </div>
-      {:else}
-        <div class="goal-list">
-          {#each goals as g (g.id)}
-            <GoalCard
-              goal={g}
-              progress={goalProgress[g.id] ?? { goalId: g.id, currentCents: 0, monthlyAvgCents: 0, forecastDate: null, onTrack: null }}
-              category={categories.find((c) => c.id === g.categoryId)}
-            />
-          {/each}
-        </div>
-      {/if}
-    </div>
   </div>
 </div>
 
@@ -717,10 +683,6 @@
     font-size: 13px;
     font-weight: 500;
   }
-  .see-all { font-size: 12px; color: var(--text-muted); text-decoration: none; }
-  .see-all:hover { color: var(--text); }
-  .goal-list { display: flex; flex-direction: column; gap: 10px; }
-
   /* institutions section */
   .inst-rows {
     list-style: none;

@@ -15,8 +15,7 @@
   let editing = $state<Bucket | null>(null);
   let addingNew = $state(false);
 
-  const tb = $derived((t() as Record<string, any>).buckets ?? {});
-  const tg = $derived(t().goals);
+  const tb = $derived(t().buckets);
 
   $effect(() => {
     void reload(showArchived);
@@ -156,10 +155,10 @@
   <div class="actions">
     <label class="toggle">
       <input type="checkbox" bind:checked={showArchived} />
-      <span>{tb.showArchived ?? tg.showArchived ?? 'Archivierte anzeigen'}</span>
+      <span>{tb.showArchived}</span>
     </label>
     <button class="primary" type="button" onclick={() => (addingNew = true)}>
-      <Icon name="plus" size={14} /> {tb.new ?? 'Neuer Topf'}
+      <Icon name="plus" size={14} /> {tb.add}
     </button>
   </div>
 </header>

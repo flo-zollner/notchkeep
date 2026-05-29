@@ -19,9 +19,8 @@
   }
   let { bucket, onClose, onSaved, onDeleted }: Props = $props();
 
-  const tb = $derived((t() as Record<string, any>).buckets ?? {});
+  const tb = $derived(t().buckets);
   const tc = $derived(t().common);
-  const tg = $derived(t().goals);
 
   const ICONS = ['wallet', 'piggy', 'star', 'goal', 'target', 'plane', 'home', 'heart', 'briefcase', 'shield'];
   const COLORS = [
@@ -62,7 +61,7 @@
   async function save() {
     error = null;
     if (!name.trim()) {
-      error = tb.errNameRequired ?? tg.errNameRequired ?? 'Name erforderlich';
+      error = tb.errNameRequired;
       return;
     }
 
@@ -71,14 +70,14 @@
     if (targetTrimmed !== '') {
       const parsed = Math.round(parseEur(targetTrimmed) * 100);
       if (!Number.isFinite(parsed) || parsed < 0) {
-        error = tb.errTargetInvalid ?? tg.errTargetInvalid ?? 'Ungültiger Zielbetrag';
+        error = tb.errTargetInvalid;
         return;
       }
       targetCents = parsed;
     }
 
     if (targetDate && startDate && targetDate < startDate) {
-      error = tb.errDateOrder ?? tg.errDateOrder ?? 'Zieldatum vor Startdatum';
+      error = tb.errDateOrder;
       return;
     }
 
@@ -134,18 +133,18 @@
   }
 </script>
 
-<Sheet open={true} {onClose} title={isEdit ? (tb.edit ?? 'Topf bearbeiten') : (tb.new ?? 'Neuer Topf')}>
+<Sheet open={true} {onClose} title={isEdit ? tb.edit : tb.add}>
   {#snippet footer()}
     <div class="footer-actions">
       {#if confirmingDelete}
         <div class="confirm-row">
-          <span class="confirm-msg">{tb.confirmDelete ?? tg.confirmDelete ?? 'Wirklich löschen?'}</span>
+          <span class="confirm-msg">{tb.confirmDelete}</span>
           <div class="spacer"></div>
           <button type="button" onclick={() => (confirmingDelete = false)} disabled={saving}>
             {tc.cancel}
           </button>
           <button type="button" class="btn danger" onclick={remove} disabled={saving}>
-            {tb.delete ?? tg.delete ?? tc.delete}
+            {tb.delete}
           </button>
         </div>
       {:else}
@@ -156,7 +155,7 @@
             onclick={() => (confirmingDelete = true)}
             disabled={saving}
           >
-            {tb.delete ?? tg.delete ?? tc.delete}
+            {tb.delete}
           </button>
         {/if}
         <button type="button" class="btn" onclick={onClose} disabled={saving}>{tc.cancel}</button>
@@ -172,22 +171,22 @@
     </label>
 
     <label>
-      <span>{tb.target ?? tg.target ?? 'Zielbetrag'}</span>
+      <span>{tb.targetCents}</span>
       <input bind:value={targetEur} type="text" inputmode="decimal" placeholder="0,00" />
     </label>
 
     <label>
-      <span>{tb.startDate ?? tg.startDate ?? 'Startdatum'}</span>
+      <span>{tb.startDate}</span>
       <DateField bind:value={startDate} />
     </label>
 
     <label>
-      <span>{tb.targetDate ?? tg.targetDate ?? 'Zieldatum'}</span>
+      <span>{tb.targetDate}</span>
       <DateField bind:value={targetDate} />
     </label>
 
     <div class="full">
-      <span class="picker-label">{tb.pickIcon ?? tg.pickIcon ?? 'Icon wählen'}</span>
+      <span class="picker-label">{tb.pickIcon}</span>
       <div class="picker">
         {#each ICONS as ic (ic)}
           <button
@@ -205,13 +204,13 @@
           class="picker-btn"
           class:on={icon === null}
           onclick={() => (icon = null)}
-          aria-label={tb.noIcon ?? tg.noIcon ?? 'Kein Icon'}
+          aria-label={tb.pickIcon}
         >–</button>
       </div>
     </div>
 
     <div class="full">
-      <span class="picker-label">{tb.pickColor ?? tg.pickColor ?? 'Farbe wählen'}</span>
+      <span class="picker-label">{tb.pickColor}</span>
       <div class="picker">
         {#each COLORS as c (c)}
           <button
@@ -228,20 +227,20 @@
           class="swatch swatch-empty"
           class:on={color === null}
           onclick={() => (color = null)}
-          aria-label={tb.noColor ?? tg.noColor ?? 'Keine Farbe'}
+          aria-label={tb.pickColor}
         >–</button>
       </div>
     </div>
 
     <label class="full">
-      <span>{tb.note ?? tg.note ?? 'Notiz'}</span>
+      <span>{tb.note}</span>
       <textarea bind:value={note} rows="2"></textarea>
     </label>
 
     {#if isEdit}
       <label class="full check">
         <input bind:checked={archived} type="checkbox" />
-        <span>{tb.archived ?? tg.archived ?? 'Archiviert'}</span>
+        <span>{tb.archived}</span>
       </label>
     {/if}
   </div>

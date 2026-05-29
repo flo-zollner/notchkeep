@@ -313,49 +313,20 @@ export interface NewCategoryPayload {
   rolloverEnabled: boolean;
 }
 
-export interface Goal {
+export interface BucketAllocation {
   id: number;
-  name: string;
-  categoryId: number;
-  targetCents: number;
-  startDate: string;            // YYYY-MM-DD
-  targetDate: string | null;
-  icon: string | null;
-  color: string | null;
+  bucketId: number;
+  amountCents: number;
+  occurredOn: string; // YYYY-MM-DD
   note: string | null;
-  archived: boolean;
   createdAt: string;
 }
 
-export interface NewGoalPayload {
-  name: string;
-  categoryId: number;
-  targetCents: number;
-  startDate?: string;
-  targetDate?: string | null;
-  icon?: string | null;
-  color?: string | null;
+export interface NewBucketAllocationPayload {
+  bucketId: number;
+  amountCents: number;
+  occurredOn?: string | null;
   note?: string | null;
-}
-
-export interface UpdateGoalPayload {
-  name?: string;
-  categoryId?: number;
-  targetCents?: number;
-  startDate?: string;
-  targetDate?: string | null;
-  icon?: string | null;
-  color?: string | null;
-  note?: string | null;
-  archived?: boolean;
-}
-
-export interface GoalProgress {
-  goalId: number;
-  currentCents: number;
-  monthlyAvgCents: number;
-  forecastDate: string | null;  // YYYY-MM-01
-  onTrack: boolean | null;
 }
 
 export interface SecurityBucketAllocation {
@@ -834,20 +805,6 @@ export const api = {
       forecastMonths,
     }),
 
-  // Goals
-  listGoals: (includeArchived = false) =>
-    invoke<Goal[]>('list_goals', { includeArchived }),
-  getGoal: (id: number) => invoke<Goal>('get_goal', { id }),
-  createGoal: (payload: NewGoalPayload) =>
-    invoke<Goal>('create_goal', { payload }),
-  updateGoal: (id: number, payload: UpdateGoalPayload) =>
-    invoke<Goal>('update_goal', { id, payload }),
-  deleteGoal: (id: number) => invoke<boolean>('delete_goal', { id }),
-  goalProgress: (id: number) =>
-    invoke<GoalProgress>('goal_progress', { id }),
-  listGoalProgress: (includeArchived = false) =>
-    invoke<GoalProgress[]>('list_goal_progress', { includeArchived }),
-
   // Buckets
   listBuckets: (includeArchived = false) =>
     invoke<Bucket[]>('list_buckets', { includeArchived }),
@@ -862,6 +819,13 @@ export const api = {
     invoke<BucketProgress[]>('list_bucket_progress'),
   assignBucket: (transactionId: number, bucketId: number | null) =>
     invoke<void>('assign_bucket', { transactionId, bucketId }),
+  readyToAssign: () => invoke<number>('ready_to_assign'),
+  listBucketAllocations: (bucketId?: number) =>
+    invoke<BucketAllocation[]>('list_bucket_allocations', { bucketId: bucketId ?? null }),
+  createBucketAllocation: (payload: NewBucketAllocationPayload) =>
+    invoke<BucketAllocation>('create_bucket_allocation', { payload }),
+  moveBetweenBuckets: (fromBucket: number, toBucket: number, amountCents: number, occurredOn?: string) =>
+    invoke<void>('move_between_buckets', { fromBucket, toBucket, amountCents, occurredOn: occurredOn ?? null }),
 
   // Bucket Rules
   listBucketRules: () => invoke<BucketRule[]>('list_bucket_rules'),

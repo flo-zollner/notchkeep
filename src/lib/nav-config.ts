@@ -19,7 +19,6 @@ export const navMain: NavItem[] = [
   { id: 'dash',      href: '/',             icon: 'overview',  labelKey: 'overview' },
   { id: 'networth',  href: '/networth',     icon: 'networth',  labelKey: 'networth' },
   { id: 'portfolio', href: '/portfolio',    icon: 'reports',   labelKey: 'portfolio' },
-  { id: 'goals',     href: '/goals',        icon: 'goal',      labelKey: 'goals' },
   { id: 'buckets',   href: '/buckets',      icon: 'tag',       labelKey: 'buckets' },
   { id: 'recurring', href: '/recurring',    icon: 'repeat',    labelKey: 'recurring' },
   { id: 'tx',        href: '/transactions', icon: 'tx',        labelKey: 'transactions' },
@@ -46,7 +45,6 @@ export const mobileTabs: MobileTab[] = [
 /** Routes visible in the "More" sheet (main nav minus the 4 bottom tabs). */
 export const moreItems: NavItem[] = [
   { id: 'portfolio', href: '/portfolio',   icon: 'reports',   labelKey: 'portfolio' },
-  { id: 'goals',     href: '/goals',       icon: 'goal',      labelKey: 'goals' },
   { id: 'buckets',   href: '/buckets',     icon: 'tag',       labelKey: 'buckets' },
   { id: 'recurring', href: '/recurring',   icon: 'repeat',    labelKey: 'recurring' },
   { id: 'reports',   href: '/reports',     icon: 'reports',   labelKey: 'reports' },

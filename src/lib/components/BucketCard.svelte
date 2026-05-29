@@ -13,8 +13,7 @@
   }
   let { bucket, progress, securitiesValueCents = 0, trend, onEdit }: Props = $props();
 
-  const tb = $derived((t() as Record<string, any>).buckets ?? {});
-  const tg = $derived(t().goals);
+  const tb = $derived(t().buckets);
 
   const cashCents = $derived(progress?.currentCents ?? 0);
   const txCount = $derived(progress?.txCount ?? 0);
@@ -41,7 +40,7 @@
     </span>
     <h4>{bucket.name}</h4>
     {#if bucket.archived}
-      <span class="badge">{tb.archived ?? tg.archived ?? 'Archiviert'}</span>
+      <span class="badge">{tb.archived}</span>
     {:else if isFunded}
       <span class="badge funded">✓ {tb.statusFunded ?? 'Funded'}</span>
     {:else if target !== null && target > 0}
@@ -89,7 +88,7 @@
   <footer>
     <span class="tx-count">
       {txCount}
-      {tb.txCountLabel ?? (txCount === 1 ? 'Buchung' : 'Buchungen')}
+      {txCount === 1 ? 'Buchung' : 'Buchungen'}
     </span>
     {#if securitiesValueCents > 0}
       <span class="in-sec">

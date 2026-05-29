@@ -1,7 +1,6 @@
 import type {
-  Goal,
-  GoalProgress,
   Bucket,
+  BucketAllocation,
   BucketProgress,
   BucketRule,
   RecurringPayment,
@@ -20,11 +19,10 @@ import type {
   ExportResult,
   ImportReport,
   SyncConflictFile,
-  NewGoalPayload,
-  UpdateGoalPayload,
   NewBucketPayload,
   UpdateBucketPayload,
   NewBucketRulePayload,
+  NewBucketAllocationPayload,
   NewRecurringPayload,
   UpdateRecurringPayload,
   NewRulePayload,
@@ -32,79 +30,6 @@ import type {
 } from '$lib/api';
 import type { HandlerRegistry } from '../tauri-shim';
 import type { MockStore } from '../store';
-
-// ─── Goals ───
-function goalHandlers(store: MockStore): HandlerRegistry {
-  return {
-    list_goals: (raw) => {
-      const { includeArchived } = (raw ?? {}) as { includeArchived?: boolean };
-      const src = includeArchived ? store.goals : store.goals.filter((g) => !g.archived);
-      return src.map((g) => ({ ...g }));
-    },
-    get_goal: (raw) => {
-      const { id } = raw as { id: number };
-      const g = store.goals.find((x) => x.id === id);
-      if (!g) throw { message: `Goal ${id} not found` };
-      return { ...g };
-    },
-    create_goal: (raw) => {
-      const { payload } = raw as { payload: NewGoalPayload };
-      const g: Goal = {
-        id: store.nextGoalId++,
-        name: payload.name,
-        categoryId: payload.categoryId,
-        targetCents: payload.targetCents,
-        startDate: payload.startDate ?? new Date().toISOString().slice(0, 10),
-        targetDate: payload.targetDate ?? null,
-        icon: payload.icon ?? null,
-        color: payload.color ?? null,
-        note: payload.note ?? null,
-        archived: false,
-        createdAt: new Date().toISOString(),
-      };
-      store.goals.push(g);
-      return { ...g };
-    },
-    update_goal: (raw) => {
-      const { id, payload } = raw as { id: number; payload: UpdateGoalPayload };
-      const idx = store.goals.findIndex((g) => g.id === id);
-      if (idx === -1) throw { message: `Goal ${id} not found` };
-      store.goals[idx] = { ...store.goals[idx], ...payload };
-      return { ...store.goals[idx] };
-    },
-    delete_goal: (raw) => {
-      const { id } = raw as { id: number };
-      const idx = store.goals.findIndex((g) => g.id === id);
-      if (idx === -1) return false;
-      store.goals.splice(idx, 1);
-      return true;
-    },
-    goal_progress: (raw) => {
-      const { id } = raw as { id: number };
-      const g = store.goals.find((x) => x.id === id);
-      if (!g) throw { message: `Goal ${id} not found` };
-      const result: GoalProgress = {
-        goalId: g.id,
-        currentCents: Math.round(g.targetCents * 0.42),
-        monthlyAvgCents: Math.round(g.targetCents / 24),
-        forecastDate: null,
-        onTrack: true,
-      };
-      return result;
-    },
-    list_goal_progress: (raw) => {
-      const { includeArchived } = (raw ?? {}) as { includeArchived?: boolean };
-      const src = includeArchived ? store.goals : store.goals.filter((g) => !g.archived);
-      return src.map((g): GoalProgress => ({
-        goalId: g.id,
-        currentCents: Math.round(g.targetCents * 0.42),
-        monthlyAvgCents: Math.round(g.targetCents / 24),
-        forecastDate: null,
-        onTrack: true,
-      }));
-    },
-  };
-}
 
 // ─── Buckets ───
 function bucketHandlers(store: MockStore): HandlerRegistry {
@@ -151,12 +76,93 @@ function bucketHandlers(store: MockStore): HandlerRegistry {
       store.buckets.splice(idx, 1);
       return true;
     },
-    bucket_balance: () => 0,
+    bucket_balance: (raw) => {
+      const { id } = raw as { id: number };
+      const allocSum = store.allocations
+        .filter((a) => a.bucketId === id)
+        .reduce((s, a) => s + a.amountCents, 0);
+      const txSum = store.transactions
+        .filter((tx) => tx.bucket_id === id && tx.amount_cents < 0)
+        .reduce((s, tx) => s + tx.amount_cents, 0);
+      return allocSum + txSum;
+    },
     list_bucket_progress: () =>
       store.buckets
         .filter((b) => !b.archived)
-        .map((b): BucketProgress => ({ bucketId: b.id, currentCents: 0, txCount: 0 })),
+        .map((b): BucketProgress => {
+          const allocSum = store.allocations
+            .filter((a) => a.bucketId === b.id)
+            .reduce((s, a) => s + a.amountCents, 0);
+          const txSum = store.transactions
+            .filter((tx) => tx.bucket_id === b.id && tx.amount_cents < 0)
+            .reduce((s, tx) => s + tx.amount_cents, 0);
+          const txCount = store.transactions.filter((tx) => tx.bucket_id === b.id).length;
+          return { bucketId: b.id, currentCents: allocSum + txSum, txCount };
+        }),
     bucket_monthly_flow: () => [],
+
+    // Envelope budgeting
+    ready_to_assign: () => {
+      const cashAccountIds = new Set(
+        store.accounts.filter((a) => a.kind !== 'broker').map((a) => a.id),
+      );
+      const cashIn = store.transactions
+        .filter((tx) => cashAccountIds.has(tx.account_id))
+        .reduce((s, tx) => s + tx.amount_cents, 0);
+      const allocOut = store.allocations.reduce((s, a) => s + a.amountCents, 0);
+      const assignedTx = store.transactions
+        .filter((tx) => tx.bucket_id != null)
+        .reduce((s, tx) => s + tx.amount_cents, 0);
+      return cashIn - allocOut - assignedTx;
+    },
+    list_bucket_allocations: (raw) => {
+      const { bucketId } = (raw ?? {}) as { bucketId?: number | null };
+      const src =
+        bucketId != null
+          ? store.allocations.filter((a) => a.bucketId === bucketId)
+          : store.allocations;
+      return src.map((a) => ({ ...a }));
+    },
+    create_bucket_allocation: (raw) => {
+      const { payload } = raw as { payload: NewBucketAllocationPayload };
+      const alloc: BucketAllocation = {
+        id: store.nextAllocationId++,
+        bucketId: payload.bucketId,
+        amountCents: payload.amountCents,
+        occurredOn: payload.occurredOn ?? new Date().toISOString().slice(0, 10),
+        note: payload.note ?? null,
+        createdAt: new Date().toISOString(),
+      };
+      store.allocations.push(alloc);
+      return { ...alloc };
+    },
+    move_between_buckets: (raw) => {
+      const { fromBucket, toBucket, amountCents, occurredOn } = raw as {
+        fromBucket: number;
+        toBucket: number;
+        amountCents: number;
+        occurredOn?: string | null;
+      };
+      const date = occurredOn ?? new Date().toISOString().slice(0, 10);
+      const now = new Date().toISOString();
+      store.allocations.push({
+        id: store.nextAllocationId++,
+        bucketId: fromBucket,
+        amountCents: -amountCents,
+        occurredOn: date,
+        note: null,
+        createdAt: now,
+      });
+      store.allocations.push({
+        id: store.nextAllocationId++,
+        bucketId: toBucket,
+        amountCents: amountCents,
+        occurredOn: date,
+        note: null,
+        createdAt: now,
+      });
+      return null;
+    },
   };
 }
 
@@ -579,7 +585,6 @@ function miscHandlers(_store: MockStore): HandlerRegistry {
 
 export function createExtraHandlers(store: MockStore): HandlerRegistry {
   return {
-    ...goalHandlers(store),
     ...bucketHandlers(store),
     ...bucketRuleHandlers(store),
     ...recurringHandlers(store),

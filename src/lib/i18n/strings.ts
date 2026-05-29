@@ -3,7 +3,6 @@ export type Lang = 'de' | 'en';
 export interface NavStrings {
   overview: string;
   networth: string;
-  goals: string;
   portfolio: string;
   buckets: string;
   recurring: string;
@@ -70,7 +69,7 @@ export interface I18N {
     version: string;
     seeAll: string; breakdown: string; perCat: string; monthAvg: string;
     incomeVsExp: string; topCats: string; recent: string;
-    goals: string; yourMoney: string;
+    yourMoney: string;
     inserted: string; skipped: string; parsed: string;
     rules: string; soon: string;
     edit: string; income_in: string; expense_out: string;
@@ -151,6 +150,22 @@ export interface I18N {
     sectionFunded: string;
     statusFunding: string;
     statusFunded: string;
+    readyToAssign: string;
+    assign: string;
+    assignTo: string;
+    moveFrom: string;
+    unassignedSource: string;
+    amount: string;
+    backToUnassigned: string;
+    overspentBy: string;
+    coverageWarnTitle: string;
+    coverageWarnBody: string;
+    coverageFix: string;
+    assignPreview: string;
+    assignWouldGoNegative: string;
+    allocationNote: string;
+    occurredOn: string;
+    cancel: string;
   };
   accounts: {
     groupBy: string;
@@ -177,36 +192,6 @@ export interface I18N {
     icon: string;
     color: string;
     note: string;
-  };
-  goals: {
-    title: string;
-    new: string;
-    edit: string;
-    empty: string;
-    emptyCta: string;
-    showArchived: string;
-    archived: string;
-    reached: string;
-    onTrack: string;
-    behind: string;
-    forecast: string;
-    target: string;
-    targetDate: string;
-    startDate: string;
-    category: string;
-    seeAll: string;
-    delete: string;
-    confirmDelete: string;
-    pickIcon: string;
-    pickColor: string;
-    note: string;
-    noIcon: string;
-    noColor: string;
-    noCategories: string;
-    errNameRequired: string;
-    errCategoryRequired: string;
-    errTargetInvalid: string;
-    errDateOrder: string;
   };
   portfolio: {
     title: string;
@@ -494,7 +479,6 @@ export const I18N: Record<Lang, I18N> = {
     nav: {
       overview: 'Übersicht',
       networth: 'Vermögen',
-      goals: 'Ziele',
       portfolio: 'Depot',
       buckets: 'Töpfe',
       recurring: 'Wiederkehrend',
@@ -565,7 +549,7 @@ export const I18N: Record<Lang, I18N> = {
       monthAvg: 'Ø Monat',
       incomeVsExp: 'Einnahmen vs. Ausgaben', topCats: 'Top-Kategorien',
       recent: 'Aktuelle Transaktionen',
-      goals: 'Ziele', yourMoney: 'Dein Geld, klar gesehen.',
+      yourMoney: 'Dein Geld, klar gesehen.',
       inserted: 'eingefügt', skipped: 'übersprungen', parsed: 'gelesen',
       rules: 'Regeln', soon: 'Bald verfügbar',
       edit: 'Bearbeiten', income_in: 'Einnahme', expense_out: 'Ausgabe',
@@ -660,6 +644,22 @@ export const I18N: Record<Lang, I18N> = {
       sectionFunded: 'Funded',
       statusFunding: 'Funding',
       statusFunded: 'Funded',
+      readyToAssign: 'Unverteilt',
+      assign: 'Zuweisen',
+      assignTo: 'In Topf legen',
+      moveFrom: 'Quelle',
+      unassignedSource: '— Unverteilt —',
+      amount: 'Betrag',
+      backToUnassigned: 'Zurück nach Unverteilt',
+      overspentBy: 'überzogen um {amount}',
+      coverageWarnTitle: 'Unterdeckung',
+      coverageWarnBody: 'Du hast {amount} mehr reserviert, als auf den Konten liegt.',
+      coverageFix: 'Deckung herstellen',
+      assignPreview: 'Unverteilt: {before} → {after}',
+      assignWouldGoNegative: 'Diese Zuweisung würde „Unverteilt" negativ machen.',
+      allocationNote: 'Notiz (optional)',
+      occurredOn: 'Datum',
+      cancel: 'Abbrechen',
     },
     accounts: {
       groupBy: 'Gruppieren nach',
@@ -686,36 +686,6 @@ export const I18N: Record<Lang, I18N> = {
       icon: 'Icon',
       color: 'Farbe',
       note: 'Notiz',
-    },
-    goals: {
-      title: 'Ziele',
-      new: 'Neues Ziel',
-      edit: 'Ziel bearbeiten',
-      empty: 'Noch keine Ziele angelegt.',
-      emptyCta: 'Erstes Ziel anlegen',
-      showArchived: 'Archivierte anzeigen',
-      archived: 'Archiviert',
-      reached: 'Erreicht',
-      onTrack: 'on track',
-      behind: 'verspätet',
-      forecast: 'Voraussichtlich',
-      target: 'Zielbetrag',
-      targetDate: 'Wunschtermin',
-      startDate: 'Startdatum',
-      category: 'Kategorie',
-      seeAll: 'Alle Ziele',
-      delete: 'Löschen',
-      confirmDelete: 'Dieses Ziel wirklich löschen?',
-      pickIcon: 'Icon',
-      pickColor: 'Farbe',
-      note: 'Notiz',
-      noIcon: 'kein Icon',
-      noColor: 'keine Farbe',
-      noCategories: 'Lege zuerst eine Kategorie an, bevor du ein Ziel erstellst.',
-      errNameRequired: 'Bitte einen Namen eingeben.',
-      errCategoryRequired: 'Bitte eine Kategorie wählen.',
-      errTargetInvalid: 'Zielbetrag muss größer als 0 sein.',
-      errDateOrder: 'Wunschtermin muss am oder nach dem Startdatum liegen.',
     },
     portfolio: {
       title: 'Depot',
@@ -999,7 +969,6 @@ export const I18N: Record<Lang, I18N> = {
     nav: {
       overview: 'Overview',
       networth: 'Net Worth',
-      goals: 'Goals',
       portfolio: 'Portfolio',
       buckets: 'Buckets',
       recurring: 'Recurring',
@@ -1070,7 +1039,7 @@ export const I18N: Record<Lang, I18N> = {
       monthAvg: 'Monthly avg',
       incomeVsExp: 'Income vs. expenses', topCats: 'Top categories',
       recent: 'Recent transactions',
-      goals: 'Goals', yourMoney: 'Your money, clearly.',
+      yourMoney: 'Your money, clearly.',
       inserted: 'inserted', skipped: 'skipped', parsed: 'parsed',
       rules: 'Rules', soon: 'Coming soon',
       edit: 'Edit', income_in: 'Income', expense_out: 'Expense',
@@ -1165,6 +1134,22 @@ export const I18N: Record<Lang, I18N> = {
       sectionFunded: 'Funded',
       statusFunding: 'Funding',
       statusFunded: 'Funded',
+      readyToAssign: 'Ready to Assign',
+      assign: 'Assign',
+      assignTo: 'Add to bucket',
+      moveFrom: 'Source',
+      unassignedSource: '— Ready to Assign —',
+      amount: 'Amount',
+      backToUnassigned: 'Back to Ready to Assign',
+      overspentBy: 'overspent by {amount}',
+      coverageWarnTitle: 'Under-funded',
+      coverageWarnBody: "You've reserved {amount} more than your accounts hold.",
+      coverageFix: 'Fix coverage',
+      assignPreview: 'Ready to Assign: {before} → {after}',
+      assignWouldGoNegative: 'This assignment would make Ready to Assign negative.',
+      allocationNote: 'Note (optional)',
+      occurredOn: 'Date',
+      cancel: 'Cancel',
     },
     accounts: {
       groupBy: 'Group by',
@@ -1190,36 +1175,6 @@ export const I18N: Record<Lang, I18N> = {
       firstTx: 'Oldest transaction',
       icon: 'Icon',
       color: 'Color',
-      note: 'Note',
-    },
-    goals: {
-      title: 'Goals',
-      new: 'New goal',
-      edit: 'Edit goal',
-      empty: 'No goals yet.',
-      emptyCta: 'Create your first goal',
-      showArchived: 'Show archived',
-      archived: 'Archived',
-      reached: 'Reached',
-      onTrack: 'on track',
-      behind: 'behind',
-      forecast: 'Forecast',
-      target: 'Target',
-      targetDate: 'Target date',
-      startDate: 'Start date',
-      category: 'Category',
-      seeAll: 'All goals',
-      delete: 'Delete',
-      confirmDelete: 'Delete this goal?',
-      noIcon: 'no icon',
-      noColor: 'no color',
-      noCategories: 'Create a category first before adding a goal.',
-      errNameRequired: 'Please enter a name.',
-      errCategoryRequired: 'Please pick a category.',
-      errTargetInvalid: 'Target must be greater than 0.',
-      errDateOrder: 'Target date must be on or after start date.',
-      pickIcon: 'Icon',
-      pickColor: 'Color',
       note: 'Note',
     },
     portfolio: {

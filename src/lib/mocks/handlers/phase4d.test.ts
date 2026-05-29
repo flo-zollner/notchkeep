@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { createMockTauriInvoke } from '../index';
 import type {
-  Goal,
   Bucket,
+  BucketAllocation,
   RecurringPayment,
   Rule,
   Category,
@@ -13,36 +13,11 @@ import type {
   ExportResult,
   ImportReport,
   BucketRule,
-  GoalProgress,
   BucketProgress,
   RecurringOverview,
 } from '$lib/api';
 
 describe('Phase 4d — restliche Domänen', () => {
-  // Goals
-  it('list_goals + create_goal + delete_goal round-trip', async () => {
-    const invoke = createMockTauriInvoke();
-    const before = await invoke<Goal[]>('list_goals', { includeArchived: false });
-
-    const created = await invoke<Goal>('create_goal', {
-      payload: { name: 'Notgroschen', categoryId: 1, targetCents: 10_000_00, startDate: '2026-01-01' },
-    });
-    expect(created.name).toBe('Notgroschen');
-
-    const after = await invoke<Goal[]>('list_goals', { includeArchived: false });
-    expect(after.length).toBe(before.length + 1);
-
-    const ok = await invoke<boolean>('delete_goal', { id: created.id });
-    expect(ok).toBe(true);
-  });
-
-  it('list_goal_progress returns one entry per goal', async () => {
-    const invoke = createMockTauriInvoke();
-    const goals = await invoke<Goal[]>('list_goals', { includeArchived: false });
-    const progress = await invoke<GoalProgress[]>('list_goal_progress', { includeArchived: false });
-    expect(progress).toHaveLength(goals.length);
-  });
-
   // Buckets
   it('list_buckets + create_bucket + bucket_balance', async () => {
     const invoke = createMockTauriInvoke();
@@ -64,6 +39,41 @@ describe('Phase 4d — restliche Domänen', () => {
     const invoke = createMockTauriInvoke();
     const progress = await invoke<BucketProgress[]>('list_bucket_progress');
     expect(Array.isArray(progress)).toBe(true);
+  });
+
+  it('ready_to_assign returns a number', async () => {
+    const invoke = createMockTauriInvoke();
+    const rta = await invoke<number>('ready_to_assign');
+    expect(typeof rta).toBe('number');
+  });
+
+  it('list_bucket_allocations + create_bucket_allocation round-trip', async () => {
+    const invoke = createMockTauriInvoke();
+    const before = await invoke<BucketAllocation[]>('list_bucket_allocations', { bucketId: 1 });
+
+    const created = await invoke<BucketAllocation>('create_bucket_allocation', {
+      payload: { bucketId: 1, amountCents: 5_000, occurredOn: '2026-05-01', note: 'test' },
+    });
+    expect(created.bucketId).toBe(1);
+    expect(created.amountCents).toBe(5_000);
+
+    const after = await invoke<BucketAllocation[]>('list_bucket_allocations', { bucketId: 1 });
+    expect(after.length).toBe(before.length + 1);
+  });
+
+  it('move_between_buckets creates two allocation entries', async () => {
+    const invoke = createMockTauriInvoke();
+    const before1 = await invoke<BucketAllocation[]>('list_bucket_allocations', { bucketId: 1 });
+    const before2 = await invoke<BucketAllocation[]>('list_bucket_allocations', { bucketId: 2 });
+
+    await invoke<void>('move_between_buckets', {
+      fromBucket: 1, toBucket: 2, amountCents: 1_000, occurredOn: '2026-05-15',
+    });
+
+    const after1 = await invoke<BucketAllocation[]>('list_bucket_allocations', { bucketId: 1 });
+    const after2 = await invoke<BucketAllocation[]>('list_bucket_allocations', { bucketId: 2 });
+    expect(after1.length).toBe(before1.length + 1);
+    expect(after2.length).toBe(before2.length + 1);
   });
 
   // Bucket Rules
