@@ -136,11 +136,6 @@ pub(crate) async fn merge_categories_db(
         .bind(from_id)
         .execute(&mut *tx).await?;
 
-    // Goals have REFERENCES categories(id) ON DELETE RESTRICT — re-point to to_id
-    sqlx::query("UPDATE goals SET category_id = ?1 WHERE category_id = ?2")
-        .bind(to_id).bind(from_id)
-        .execute(&mut *tx).await?;
-
     // Delete source
     sqlx::query("DELETE FROM categories WHERE id = ?1")
         .bind(from_id)

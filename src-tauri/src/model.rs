@@ -18,22 +18,6 @@ pub struct Account {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
-#[serde(rename_all = "camelCase")]
-pub struct Goal {
-    pub id: i64,
-    pub name: String,
-    pub category_id: i64,
-    pub target_cents: i64,
-    pub start_date: String,
-    pub target_date: Option<String>,
-    pub icon: Option<String>,
-    pub color: Option<String>,
-    pub note: Option<String>,
-    pub archived: bool,
-    pub created_at: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
 pub struct Category {
     pub id: i64,
     pub parent_id: Option<i64>,

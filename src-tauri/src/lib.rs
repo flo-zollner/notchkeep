@@ -44,10 +44,6 @@ use crate::commands::budgets::{
 };
 use crate::commands::export::export_transactions_csv;
 use crate::commands::fx::{list_currencies, refresh_currency_rate, update_currency_rate};
-use crate::commands::goals::{
-    create_goal, delete_goal, get_goal, goal_progress, list_goal_progress, list_goals,
-    update_goal,
-};
 use crate::commands::import::{import_flatex_pdfs, import_sparkasse_csv, import_trade_republic_csv};
 use crate::commands::portfolio::{
     asset_allocation, bucket_holdings, cost_basis_history, cost_basis_history_daily,
@@ -126,13 +122,6 @@ pub fn run() {
             cashflow_breakdown,
             net_worth_history,
             net_worth_forecast,
-            list_goals,
-            get_goal,
-            create_goal,
-            update_goal,
-            delete_goal,
-            goal_progress,
-            list_goal_progress,
             export_transactions_csv,
             list_buckets,
             get_bucket,

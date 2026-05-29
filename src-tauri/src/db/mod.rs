@@ -15,7 +15,6 @@ pub mod budgets;
 pub mod export;
 pub mod fx;
 pub mod integrity;
-pub mod goals;
 pub mod institutions;
 pub mod lock;
 pub mod networth;

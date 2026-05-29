@@ -8,7 +8,6 @@ pub mod budgets;
 pub mod categories;
 pub mod export;
 pub mod fx;
-pub mod goals;
 pub mod import;
 pub mod institutions;
 pub mod portfolio;
