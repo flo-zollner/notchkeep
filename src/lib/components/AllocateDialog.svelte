@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
   import Sheet from './Sheet.svelte';
   import DateField from './DateField.svelte';
   import { t } from '$lib/settings.svelte';
@@ -17,8 +18,10 @@
 
   const tb = $derived(t().buckets);
 
-  // Null = unassigned source (Unverteilt); number = source bucket id
-  let sourceId = $state<number | null>(null);
+  // null = "Unverteilt" (Ready to Assign); number = bucket id.
+  // The clicked bucket is the default destination — money flows From -> To.
+  let fromId = $state<number | null>(null);
+  let toId = $state<number | null>(untrack(() => bucket.id));
   let amountStr = $state('');
   let note = $state('');
   let occurredOn = $state(todayIso());
@@ -31,37 +34,48 @@
     return Number.isFinite(n) ? Math.round(n * 100) : NaN;
   });
 
-  const isUnassignedSource = $derived(sourceId === null);
+  const validAmount = $derived(!Number.isNaN(amountCents) && amountCents > 0);
+  const sameEndpoint = $derived(fromId === toId);
 
-  const previewAfter = $derived(
-    isUnassignedSource && !Number.isNaN(amountCents) && amountCents > 0
-      ? readyToAssignCents - amountCents
-      : null,
+  // Effect on "Unverteilt": leaving it (from = null) lowers it, entering it (to = null) raises it.
+  const rtaDelta = $derived(
+    !validAmount ? 0 : fromId === null ? -amountCents : toId === null ? amountCents : 0,
   );
-
+  const previewAfter = $derived(rtaDelta === 0 ? null : readyToAssignCents + rtaDelta);
   const wouldGoNegative = $derived(previewAfter !== null && previewAfter < 0);
-
-  // Buckets other than the current one as move sources
-  const otherBuckets = $derived(buckets.filter((b) => b.id !== bucket.id));
 
   async function submit() {
     error = null;
-    const cents = amountCents;
-    if (Number.isNaN(cents) || cents === 0) {
-      error = 'Bitte einen Betrag eingeben.';
+    if (!validAmount) {
+      error = tb.errAmountRequired;
       return;
     }
+    if (sameEndpoint) {
+      error = tb.errSameEndpoint;
+      return;
+    }
+    const cents = amountCents;
     saving = true;
     try {
-      if (isUnassignedSource) {
+      if (fromId === null) {
+        // Unverteilt -> bucket: positive allocation
         await api.createBucketAllocation({
-          bucketId: bucket.id,
+          bucketId: toId!,
           amountCents: cents,
           occurredOn: occurredOn || null,
           note: note.trim() || null,
         });
+      } else if (toId === null) {
+        // bucket -> Unverteilt: negative allocation (release reservation)
+        await api.createBucketAllocation({
+          bucketId: fromId,
+          amountCents: -cents,
+          occurredOn: occurredOn || null,
+          note: note.trim() || null,
+        });
       } else {
-        await api.moveBetweenBuckets(sourceId!, bucket.id, cents, occurredOn || undefined);
+        // bucket -> bucket
+        await api.moveBetweenBuckets(fromId, toId, cents, occurredOn || undefined);
       }
       onSaved();
     } catch (e) {
@@ -85,9 +99,24 @@
   {/snippet}
 
   <div class="grid">
-    <label class="full">
-      <span>{tb.assignTo}</span>
-      <input type="text" value={bucket.name} readonly class="readonly" />
+    <label>
+      <span>{tb.moveFrom}</span>
+      <select bind:value={fromId}>
+        <option value={null}>{tb.unassignedSource}</option>
+        {#each buckets as b (b.id)}
+          <option value={b.id}>{b.name}</option>
+        {/each}
+      </select>
+    </label>
+
+    <label>
+      <span>{tb.moveTo}</span>
+      <select bind:value={toId}>
+        <option value={null}>{tb.unassignedSource}</option>
+        {#each buckets as b (b.id)}
+          <option value={b.id}>{b.name}</option>
+        {/each}
+      </select>
     </label>
 
     <label class="full">
@@ -102,16 +131,6 @@
     </label>
 
     <label class="full">
-      <span>{tb.moveFrom}</span>
-      <select bind:value={sourceId}>
-        <option value={null}>{tb.unassignedSource}</option>
-        {#each otherBuckets as b (b.id)}
-          <option value={b.id}>{b.name}</option>
-        {/each}
-      </select>
-    </label>
-
-    <label class="full">
       <span>{tb.occurredOn}</span>
       <DateField bind:value={occurredOn} />
     </label>
@@ -122,7 +141,11 @@
     </label>
   </div>
 
-  {#if isUnassignedSource && previewAfter !== null}
+  {#if sameEndpoint}
+    <p class="err">{tb.errSameEndpoint}</p>
+  {/if}
+
+  {#if previewAfter !== null}
     <div class="preview" class:warn={wouldGoNegative}>
       <span>
         {tb.assignPreview
@@ -161,10 +184,6 @@
     padding: 8px 10px;
     color: var(--text);
     font: inherit;
-  }
-  input.readonly {
-    color: var(--text-muted);
-    cursor: default;
   }
   .preview {
     margin-top: 12px;

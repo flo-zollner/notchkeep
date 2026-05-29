@@ -154,7 +154,10 @@ export interface I18N {
     assign: string;
     assignTo: string;
     moveFrom: string;
+    moveTo: string;
     unassignedSource: string;
+    errAmountRequired: string;
+    errSameEndpoint: string;
     amount: string;
     backToUnassigned: string;
     overspentBy: string;
@@ -647,8 +650,11 @@ export const I18N: Record<Lang, I18N> = {
       readyToAssign: 'Unverteilt',
       assign: 'Zuweisen',
       assignTo: 'In Topf legen',
-      moveFrom: 'Quelle',
+      moveFrom: 'Von',
+      moveTo: 'Nach',
       unassignedSource: '— Unverteilt —',
+      errAmountRequired: 'Bitte einen positiven Betrag eingeben.',
+      errSameEndpoint: 'Von und Nach müssen unterschiedlich sein.',
       amount: 'Betrag',
       backToUnassigned: 'Zurück nach Unverteilt',
       overspentBy: 'überzogen um {amount}',
@@ -1137,8 +1143,11 @@ export const I18N: Record<Lang, I18N> = {
       readyToAssign: 'Ready to Assign',
       assign: 'Assign',
       assignTo: 'Add to bucket',
-      moveFrom: 'Source',
+      moveFrom: 'From',
+      moveTo: 'To',
       unassignedSource: '— Ready to Assign —',
+      errAmountRequired: 'Enter a positive amount.',
+      errSameEndpoint: 'From and To must differ.',
       amount: 'Amount',
       backToUnassigned: 'Back to Ready to Assign',
       overspentBy: 'overspent by {amount}',
