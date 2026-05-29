@@ -30,6 +30,9 @@ use crate::commands::bucket_rules::{
     apply_bucket_rules_now, create_bucket_rule, delete_bucket_rule, list_bucket_rules,
     update_bucket_rule,
 };
+use crate::commands::bucket_allocations::{
+    create_bucket_allocation, list_bucket_allocations, move_between_buckets, ready_to_assign,
+};
 use crate::commands::buckets::{
     bucket_balance, create_bucket, delete_bucket, get_bucket, list_bucket_progress,
     list_buckets, update_bucket,
@@ -130,6 +133,10 @@ pub fn run() {
             delete_bucket,
             bucket_balance,
             list_bucket_progress,
+            ready_to_assign,
+            list_bucket_allocations,
+            create_bucket_allocation,
+            move_between_buckets,
             list_institutions,
             list_institutions_with_summary,
             get_institution,
