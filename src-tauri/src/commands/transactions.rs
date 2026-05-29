@@ -405,10 +405,7 @@ pub async fn assign_bucket(
     transaction_id: i64,
     bucket_id: Option<i64>,
 ) -> Result<(), CommandError> {
-    sqlx::query("UPDATE transactions SET bucket_id = ? WHERE id = ?")
-        .bind(bucket_id)
-        .bind(transaction_id)
-        .execute(&state.pool())
+    crate::db::transactions::set_transaction_bucket(&state.pool(), transaction_id, bucket_id)
         .await?;
     Ok(())
 }

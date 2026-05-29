@@ -2,7 +2,7 @@ use sqlx::SqlitePool;
 
 use crate::importers::RawTransaction;
 
-use super::DbResult;
+use super::{DbError, DbResult};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum InsertOutcome {
@@ -81,15 +81,100 @@ pub async fn insert_raw_transactions(
     Ok(counts)
 }
 
+/// Assigns a transaction to a bucket (`Some`) or detaches it (`None`).
+/// Only outflows (amount_cents < 0) may be assigned to a bucket — income lands
+/// in the "unassigned" pool (Ready to Assign), not in a bucket.
+pub async fn set_transaction_bucket(
+    pool: &SqlitePool,
+    transaction_id: i64,
+    bucket_id: Option<i64>,
+) -> DbResult<()> {
+    if bucket_id.is_some() {
+        let (amount,): (i64,) =
+            sqlx::query_as("SELECT amount_cents FROM transactions WHERE id = ?1")
+                .bind(transaction_id)
+                .fetch_one(pool)
+                .await?;
+        if amount >= 0 {
+            return Err(DbError::Decode(
+                "only outflows can be assigned to a bucket".into(),
+            ));
+        }
+    }
+    sqlx::query("UPDATE transactions SET bucket_id = ?1 WHERE id = ?2")
+        .bind(bucket_id)
+        .bind(transaction_id)
+        .execute(pool)
+        .await?;
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use crate::db::connect_memory;
     use crate::db::transactions::{
-        insert_raw_transaction, insert_raw_transactions, InsertOutcome,
+        insert_raw_transaction, insert_raw_transactions, set_transaction_bucket, InsertOutcome,
     };
     use crate::importers::RawTransaction;
     use chrono::NaiveDate;
     use sqlx::SqlitePool;
+
+    #[tokio::test]
+    async fn set_bucket_rejects_inflow() {
+        let pool = connect_memory().await.unwrap();
+        let acc = crate::db::accounts::create_account(&pool, "A", "bank", "EUR", None, None, None)
+            .await
+            .unwrap();
+        let b = crate::db::buckets::create_bucket(
+            &pool,
+            crate::db::buckets::NewBucketPayload {
+                name: "x".into(),
+                icon: None,
+                color: None,
+                note: None,
+                target_cents: None,
+                start_date: None,
+                target_date: None,
+            },
+        )
+        .await
+        .unwrap();
+        let (income_id,): (i64,) = sqlx::query_as(
+            "INSERT INTO transactions
+                (account_id, booking_date, amount_cents, currency, counterparty, source, kind)
+             VALUES (?1, '2026-05-01', 10000, 'EUR', 'Lohn', 'manual', 'income') RETURNING id",
+        )
+        .bind(acc.id)
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+        let (exp_id,): (i64,) = sqlx::query_as(
+            "INSERT INTO transactions
+                (account_id, booking_date, amount_cents, currency, counterparty, source, kind)
+             VALUES (?1, '2026-05-02', -2000, 'EUR', 'Edeka', 'manual', 'expense') RETURNING id",
+        )
+        .bind(acc.id)
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+
+        assert!(
+            set_transaction_bucket(&pool, income_id, Some(b.id))
+                .await
+                .is_err(),
+            "income must not be assignable to a bucket"
+        );
+        assert!(
+            set_transaction_bucket(&pool, exp_id, Some(b.id))
+                .await
+                .is_ok(),
+            "outflow may be assigned"
+        );
+        assert!(
+            set_transaction_bucket(&pool, exp_id, None).await.is_ok(),
+            "detaching is always allowed"
+        );
+    }
 
     async fn seed_account(pool: &SqlitePool, name: &str) -> i64 {
         let (id,): (i64,) = sqlx::query_as(
