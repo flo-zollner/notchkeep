@@ -105,13 +105,35 @@ mod tests {
             "accounts",
             "buckets",
             "categories",
-            "goals",
             "rules",
             "sync_lock",
             "transactions",
         ] {
             assert!(names.contains(&expected), "missing table {expected}: {names:?}");
         }
+    }
+
+    #[tokio::test]
+    async fn migration_0003_adds_allocations_and_drops_goals() {
+        let pool = connect_memory().await.unwrap();
+
+        // bucket_allocations exists
+        let (alloc_tbl,): (i64,) = sqlx::query_as(
+            "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='bucket_allocations'",
+        )
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+        assert_eq!(alloc_tbl, 1, "bucket_allocations table must exist");
+
+        // goals is gone
+        let (goals_tbl,): (i64,) = sqlx::query_as(
+            "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='goals'",
+        )
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+        assert_eq!(goals_tbl, 0, "goals table must be dropped");
     }
 
     #[tokio::test]
