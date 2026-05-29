@@ -104,6 +104,7 @@
         aria-valuemin="0"
         aria-valuemax={target}
         aria-valuenow={cashCents}
+        aria-valuetext={`${fmtEur(cashCents, { hide: settings.hide, decimals: eurDecimals() })} / ${fmtEur(target, { hide: settings.hide, decimals: eurDecimals() })}`}
       >
         <div class="fill" style:width={`${(ratio ?? 0) * 100}%`} style:background={color}></div>
       </div>
