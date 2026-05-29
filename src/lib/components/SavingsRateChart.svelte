@@ -1,7 +1,9 @@
+<script module lang="ts">
+  export type SavingsChartMode = 'bars' | 'line' | 'inout';
+</script>
+
 <script lang="ts">
   import { fmtEur } from '$lib/format';
-
-  export type SavingsChartMode = 'bars' | 'line' | 'inout';
 
   interface Flow {
     year: number;

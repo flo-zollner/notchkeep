@@ -22,7 +22,7 @@
 
   let open = $state(false);
   let inputEl: HTMLInputElement | undefined;
-  let popupEl: HTMLDivElement | undefined;
+  let popupEl: HTMLDivElement | undefined = $state();
 
   function parseIso(s: string): { y: number; m: number; d: number } | null {
     const mt = s?.match(/^(\d{4})-(\d{2})-(\d{2})$/);
