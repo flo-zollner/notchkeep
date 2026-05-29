@@ -147,8 +147,11 @@ pub async fn update_bucket(
 }
 
 pub async fn bucket_balance(pool: &SqlitePool, id: i64) -> DbResult<i64> {
+    // Cash balance = allocations + transactions assigned to it (outflows).
     let (sum,): (i64,) = sqlx::query_as(
-        "SELECT COALESCE(SUM(amount_cents), 0) FROM transactions WHERE bucket_id = ?1",
+        "SELECT
+            (SELECT COALESCE(SUM(amount_cents),0) FROM bucket_allocations WHERE bucket_id = ?1)
+          + (SELECT COALESCE(SUM(amount_cents),0) FROM transactions       WHERE bucket_id = ?1)",
     )
     .bind(id)
     .fetch_one(pool)
@@ -157,12 +160,18 @@ pub async fn bucket_balance(pool: &SqlitePool, id: i64) -> DbResult<i64> {
 }
 
 pub async fn list_bucket_progress(pool: &SqlitePool) -> DbResult<Vec<BucketProgress>> {
+    // current_cents = allocations + assigned outflows; tx_count = assigned tx count.
     let rows = sqlx::query_as::<_, BucketProgress>(
         "SELECT bucket_id AS bucket_id,
                 COALESCE(SUM(amount_cents), 0) AS current_cents,
-                COUNT(*) AS tx_count
-           FROM transactions
-          WHERE bucket_id IS NOT NULL
+                COALESCE(SUM(is_tx), 0) AS tx_count
+           FROM (
+                SELECT bucket_id, amount_cents, 1 AS is_tx
+                  FROM transactions WHERE bucket_id IS NOT NULL
+                UNION ALL
+                SELECT bucket_id, amount_cents, 0 AS is_tx
+                  FROM bucket_allocations
+           )
           GROUP BY bucket_id",
     )
     .fetch_all(pool)
@@ -284,7 +293,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn bucket_balance_sums_all_assigned_tx_net() {
+    async fn bucket_balance_combines_allocations_and_assigned_tx() {
         let pool = connect_memory().await.unwrap();
         let acc = crate::db::accounts::create_account(
             &pool, "A", "bank", "EUR", None, None, None,
@@ -293,13 +302,15 @@ mod tests {
             name: "x".into(), icon: None, color: None, note: None,
             target_cents: None, start_date: None, target_date: None,
         }).await.unwrap();
+        // 200 EUR reserved (allocation), 50 EUR outflow assigned -> 150 EUR
+        crate::db::bucket_allocations::create_allocation(
+            &pool, crate::db::bucket_allocations::NewBucketAllocationPayload {
+                bucket_id: b.id, amount_cents: 20000, occurred_on: None, note: None,
+            }).await.unwrap();
         sqlx::query(
             "INSERT INTO transactions
-                (account_id, booking_date, amount_cents, currency, counterparty, source, bucket_id)
-             VALUES
-                (?1, '2026-05-01',  20000, 'EUR', 'in',  'manual', ?2),
-                (?1, '2026-05-02',  -5000, 'EUR', 'out', 'manual', ?2),
-                (?1, '2026-05-03',  10000, 'EUR', 'x',   'manual', NULL)",
+                (account_id, booking_date, amount_cents, currency, counterparty, source, kind, bucket_id)
+             VALUES (?1, '2026-05-02', -5000, 'EUR', 'out', 'manual', 'expense', ?2)",
         )
         .bind(acc.id).bind(b.id)
         .execute(&pool).await.unwrap();
@@ -318,7 +329,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn list_bucket_progress_groups_correctly() {
+    async fn list_bucket_progress_includes_allocations() {
         let pool = connect_memory().await.unwrap();
         let acc = crate::db::accounts::create_account(
             &pool, "A", "bank", "EUR", None, None, None,
@@ -331,26 +342,87 @@ mod tests {
             name: "b2".into(), icon: None, color: None, note: None,
             target_cents: None, start_date: None, target_date: None,
         }).await.unwrap();
+        // b1: 100 EUR allocation + 30 EUR outflow = 70 EUR, tx_count = 1
+        crate::db::bucket_allocations::create_allocation(
+            &pool, crate::db::bucket_allocations::NewBucketAllocationPayload {
+                bucket_id: b1.id, amount_cents: 10000, occurred_on: None, note: None,
+            }).await.unwrap();
         sqlx::query(
             "INSERT INTO transactions
-                (account_id, booking_date, amount_cents, currency, counterparty, source, bucket_id)
-             VALUES
-                (?1, '2026-05-01', 100, 'EUR', 'a', 'manual', ?2),
-                (?1, '2026-05-02',  50, 'EUR', 'b', 'manual', ?2),
-                (?1, '2026-05-03', 300, 'EUR', 'c', 'manual', ?3)",
+                (account_id, booking_date, amount_cents, currency, counterparty, source, kind, bucket_id)
+             VALUES (?1, '2026-05-02', -3000, 'EUR', 'a', 'manual', 'expense', ?2)",
         )
-        .bind(acc.id).bind(b1.id).bind(b2.id)
-        .execute(&pool).await.unwrap();
+        .bind(acc.id).bind(b1.id).execute(&pool).await.unwrap();
+        // b2: 300 EUR allocation only, no outflow
+        crate::db::bucket_allocations::create_allocation(
+            &pool, crate::db::bucket_allocations::NewBucketAllocationPayload {
+                bucket_id: b2.id, amount_cents: 30000, occurred_on: None, note: None,
+            }).await.unwrap();
 
         let mut progress = list_bucket_progress(&pool).await.unwrap();
         progress.sort_by_key(|p| p.bucket_id);
         assert_eq!(progress.len(), 2);
         assert_eq!(progress[0].bucket_id, b1.id);
-        assert_eq!(progress[0].current_cents, 150);
-        assert_eq!(progress[0].tx_count, 2);
+        assert_eq!(progress[0].current_cents, 7000);
+        assert_eq!(progress[0].tx_count, 1);
         assert_eq!(progress[1].bucket_id, b2.id);
-        assert_eq!(progress[1].current_cents, 300);
-        assert_eq!(progress[1].tx_count, 1);
+        assert_eq!(progress[1].current_cents, 30000);
+        assert_eq!(progress[1].tx_count, 0);
+    }
+
+    #[tokio::test]
+    async fn migration_seed_strip_preserves_balance() {
+        // connect_memory applies 0003 on an empty DB (data step is a no-op), so we
+        // run the migration's seed/strip statements against seeded legacy data and
+        // assert the balance is preserved exactly. Keep this SQL in sync with
+        // migrations/0003_buckets_envelope.sql.
+        let pool = connect_memory().await.unwrap();
+        let acc = crate::db::accounts::create_account(
+            &pool, "A", "bank", "EUR", None, None, None,
+        ).await.unwrap();
+        let b = create_bucket(&pool, NewBucketPayload {
+            name: "Legacy".into(), icon: None, color: None, note: None,
+            target_cents: None, start_date: None, target_date: None,
+        }).await.unwrap();
+        sqlx::query(
+            "INSERT INTO transactions
+                (account_id, booking_date, amount_cents, currency, counterparty, source, kind, bucket_id)
+             VALUES
+                (?1, '2026-03-01',  80000, 'EUR', 'in1',  'manual', 'income',   ?2),
+                (?1, '2026-03-05',  20000, 'EUR', 'in2',  'manual', 'income',   ?2),
+                (?1, '2026-03-10', -15000, 'EUR', 'out1', 'manual', 'expense',  ?2)",
+        )
+        .bind(acc.id).bind(b.id).execute(&pool).await.unwrap();
+
+        // Old balance under the legacy rule: SUM(all tagged tx).
+        let (old_balance,): (i64,) = sqlx::query_as(
+            "SELECT COALESCE(SUM(amount_cents),0) FROM transactions WHERE bucket_id = ?1",
+        ).bind(b.id).fetch_one(&pool).await.unwrap();
+        assert_eq!(old_balance, 85000);
+
+        // Migration 0003 data step (verbatim):
+        sqlx::query(
+            "INSERT INTO bucket_allocations (bucket_id, amount_cents, occurred_on, note)
+             SELECT bucket_id, SUM(amount_cents), strftime('%Y-%m-%d','now'), 'Migration: Anfangsbestand'
+               FROM transactions
+              WHERE bucket_id IS NOT NULL AND amount_cents >= 0
+              GROUP BY bucket_id
+             HAVING SUM(amount_cents) <> 0",
+        ).execute(&pool).await.unwrap();
+        sqlx::query(
+            "UPDATE transactions SET bucket_id = NULL
+              WHERE bucket_id IS NOT NULL AND amount_cents >= 0",
+        ).execute(&pool).await.unwrap();
+
+        // New balance (new formula) must equal the old balance exactly.
+        assert_eq!(bucket_balance(&pool, b.id).await.unwrap(), 85000);
+        let seeds = crate::db::bucket_allocations::list_allocations(&pool, Some(b.id)).await.unwrap();
+        assert_eq!(seeds.len(), 1);
+        assert_eq!(seeds[0].amount_cents, 100000);
+        let (tagged_tx,): (i64,) = sqlx::query_as(
+            "SELECT COUNT(*) FROM transactions WHERE bucket_id = ?1",
+        ).bind(b.id).fetch_one(&pool).await.unwrap();
+        assert_eq!(tagged_tx, 1, "only the outflow stays tagged");
     }
 
     #[tokio::test]
