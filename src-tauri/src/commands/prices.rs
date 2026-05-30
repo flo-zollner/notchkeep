@@ -23,8 +23,12 @@ pub async fn set_manual_price(
     price_micro: i64,
 ) -> Result<(), CommandError> {
     if price_micro < 0 {
-        return Err(CommandError { message: "price_micro must be >= 0".into() });
+        return Err(CommandError {
+            message: "price_micro must be >= 0".into(),
+        });
     }
+    chrono::NaiveDate::parse_from_str(&date, "%Y-%m-%d")
+        .map_err(|_| CommandError { message: "date must be YYYY-MM-DD".into() })?;
     Ok(db_prices::upsert_price(&state.pool(), security_id, &date, price_micro, "manual").await?)
 }
 
@@ -37,12 +41,14 @@ pub async fn get_price_history(
         "SELECT security_id, date, close_micro, source
            FROM security_prices
           WHERE security_id = ?1
-          ORDER BY date ASC"
+          ORDER BY date ASC",
     )
     .bind(security_id)
     .fetch_all(&state.pool())
     .await
-    .map_err(|e| CommandError { message: e.to_string() })?;
+    .map_err(|e| CommandError {
+        message: e.to_string(),
+    })?;
     Ok(rows)
 }
 
@@ -62,16 +68,17 @@ pub async fn fetch_security_history(
     let pool = db_state.pool();
 
     // Load security to get ISIN + cached symbol.
-    let (isin, cached_symbol): (String, Option<String>) = sqlx::query_as(
-        "SELECT isin, symbol FROM securities WHERE id = ?1"
-    )
-    .bind(security_id)
-    .fetch_optional(&pool)
-    .await
-    .map_err(|e| CommandError { message: e.to_string() })?
-    .ok_or_else(|| CommandError {
-        message: format!("security {security_id} not found"),
-    })?;
+    let (isin, cached_symbol): (String, Option<String>) =
+        sqlx::query_as("SELECT isin, symbol FROM securities WHERE id = ?1")
+            .bind(security_id)
+            .fetch_optional(&pool)
+            .await
+            .map_err(|e| CommandError {
+                message: e.to_string(),
+            })?
+            .ok_or_else(|| CommandError {
+                message: format!("security {security_id} not found"),
+            })?;
 
     // Resolve symbol: use cache if available, else ask provider.
     let provider = &*provider_state.0;
@@ -85,7 +92,9 @@ pub async fn fetch_security_history(
                     .bind(security_id)
                     .execute(&pool)
                     .await
-                    .map_err(|e| CommandError { message: e.to_string() })?;
+                    .map_err(|e| CommandError {
+                        message: e.to_string(),
+                    })?;
                 sym
             }
             Ok(None) => {
@@ -104,13 +113,20 @@ pub async fn fetch_security_history(
     let today = chrono::Utc::now().date_naive();
     let from = today - chrono::Duration::days((years as i64) * 365);
 
-    let points = provider.fetch_history(&symbol, from, today).await
-        .map_err(|e| CommandError { message: format!("fetch_history: {e}") })?;
+    let points = provider
+        .fetch_history(&symbol, from, today)
+        .await
+        .map_err(|e| CommandError {
+            message: format!("fetch_history: {e}"),
+        })?;
 
     let mut inserted = 0usize;
     for p in &points {
         let d = p.date.format("%Y-%m-%d").to_string();
-        if db_prices::upsert_price(&pool, security_id, &d, p.close_micro, "yahoo").await.is_ok() {
+        if db_prices::upsert_price(&pool, security_id, &d, p.close_micro, "yahoo")
+            .await
+            .is_ok()
+        {
             inserted += 1;
         }
     }

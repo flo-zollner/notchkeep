@@ -124,7 +124,9 @@ pub fn parse_csv_bank_statement(
     for record in rdr.records() {
         let record = record?;
 
-        let date_str = lookup_field(&record, &header_map, cfg.date_field).unwrap_or("").trim();
+        let date_str = lookup_field(&record, &header_map, cfg.date_field)
+            .unwrap_or("")
+            .trim();
         let booking_date = chrono::NaiveDate::parse_from_str(date_str, cfg.date_format)
             .map_err(|e| ImportError::Parse(format!("date '{date_str}': {e}")))?;
 
@@ -235,36 +237,41 @@ pub(crate) fn parse_amount_cents(s: &str) -> ImportResult<i64> {
     let stripped: String = s.chars().filter(|c| *c != ',').collect();
 
     let negative = stripped.starts_with('-');
-    let unsigned = if negative { &stripped[1..] } else { stripped.as_str() };
+    let unsigned = if negative {
+        &stripped[1..]
+    } else {
+        stripped.as_str()
+    };
 
     let mut parts = unsigned.splitn(2, '.');
     let int_part = parts.next().unwrap_or("0");
     let frac_part = parts.next().unwrap_or("");
 
     if int_part.is_empty() || !int_part.chars().all(|c| c.is_ascii_digit()) {
-        return Err(ImportError::Parse(format!("amount int '{int_part}': invalid digits")));
+        return Err(ImportError::Parse(String::from("amount integer part: invalid digits")));
     }
     if !frac_part.chars().all(|c| c.is_ascii_digit()) {
-        return Err(ImportError::Parse(format!("amount frac '{frac_part}': invalid digits")));
+        return Err(ImportError::Parse(String::from("amount fraction part: invalid digits")));
     }
     if unsigned.split('.').count() > 2 {
-        return Err(ImportError::Parse(format!(
-            "amount '{s}': multiple decimal points"
-        )));
+        return Err(ImportError::Parse(String::from("amount: multiple decimal points")));
     }
 
-    let int_val: i64 = int_part
-        .parse()
-        .map_err(|e: std::num::ParseIntError| ImportError::Parse(format!("amount int '{int_part}': {e}")))?;
+    let int_val: i64 = int_part.parse().map_err(|_: std::num::ParseIntError| {
+        ImportError::Parse(String::from("amount integer part: out of range"))
+    })?;
     let frac_val: i64 = if frac_part.is_empty() {
         0
     } else {
         let padded = format!("{:0<2}", frac_part);
-        padded[..2]
-            .parse()
-            .map_err(|e: std::num::ParseIntError| ImportError::Parse(format!("amount frac '{frac_part}': {e}")))?
+        padded[..2].parse().map_err(|_: std::num::ParseIntError| {
+            ImportError::Parse(String::from("amount fraction part: out of range"))
+        })?
     };
-    let cents = int_val * 100 + frac_val;
+    let cents = int_val
+        .checked_mul(100)
+        .and_then(|x| x.checked_add(frac_val))
+        .ok_or_else(|| ImportError::Parse(String::from("amount: value out of range")))?;
     Ok(if negative { -cents } else { cents })
 }
 
@@ -333,7 +340,10 @@ mod tests {
         assert!(result.warnings.is_empty());
         assert_eq!(result.raws.len(), 1);
         let r = &result.raws[0];
-        assert_eq!(r.booking_date, chrono::NaiveDate::from_ymd_opt(2026, 5, 1).unwrap());
+        assert_eq!(
+            r.booking_date,
+            chrono::NaiveDate::from_ymd_opt(2026, 5, 1).unwrap()
+        );
         assert_eq!(r.amount_cents, -1303);
         assert_eq!(r.currency, "EUR");
         assert_eq!(r.counterparty.as_deref(), Some("SPAR"));
@@ -349,14 +359,18 @@ mod tests {
         // amount column missing from header → hard error.
         let csv = "date,currency,partner\n2026-05-01,EUR,SPAR\n";
         let err = parse_csv_bank_statement(csv.as_bytes(), &MINIMAL_CONFIG).unwrap_err();
-        assert!(matches!(err, ImportError::Parse(msg) if msg.contains("amount") && msg.contains("required")));
+        assert!(
+            matches!(err, ImportError::Parse(msg) if msg.contains("amount") && msg.contains("required"))
+        );
     }
 
     #[test]
     fn parse_required_date_column_missing_errors() {
         let csv = "amount,currency,partner\n-13.03,EUR,SPAR\n";
         let err = parse_csv_bank_statement(csv.as_bytes(), &MINIMAL_CONFIG).unwrap_err();
-        assert!(matches!(err, ImportError::Parse(msg) if msg.contains("date") && msg.contains("required")));
+        assert!(
+            matches!(err, ImportError::Parse(msg) if msg.contains("date") && msg.contains("required"))
+        );
     }
 
     #[test]
@@ -371,6 +385,25 @@ mod tests {
         let csv = "date,amount,currency,partner,iban,purpose,ref\n2026-05-01,NOTANUMBER,EUR,SPAR,AT01,coffee,xyz\n";
         let err = parse_csv_bank_statement(csv.as_bytes(), &MINIMAL_CONFIG).unwrap_err();
         assert!(matches!(err, ImportError::Parse(_)));
+    }
+
+    #[test]
+    fn parse_amount_cents_rejects_overflow_instead_of_wrapping() {
+        // 17-digit integer part: int_val * 100 overflows i64. Must be a parse
+        // error, not a silently wrapped (corrupt) cent value.
+        let err = parse_amount_cents("99999999999999999.00").unwrap_err();
+        assert!(matches!(err, ImportError::Parse(msg) if msg.contains("out of range")));
+    }
+
+    #[test]
+    fn parse_amount_cents_error_does_not_echo_field_value() {
+        // A misaligned column could carry PII into the amount field; the error
+        // must never contain the raw value.
+        let err = parse_amount_cents("DE00000000000000000000").unwrap_err();
+        let ImportError::Parse(msg) = err else {
+            panic!("expected Parse")
+        };
+        assert!(!msg.contains("DE00000000000000000000"));
     }
 
     #[test]
@@ -499,7 +532,11 @@ mod tests {
     fn parse_extra_unknown_columns_are_silently_ignored() {
         let csv = "date,amount,currency,partner,iban,purpose,ref,extra1,extra2\n2026-05-01,-13.03,EUR,SPAR,AT01,coffee,xyz,foo,bar\n";
         let result = parse_csv_bank_statement(csv.as_bytes(), &MINIMAL_CONFIG).unwrap();
-        assert!(result.warnings.is_empty(), "extra columns must be silent: {:?}", result.warnings);
+        assert!(
+            result.warnings.is_empty(),
+            "extra columns must be silent: {:?}",
+            result.warnings
+        );
         assert_eq!(result.raws.len(), 1);
     }
 

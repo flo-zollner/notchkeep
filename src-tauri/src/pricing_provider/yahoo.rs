@@ -4,7 +4,7 @@ use std::future::Future;
 use std::pin::Pin;
 use std::time::Duration;
 
-use super::{FxProvider, PriceProvider, PricePoint, ProviderError, ProviderResult, Quote};
+use super::{FxProvider, PricePoint, PriceProvider, ProviderError, ProviderResult, Quote};
 
 pub struct YahooProvider {
     client: reqwest::Client,
@@ -15,6 +15,8 @@ impl YahooProvider {
         let client = reqwest::Client::builder()
             .user_agent("Mozilla/5.0 (Notchkeep)")
             .timeout(Duration::from_secs(10))
+            .connect_timeout(Duration::from_secs(5))
+            .https_only(true)
             .build()
             .expect("reqwest client");
         Self { client }
@@ -72,47 +74,74 @@ struct SearchQuote {
 
 // ───── Helpers ─────
 
-fn to_micro(value: f64) -> i64 {
-    (value * 1_000_000.0).round() as i64
+fn to_micro(value: f64) -> Option<i64> {
+    if !value.is_finite() {
+        return None;
+    }
+    let scaled = (value * 1_000_000.0).round();
+    if scaled > i64::MAX as f64 || scaled < i64::MIN as f64 {
+        return None;
+    }
+    Some(scaled as i64)
 }
 
 fn from_unix(ts: i64) -> NaiveDate {
-    let dt: DateTime<Utc> = Utc.timestamp_opt(ts, 0).single()
+    let dt: DateTime<Utc> = Utc
+        .timestamp_opt(ts, 0)
+        .single()
         .unwrap_or_else(|| Utc.timestamp_opt(0, 0).unwrap());
     dt.date_naive()
 }
 
 impl PriceProvider for YahooProvider {
-    fn fetch_quote<'a>(&'a self, symbol: &'a str)
-        -> Pin<Box<dyn Future<Output = ProviderResult<Quote>> + Send + 'a>>
-    {
+    fn fetch_quote<'a>(
+        &'a self,
+        symbol: &'a str,
+    ) -> Pin<Box<dyn Future<Output = ProviderResult<Quote>> + Send + 'a>> {
         Box::pin(async move {
             let url = format!(
                 "https://query1.finance.yahoo.com/v8/finance/chart/{symbol}?interval=1d&range=5d"
             );
-            let resp = self.client.get(&url).send().await
+            let resp = self
+                .client
+                .get(&url)
+                .send()
+                .await
                 .map_err(|e| ProviderError::Network(format!("quote {symbol}: {e}")))?;
-            let body: ChartResponse = resp.json().await
+            let body: ChartResponse = resp
+                .json()
+                .await
                 .map_err(|e| ProviderError::Parse(format!("quote {symbol}: {e}")))?;
-            let result = body.chart.result.and_then(|r| r.into_iter().next())
+            let result = body
+                .chart
+                .result
+                .and_then(|r| r.into_iter().next())
                 .ok_or_else(|| ProviderError::NotFound(format!("no chart for {symbol}")))?;
-            let price = result.meta.regular_market_price
+            let price = result
+                .meta
+                .regular_market_price
                 .ok_or_else(|| ProviderError::NotFound(format!("no price for {symbol}")))?;
-            let as_of = result.meta.regular_market_time
+            let as_of = result
+                .meta
+                .regular_market_time
                 .map(from_unix)
                 .unwrap_or_else(|| Utc::now().date_naive());
             Ok(Quote {
                 symbol: result.meta.symbol,
-                price_micro: to_micro(price),
+                price_micro: to_micro(price)
+                .ok_or_else(|| ProviderError::Parse(format!("non-finite price for {symbol}")))?,
                 as_of,
                 currency: result.meta.currency.map(|c| c.to_uppercase()),
             })
         })
     }
 
-    fn fetch_history<'a>(&'a self, symbol: &'a str, from: NaiveDate, to: NaiveDate)
-        -> Pin<Box<dyn Future<Output = ProviderResult<Vec<PricePoint>>> + Send + 'a>>
-    {
+    fn fetch_history<'a>(
+        &'a self,
+        symbol: &'a str,
+        from: NaiveDate,
+        to: NaiveDate,
+    ) -> Pin<Box<dyn Future<Output = ProviderResult<Vec<PricePoint>>> + Send + 'a>> {
         Box::pin(async move {
             let p1 = from.and_hms_opt(0, 0, 0).unwrap().and_utc().timestamp();
             let p2 = to.and_hms_opt(23, 59, 59).unwrap().and_utc().timestamp();
@@ -120,14 +149,24 @@ impl PriceProvider for YahooProvider {
                 "https://query1.finance.yahoo.com/v8/finance/chart/{symbol}?\
                 period1={p1}&period2={p2}&interval=1d"
             );
-            let resp = self.client.get(&url).send().await
+            let resp = self
+                .client
+                .get(&url)
+                .send()
+                .await
                 .map_err(|e| ProviderError::Network(format!("history {symbol}: {e}")))?;
-            let body: ChartResponse = resp.json().await
+            let body: ChartResponse = resp
+                .json()
+                .await
                 .map_err(|e| ProviderError::Parse(format!("history {symbol}: {e}")))?;
-            let result = body.chart.result.and_then(|r| r.into_iter().next())
+            let result = body
+                .chart
+                .result
+                .and_then(|r| r.into_iter().next())
                 .ok_or_else(|| ProviderError::NotFound(format!("no history for {symbol}")))?;
             let timestamps = result.timestamp.unwrap_or_default();
-            let closes = result.indicators
+            let closes = result
+                .indicators
                 .and_then(|i| i.quote.into_iter().next())
                 .map(|q| q.close)
                 .unwrap_or_default();
@@ -135,28 +174,33 @@ impl PriceProvider for YahooProvider {
             let mut out = Vec::new();
             for (i, ts) in timestamps.iter().enumerate() {
                 if let Some(Some(close)) = closes.get(i) {
-                    out.push(PricePoint {
-                        date: from_unix(*ts),
-                        close_micro: to_micro(*close),
-                    });
+                    if let Some(close_micro) = to_micro(*close) {
+                        out.push(PricePoint { date: from_unix(*ts), close_micro });
+                    }
                 }
             }
             Ok(out)
         })
     }
 
-    fn resolve_symbol<'a>(&'a self, isin: &'a str)
-        -> Pin<Box<dyn Future<Output = ProviderResult<Option<String>>> + Send + 'a>>
-    {
+    fn resolve_symbol<'a>(
+        &'a self,
+        isin: &'a str,
+    ) -> Pin<Box<dyn Future<Output = ProviderResult<Option<String>>> + Send + 'a>> {
         Box::pin(async move {
-            let url = format!(
-                "https://query1.finance.yahoo.com/v1/finance/search?q={isin}"
-            );
-            let resp = self.client.get(&url).send().await
+            let url = format!("https://query1.finance.yahoo.com/v1/finance/search?q={isin}");
+            let resp = self
+                .client
+                .get(&url)
+                .send()
+                .await
                 .map_err(|e| ProviderError::Network(format!("search {isin}: {e}")))?;
-            let body: SearchResponse = resp.json().await
+            let body: SearchResponse = resp
+                .json()
+                .await
                 .map_err(|e| ProviderError::Parse(format!("search {isin}: {e}")))?;
-            Ok(body.quotes
+            Ok(body
+                .quotes
                 .and_then(|q| q.into_iter().next())
                 .map(|q| q.symbol))
         })
@@ -164,9 +208,10 @@ impl PriceProvider for YahooProvider {
 }
 
 impl FxProvider for YahooProvider {
-    fn fetch_eur_rate<'a>(&'a self, foreign_currency: &'a str)
-        -> Pin<Box<dyn Future<Output = ProviderResult<i64>> + Send + 'a>>
-    {
+    fn fetch_eur_rate<'a>(
+        &'a self,
+        foreign_currency: &'a str,
+    ) -> Pin<Box<dyn Future<Output = ProviderResult<i64>> + Send + 'a>> {
         Box::pin(async move {
             let foreign = foreign_currency.to_uppercase();
             if foreign == "EUR" {
@@ -174,12 +219,27 @@ impl FxProvider for YahooProvider {
             }
             let symbol = format!("EUR{foreign}=X");
             let q = self.fetch_quote(&symbol).await?;
-            if q.price_micro == 0 {
+            if q.price_micro <= 0 {
                 return Err(ProviderError::Parse(format!("fx zero for {foreign}")));
             }
             // q.price_micro = X * 1e6 (foreign per 1 EUR)
             // rate_micro = 1e12 / q.price_micro = micro_EUR per 1 foreign
             Ok(1_000_000_000_000_i64 / q.price_micro)
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn to_micro_rejects_non_finite_and_overflow() {
+        assert_eq!(to_micro(f64::NAN), None);
+        assert_eq!(to_micro(f64::INFINITY), None);
+        assert_eq!(to_micro(f64::NEG_INFINITY), None);
+        assert_eq!(to_micro(1e30), None);
+        assert_eq!(to_micro(123.45), Some(123_450_000));
+        assert_eq!(to_micro(0.0), Some(0));
     }
 }

@@ -72,9 +72,10 @@ fn op_to_db(op: &MatchOp) -> (&'static str, String) {
         MatchOp::StartsWith(v) => (OP_STARTS_WITH, v.clone()),
         MatchOp::EndsWith(v) => (OP_ENDS_WITH, v.clone()),
         MatchOp::Regex(v) => (OP_REGEX, v.clone()),
-        MatchOp::Range { min_cents, max_cents } => {
-            (OP_RANGE, format!("{min_cents}..{max_cents}"))
-        }
+        MatchOp::Range {
+            min_cents,
+            max_cents,
+        } => (OP_RANGE, format!("{min_cents}..{max_cents}")),
     }
 }
 
@@ -95,7 +96,10 @@ fn op_from_db(op: &str, value: &str) -> DbResult<MatchOp> {
             let max_cents = max
                 .parse::<i64>()
                 .map_err(|e| DbError::Decode(format!("bad range max '{max}': {e}")))?;
-            Ok(MatchOp::Range { min_cents, max_cents })
+            Ok(MatchOp::Range {
+                min_cents,
+                max_cents,
+            })
         }
         other => Err(DbError::Decode(format!("unknown match_op '{other}'"))),
     }
@@ -125,7 +129,9 @@ async fn insert_conditions(
 
 pub async fn insert_rule(pool: &SqlitePool, rule: &NewRule) -> DbResult<i64> {
     if rule.conditions.is_empty() {
-        return Err(DbError::Decode("rule must have at least one condition".into()));
+        return Err(DbError::Decode(
+            "rule must have at least one condition".into(),
+        ));
     }
     let (id,): (i64,) = sqlx::query_as(
         "INSERT INTO rules
@@ -191,8 +197,14 @@ pub async fn list_rules(pool: &SqlitePool) -> DbResult<Vec<Rule>> {
 
 pub async fn update_rule(pool: &SqlitePool, rule: &Rule) -> DbResult<()> {
     if rule.conditions.is_empty() {
-        return Err(DbError::Decode("rule must have at least one condition".into()));
+        return Err(DbError::Decode(
+            "rule must have at least one condition".into(),
+        ));
     }
+    // UPDATE + DELETE + re-INSERT of the conditions must be atomic: if the
+    // re-insert failed mid-way the rule would be left with no conditions
+    // (silently breaking categorization). Wrap all three in one transaction.
+    let mut tx = pool.begin().await?;
     sqlx::query(
         "UPDATE rules
          SET priority = ?1, name = ?2, combinator = ?3,
@@ -205,14 +217,30 @@ pub async fn update_rule(pool: &SqlitePool, rule: &Rule) -> DbResult<()> {
     .bind(rule.target_category_id)
     .bind(rule.enabled as i32)
     .bind(rule.id)
-    .execute(pool)
+    .execute(&mut *tx)
     .await?;
 
     sqlx::query("DELETE FROM rule_conditions WHERE rule_id = ?1")
         .bind(rule.id)
-        .execute(pool)
+        .execute(&mut *tx)
         .await?;
-    insert_conditions(pool, rule.id, &rule.conditions).await?;
+
+    for (idx, cond) in rule.conditions.iter().enumerate() {
+        let (op_str, value_str) = op_to_db(&cond.op);
+        sqlx::query(
+            "INSERT INTO rule_conditions (rule_id, position, field, op, value)
+             VALUES (?1, ?2, ?3, ?4, ?5)",
+        )
+        .bind(rule.id)
+        .bind(idx as i64)
+        .bind(field_to_str(&cond.field))
+        .bind(op_str)
+        .bind(&value_str)
+        .execute(&mut *tx)
+        .await?;
+    }
+
+    tx.commit().await?;
     Ok(())
 }
 
@@ -228,9 +256,7 @@ pub async fn delete_rule(pool: &SqlitePool, id: i64) -> DbResult<()> {
 mod tests {
     use crate::categorization::rules::{Combinator, MatchField, MatchOp, Rule, RuleCondition};
     use crate::db::connect_memory;
-    use crate::db::rules::{
-        delete_rule, insert_rule, list_rules, update_rule, NewRule,
-    };
+    use crate::db::rules::{delete_rule, insert_rule, list_rules, update_rule, NewRule};
     use sqlx::SqlitePool;
 
     async fn seed_category(pool: &SqlitePool, name: &str) -> i64 {
@@ -260,7 +286,12 @@ mod tests {
         let cat = seed_category(&pool, "Lebensmittel").await;
         let id = insert_rule(
             &pool,
-            &new_single_rule(cat, MatchField::Counterparty, MatchOp::Contains("REWE".into()), "REWE"),
+            &new_single_rule(
+                cat,
+                MatchField::Counterparty,
+                MatchOp::Contains("REWE".into()),
+                "REWE",
+            ),
         )
         .await
         .unwrap();
@@ -330,7 +361,10 @@ mod tests {
                 },
                 RuleCondition {
                     field: MatchField::Amount,
-                    op: MatchOp::Range { min_cents: -5000, max_cents: -1000 },
+                    op: MatchOp::Range {
+                        min_cents: -5000,
+                        max_cents: -1000,
+                    },
                 },
                 RuleCondition {
                     field: MatchField::Account,
@@ -354,7 +388,10 @@ mod tests {
         assert!(matches!(&r.conditions[4].op, MatchOp::Regex(v) if v == "^EDEKA"));
         assert!(matches!(
             &r.conditions[5].op,
-            MatchOp::Range { min_cents: -5000, max_cents: -1000 }
+            MatchOp::Range {
+                min_cents: -5000,
+                max_cents: -1000
+            }
         ));
         assert_eq!(r.conditions[5].field, MatchField::Amount);
         assert_eq!(r.conditions[6].field, MatchField::Account);
@@ -368,7 +405,12 @@ mod tests {
         let cat = seed_category(&pool, "Cat").await;
         let id = insert_rule(
             &pool,
-            &new_single_rule(cat, MatchField::Counterparty, MatchOp::Contains("REWE".into()), "REWE"),
+            &new_single_rule(
+                cat,
+                MatchField::Counterparty,
+                MatchOp::Contains("REWE".into()),
+                "REWE",
+            ),
         )
         .await
         .unwrap();
@@ -385,7 +427,10 @@ mod tests {
                 },
                 RuleCondition {
                     field: MatchField::Amount,
-                    op: MatchOp::Range { min_cents: -10_000, max_cents: -1 },
+                    op: MatchOp::Range {
+                        min_cents: -10_000,
+                        max_cents: -1,
+                    },
                 },
             ],
             target_category_id: cat,
@@ -402,7 +447,10 @@ mod tests {
         assert!(matches!(&r.conditions[0].op, MatchOp::Equals(v) if v == "REWE Markt"));
         assert!(matches!(
             &r.conditions[1].op,
-            MatchOp::Range { min_cents: -10_000, max_cents: -1 }
+            MatchOp::Range {
+                min_cents: -10_000,
+                max_cents: -1
+            }
         ));
         assert!(!r.enabled);
     }
@@ -413,7 +461,12 @@ mod tests {
         let cat = seed_category(&pool, "Cat").await;
         let id = insert_rule(
             &pool,
-            &new_single_rule(cat, MatchField::Counterparty, MatchOp::Contains("REWE".into()), "REWE"),
+            &new_single_rule(
+                cat,
+                MatchField::Counterparty,
+                MatchOp::Contains("REWE".into()),
+                "REWE",
+            ),
         )
         .await
         .unwrap();

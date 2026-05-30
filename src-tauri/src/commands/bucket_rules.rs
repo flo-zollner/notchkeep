@@ -35,5 +35,13 @@ pub async fn apply_bucket_rules_now(
     state: State<'_, DbState>,
     days: u32,
 ) -> Result<usize, CommandError> {
+    // Clamp the lookback window: an unbounded `days` (e.g. u32::MAX) would
+    // overflow the chrono date subtraction in the DB layer and trigger a
+    // full-table scan. 10 years is well beyond any real use.
+    if days == 0 || days > 3650 {
+        return Err(CommandError {
+            message: "days must be 1..=3650".into(),
+        });
+    }
     Ok(db_br::apply_bucket_rules_to_recent_income(&state.pool(), days).await?)
 }

@@ -15,39 +15,42 @@ use crate::commands::accounts::{
 };
 use crate::commands::admin::{
     backup_database, change_data_path, check_sync_conflicts, check_target_path, find_data_issues,
-    force_acquire_sync_lock, get_data_path_info, reset_path_to_default, resolve_conflict_keep_current,
-    resolve_conflict_use_other, restore_database, retry_startup, set_path_and_init, validate_backup,
-    wipe_database,
+    force_acquire_sync_lock, get_data_path_info, reset_path_to_default,
+    resolve_conflict_keep_current, resolve_conflict_use_other, restore_database, retry_startup,
+    set_path_and_init, validate_backup, wipe_database,
 };
 use crate::commands::aggregates::{
     account_monthly_cashflow, bucket_monthly_flow, cashflow_breakdown, category_breakdown,
     daily_spending, monthly_cashflow, monthly_spending, net_worth_forecast, net_worth_history,
 };
-use crate::commands::categories::{
-    create_category, delete_category, list_categories, merge_categories, update_category,
+use crate::commands::breakdowns::{get_breakdown, set_breakdown};
+use crate::commands::bucket_allocations::{
+    create_bucket_allocation, list_bucket_allocations, move_between_buckets, ready_to_assign,
 };
 use crate::commands::bucket_rules::{
     apply_bucket_rules_now, create_bucket_rule, delete_bucket_rule, list_bucket_rules,
     update_bucket_rule,
 };
-use crate::commands::bucket_allocations::{
-    create_bucket_allocation, list_bucket_allocations, move_between_buckets, ready_to_assign,
-};
 use crate::commands::buckets::{
-    bucket_balance, create_bucket, delete_bucket, get_bucket, list_bucket_progress,
-    list_buckets, update_bucket,
-};
-use crate::commands::institutions::{
-    create_institution, delete_institution, get_institution, list_institutions,
-    list_institutions_with_summary, update_institution,
+    bucket_balance, create_bucket, delete_bucket, get_bucket, list_bucket_progress, list_buckets,
+    update_bucket,
 };
 use crate::commands::budgets::{
     clear_budget, investment_flow_for_month, list_budget_overrides, month_overview, set_budget,
     uncategorized_monthly_spent,
 };
+use crate::commands::categories::{
+    create_category, delete_category, list_categories, merge_categories, update_category,
+};
 use crate::commands::export::export_transactions_csv;
 use crate::commands::fx::{list_currencies, refresh_currency_rate, update_currency_rate};
-use crate::commands::import::{import_flatex_pdfs, import_sparkasse_csv, import_trade_republic_csv};
+use crate::commands::import::{
+    import_flatex_pdfs, import_sparkasse_csv, import_trade_republic_csv,
+};
+use crate::commands::institutions::{
+    create_institution, delete_institution, get_institution, list_institutions,
+    list_institutions_with_summary, update_institution,
+};
 use crate::commands::portfolio::{
     asset_allocation, bucket_holdings, cost_basis_history, cost_basis_history_daily,
     dividend_history, list_holdings, list_security_allocations, portfolio_kpis,
@@ -57,31 +60,22 @@ use crate::commands::prices::{
     fetch_security_history, get_price_history, refresh_prices, set_manual_price, ProviderState,
 };
 use crate::commands::recurring::{
-    create_recurring, delete_recurring, detect_recurring, get_recurring,
-    list_recurring, recurring_overview, update_recurring,
+    create_recurring, delete_recurring, detect_recurring, get_recurring, list_recurring,
+    recurring_overview, update_recurring,
 };
 use crate::commands::rules::{
-    apply_rule_to_existing, create_rule, delete_rule, list_rules, preview_rule_match,
-    update_rule,
+    apply_rule_to_existing, create_rule, delete_rule, list_rules, preview_rule_match, update_rule,
 };
 use crate::commands::securities::{
     create_security, delete_security, get_security, list_securities, update_security,
 };
-use crate::commands::breakdowns::{get_breakdown, set_breakdown};
-use crate::commands::trades::{
-    create_trade, delete_trade, get_trade, list_trades, update_trade,
-};
+use crate::commands::trades::{create_trade, delete_trade, get_trade, list_trades, update_trade};
 use crate::commands::transactions::{
-    aggregate_transactions, assign_account, assign_bucket, assign_category, cleanup_phantom_mirrors,
-    create_transaction, delete_transaction, detect_transfers, list_transactions, suggest_category,
-    update_transaction,
+    aggregate_transactions, assign_account, assign_bucket, assign_category,
+    cleanup_phantom_mirrors, create_transaction, delete_transaction, detect_transfers,
+    list_transactions, suggest_category, update_transaction,
 };
 use crate::db::lock::AcquireOutcome;
-
-#[tauri::command]
-fn greet(name: &str) -> String {
-    format!("Hello, {}! You've been greeted from Rust!", name)
-}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -89,7 +83,6 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
-            greet,
             get_accounts,
             create_account,
             get_account,
@@ -236,9 +229,7 @@ pub fn run() {
             let parent_ok = db_path.parent().map(|p| p.is_dir()).unwrap_or(false);
 
             let pool = if parent_ok {
-                tauri::async_runtime::block_on(async {
-                    db::connect_file(&db_path).await
-                })?
+                tauri::async_runtime::block_on(async { db::connect_file(&db_path).await })?
             } else {
                 let default_path = crate::app_config::AppConfig::default_db_path(&data_dir);
                 let default_pool = tauri::async_runtime::block_on(async {
@@ -246,10 +237,15 @@ pub fn run() {
                 })?;
                 let handle = app.handle().clone();
                 let bad_path = app_cfg.db_path.clone();
-                handle.emit("data_path_error", serde_json::json!({
-                    "path": bad_path,
-                    "reason": "parent_missing",
-                })).ok();
+                handle
+                    .emit(
+                        "data_path_error",
+                        serde_json::json!({
+                            "path": bad_path,
+                            "reason": "parent_missing",
+                        }),
+                    )
+                    .ok();
                 default_pool
             };
 
@@ -258,9 +254,14 @@ pub fn run() {
             })?;
             if let AcquireOutcome::HeldByOther(holder) = &outcome {
                 // MVP: log only; UI warning will come with the frontend hook.
+                // Hostnames are PII (see CLAUDE.md), so we only log a masked
+                // prefix — enough to tell two devices apart, not enough to
+                // identify the user from a captured log / logcat.
                 eprintln!(
                     "[notchkeep] sync_lock held by '{}' ({}), acquired {}",
-                    holder.hostname, holder.device_id, holder.acquired_at
+                    crate::device::mask_hostname(&holder.hostname),
+                    holder.device_id,
+                    holder.acquired_at
                 );
             }
 
@@ -279,24 +280,33 @@ pub fn run() {
             tauri::async_runtime::spawn(async move {
                 let provider = YahooProvider::new();
                 handle_for_bg
-                    .emit("price_refresh_status", serde_json::json!({ "stage": "started" }))
+                    .emit(
+                        "price_refresh_status",
+                        serde_json::json!({ "stage": "started" }),
+                    )
                     .ok();
                 match crate::db::portfolio::refresh_all_prices(&pool_for_bg, &provider).await {
                     Ok(report) => {
                         handle_for_bg
-                            .emit("price_refresh_status", serde_json::json!({
-                                "stage": "completed",
-                                "report": report,
-                            }))
+                            .emit(
+                                "price_refresh_status",
+                                serde_json::json!({
+                                    "stage": "completed",
+                                    "report": report,
+                                }),
+                            )
                             .ok();
                     }
                     Err(e) => {
                         eprintln!("[notchkeep] background price refresh failed: {e}");
                         handle_for_bg
-                            .emit("price_refresh_status", serde_json::json!({
-                                "stage": "failed",
-                                "error": e.to_string(),
-                            }))
+                            .emit(
+                                "price_refresh_status",
+                                serde_json::json!({
+                                    "stage": "failed",
+                                    "error": e.to_string(),
+                                }),
+                            )
                             .ok();
                     }
                 }
@@ -322,4 +332,3 @@ pub fn run() {
         }
     });
 }
-

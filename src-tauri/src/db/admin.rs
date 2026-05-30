@@ -58,10 +58,12 @@ pub async fn validate_backup(source_path: &Path) -> BackupValidation {
         };
     }
 
-    let url = format!("sqlite://{}?mode=ro", source_path.to_string_lossy());
+    let opts = sqlx::sqlite::SqliteConnectOptions::new()
+        .filename(source_path)
+        .read_only(true);
     let pool = match sqlx::sqlite::SqlitePoolOptions::new()
         .max_connections(1)
-        .connect(&url)
+        .connect_with(opts)
         .await
     {
         Ok(p) => p,
@@ -91,14 +93,23 @@ pub async fn validate_backup(source_path: &Path) -> BackupValidation {
         };
     }
 
-    let schema_version: Option<i64> = sqlx::query_scalar(
-        "SELECT COALESCE(MAX(version), 0) FROM _sqlx_migrations",
-    )
-    .fetch_one(&pool)
-    .await
-    .ok();
+    let schema_version: Option<i64> =
+        sqlx::query_scalar("SELECT COALESCE(MAX(version), 0) FROM _sqlx_migrations")
+            .fetch_one(&pool)
+            .await
+            .ok();
 
     async fn count(pool: &SqlitePool, table: &str) -> i64 {
+        const ALLOWED: [&str; 5] = [
+            "transactions",
+            "accounts",
+            "categories",
+            "securities",
+            "recurring_payments",
+        ];
+        if !ALLOWED.contains(&table) {
+            return 0;
+        }
         let q = format!("SELECT COUNT(*) FROM {table}");
         sqlx::query_scalar(&q).fetch_one(pool).await.unwrap_or(0)
     }
@@ -126,8 +137,7 @@ pub async fn validate_backup(source_path: &Path) -> BackupValidation {
 /// otherwise Windows holds the file handle and `fs::remove_file` fails.
 pub async fn wipe_and_recreate(path: &Path) -> DbResult<SqlitePool> {
     if path.exists() {
-        std::fs::remove_file(path)
-            .map_err(|e| DbError::Decode(format!("remove old db: {e}")))?;
+        std::fs::remove_file(path).map_err(|e| DbError::Decode(format!("remove old db: {e}")))?;
     }
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)
@@ -162,12 +172,10 @@ mod tests {
         let src = dir.path().join("source.sqlite");
         let dst = dir.path().join("backup.sqlite");
         let pool = connect_file(&src).await.unwrap();
-        sqlx::query(
-            "INSERT INTO accounts (name, kind, currency) VALUES ('Test', 'bank', 'EUR')",
-        )
-        .execute(&pool)
-        .await
-        .unwrap();
+        sqlx::query("INSERT INTO accounts (name, kind, currency) VALUES ('Test', 'bank', 'EUR')")
+            .execute(&pool)
+            .await
+            .unwrap();
         pool.close().await;
 
         let pool2 = connect_file(&src).await.unwrap();
@@ -224,13 +232,11 @@ mod tests {
         let src = dir.path().join("seeded.sqlite");
         let pool = connect_file(&src).await.unwrap();
         for i in 0..3 {
-            sqlx::query(
-                "INSERT INTO accounts (name, kind, currency) VALUES (?1, 'bank', 'EUR')",
-            )
-            .bind(format!("acc-{i}"))
-            .execute(&pool)
-            .await
-            .unwrap();
+            sqlx::query("INSERT INTO accounts (name, kind, currency) VALUES (?1, 'bank', 'EUR')")
+                .bind(format!("acc-{i}"))
+                .execute(&pool)
+                .await
+                .unwrap();
         }
         pool.close().await;
         let report = validate_backup(&src).await;
@@ -249,12 +255,10 @@ mod tests {
             .fetch_one(&pool)
             .await
             .unwrap();
-        sqlx::query(
-            "INSERT INTO categories (parent_id, name) VALUES (NULL, 'Test')",
-        )
-        .execute(&pool)
-        .await
-        .unwrap();
+        sqlx::query("INSERT INTO categories (parent_id, name) VALUES (NULL, 'Test')")
+            .execute(&pool)
+            .await
+            .unwrap();
         backup_to(&pool, &dst).await.unwrap();
         pool.close().await;
         let report = validate_backup(&dst).await;
@@ -268,7 +272,9 @@ mod tests {
         let path = dir.path().join("new.sqlite");
         let pool = wipe_and_recreate(&path).await.unwrap();
         let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM accounts")
-            .fetch_one(&pool).await.unwrap();
+            .fetch_one(&pool)
+            .await
+            .unwrap();
         assert_eq!(count, 0);
         assert!(path.exists());
         pool.close().await;
@@ -279,14 +285,17 @@ mod tests {
         let dir = tempdir().unwrap();
         let path = dir.path().join("ex.sqlite");
         let pool = connect_file(&path).await.unwrap();
-        sqlx::query(
-            "INSERT INTO accounts (name, kind, currency) VALUES ('A', 'bank', 'EUR')",
-        ).execute(&pool).await.unwrap();
+        sqlx::query("INSERT INTO accounts (name, kind, currency) VALUES ('A', 'bank', 'EUR')")
+            .execute(&pool)
+            .await
+            .unwrap();
         pool.close().await;
 
         let pool = wipe_and_recreate(&path).await.unwrap();
         let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM accounts")
-            .fetch_one(&pool).await.unwrap();
+            .fetch_one(&pool)
+            .await
+            .unwrap();
         assert_eq!(count, 0);
         pool.close().await;
     }
@@ -298,21 +307,24 @@ mod tests {
         let src = dir.path().join("backup.sqlite");
         let dst = dir.path().join("target.sqlite");
         let pool = connect_file(&src).await.unwrap();
-        sqlx::query(
-            "INSERT INTO accounts (name, kind, currency) VALUES ('Backup', 'bank', 'EUR')",
-        ).execute(&pool).await.unwrap();
+        sqlx::query("INSERT INTO accounts (name, kind, currency) VALUES ('Backup', 'bank', 'EUR')")
+            .execute(&pool)
+            .await
+            .unwrap();
         pool.close().await;
 
         let pool = connect_file(&dst).await.unwrap();
-        sqlx::query(
-            "INSERT INTO accounts (name, kind, currency) VALUES ('Old', 'bank', 'EUR')",
-        ).execute(&pool).await.unwrap();
+        sqlx::query("INSERT INTO accounts (name, kind, currency) VALUES ('Old', 'bank', 'EUR')")
+            .execute(&pool)
+            .await
+            .unwrap();
         pool.close().await;
 
         let new_pool = restore_from(&src, &dst).await.unwrap();
-        let (name,): (String,) = sqlx::query_as(
-            "SELECT name FROM accounts ORDER BY id LIMIT 1",
-        ).fetch_one(&new_pool).await.unwrap();
+        let (name,): (String,) = sqlx::query_as("SELECT name FROM accounts ORDER BY id LIMIT 1")
+            .fetch_one(&new_pool)
+            .await
+            .unwrap();
         assert_eq!(name, "Backup");
         new_pool.close().await;
     }

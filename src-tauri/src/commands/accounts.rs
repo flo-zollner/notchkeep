@@ -11,7 +11,9 @@ pub struct CommandError {
 
 impl<E: std::fmt::Display> From<E> for CommandError {
     fn from(e: E) -> Self {
-        Self { message: e.to_string() }
+        Self {
+            message: e.to_string(),
+        }
     }
 }
 
@@ -33,9 +35,7 @@ impl DbState {
 }
 
 #[tauri::command]
-pub async fn get_accounts(
-    state: State<'_, DbState>,
-) -> Result<Vec<Account>, CommandError> {
+pub async fn get_accounts(state: State<'_, DbState>) -> Result<Vec<Account>, CommandError> {
     Ok(db_accounts::list_accounts(&state.pool()).await?)
 }
 
@@ -50,7 +50,9 @@ pub async fn create_account(
     institution_id: Option<i64>,
 ) -> Result<Account, CommandError> {
     if name.trim().is_empty() {
-        return Err(CommandError { message: "name must not be empty".into() });
+        return Err(CommandError {
+            message: "name must not be empty".into(),
+        });
     }
     let currency = currency.unwrap_or_else(|| "EUR".to_string());
     let normalized_iban = normalize_iban(iban.as_deref())?;
@@ -62,14 +64,12 @@ pub async fn create_account(
         parent_id,
         normalized_iban.as_deref(),
         institution_id,
-    ).await?)
+    )
+    .await?)
 }
 
 #[tauri::command]
-pub async fn get_account(
-    state: State<'_, DbState>,
-    id: i64,
-) -> Result<Account, CommandError> {
+pub async fn get_account(state: State<'_, DbState>, id: i64) -> Result<Account, CommandError> {
     Ok(db_accounts::get_account(&state.pool(), id).await?)
 }
 
@@ -79,7 +79,9 @@ pub async fn update_account(
     account: Account,
 ) -> Result<(), CommandError> {
     if account.name.trim().is_empty() {
-        return Err(CommandError { message: "name must not be empty".into() });
+        return Err(CommandError {
+            message: "name must not be empty".into(),
+        });
     }
     if let Some(s) = account.last4.as_deref() {
         if !(s.len() == 4 && s.chars().all(|c| c.is_ascii_digit())) {
@@ -101,13 +103,20 @@ pub async fn update_account(
 /// Trims and uppercases an IBAN. Empty → None. Format check (`^[A-Z]{2}\d{2}[A-Z0-9]{11,30}$`).
 fn normalize_iban(raw: Option<&str>) -> Result<Option<String>, CommandError> {
     let Some(s) = raw else { return Ok(None) };
-    let cleaned: String = s.chars().filter(|c| !c.is_whitespace()).collect::<String>().to_uppercase();
+    let cleaned: String = s
+        .chars()
+        .filter(|c| !c.is_whitespace())
+        .collect::<String>()
+        .to_uppercase();
     if cleaned.is_empty() {
         return Ok(None);
     }
     if cleaned.len() < 15 || cleaned.len() > 34 {
         return Err(CommandError {
-            message: format!("iban length must be 15-34, got {} for {cleaned:?}", cleaned.len()),
+            message: format!(
+                "iban length must be 15-34, got {}",
+                cleaned.len()
+            ),
         });
     }
     let mut chars = cleaned.chars();
@@ -115,22 +124,22 @@ fn normalize_iban(raw: Option<&str>) -> Result<Option<String>, CommandError> {
     let c2 = chars.next().unwrap();
     let d1 = chars.next().unwrap();
     let d2 = chars.next().unwrap();
-    if !c1.is_ascii_uppercase() || !c2.is_ascii_uppercase()
-        || !d1.is_ascii_digit() || !d2.is_ascii_digit()
-        || !chars.all(|c| c.is_ascii_alphanumeric() && (c.is_ascii_uppercase() || c.is_ascii_digit()))
+    if !c1.is_ascii_uppercase()
+        || !c2.is_ascii_uppercase()
+        || !d1.is_ascii_digit()
+        || !d2.is_ascii_digit()
+        || !chars
+            .all(|c| c.is_ascii_alphanumeric() && (c.is_ascii_uppercase() || c.is_ascii_digit()))
     {
         return Err(CommandError {
-            message: format!("iban format invalid: {cleaned:?}"),
+            message: "iban format invalid".to_string(),
         });
     }
     Ok(Some(cleaned))
 }
 
 #[tauri::command]
-pub async fn account_balance(
-    state: State<'_, DbState>,
-    id: i64,
-) -> Result<i64, CommandError> {
+pub async fn account_balance(state: State<'_, DbState>, id: i64) -> Result<i64, CommandError> {
     Ok(db_accounts::account_balance(&state.pool(), id).await?)
 }
 
@@ -142,9 +151,10 @@ mod tests {
     #[tokio::test]
     async fn create_then_list_accounts() {
         let pool = connect_memory().await.unwrap();
-        let inserted = db_accounts::create_account(&pool, "TR Verrechnung", "bank", "EUR", None, None, None)
-            .await
-            .unwrap();
+        let inserted =
+            db_accounts::create_account(&pool, "TR Verrechnung", "bank", "EUR", None, None, None)
+                .await
+                .unwrap();
         assert_eq!(inserted.name, "TR Verrechnung");
 
         let listed = db_accounts::list_accounts(&pool).await.unwrap();
@@ -181,11 +191,17 @@ mod tests {
     async fn create_account_persists_institution_id() {
         let pool = connect_memory().await.unwrap();
         sqlx::query("INSERT INTO institutions (name) VALUES ('TestBank')")
-            .execute(&pool).await.unwrap();
-        let (inst_id,): (i64,) = sqlx::query_as("SELECT id FROM institutions WHERE name='TestBank'")
-            .fetch_one(&pool).await.unwrap();
+            .execute(&pool)
+            .await
+            .unwrap();
+        let (inst_id,): (i64,) =
+            sqlx::query_as("SELECT id FROM institutions WHERE name='TestBank'")
+                .fetch_one(&pool)
+                .await
+                .unwrap();
         let acc = db_accounts::create_account(&pool, "x", "bank", "EUR", None, None, Some(inst_id))
-            .await.unwrap();
+            .await
+            .unwrap();
         assert_eq!(acc.institution_id, Some(inst_id));
     }
 }

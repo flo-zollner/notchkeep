@@ -51,9 +51,9 @@ pub struct DeviceInfo {
 
 /// Returns the `app_local_data_dir` for the app.
 fn data_dir(app: &AppHandle) -> Result<PathBuf, CommandError> {
-    app.path()
-        .app_local_data_dir()
-        .map_err(|e| CommandError { message: format!("app_local_data_dir: {e}") })
+    app.path().app_local_data_dir().map_err(|e| CommandError {
+        message: format!("app_local_data_dir: {e}"),
+    })
 }
 
 #[tauri::command]
@@ -62,15 +62,17 @@ pub async fn get_data_path_info(
     state: State<'_, DbState>,
 ) -> Result<AppConfigInfo, CommandError> {
     let dir = data_dir(&app)?;
-    let cfg = AppConfig::load(&dir)
-        .map_err(|e| CommandError { message: format!("load config: {e}") })?;
+    let cfg = AppConfig::load(&dir).map_err(|e| CommandError {
+        message: format!("load config: {e}"),
+    })?;
 
     let path = PathBuf::from(&cfg.db_path);
-    let meta = std::fs::metadata(&path)
-        .map_err(|e| CommandError { message: format!("metadata {}: {e}", cfg.db_path) })?;
-    let modified = meta
-        .modified()
-        .map_err(|e| CommandError { message: format!("mtime: {e}") })?;
+    let meta = std::fs::metadata(&path).map_err(|e| CommandError {
+        message: format!("metadata {e}"),
+    })?;
+    let modified = meta.modified().map_err(|e| CommandError {
+        message: format!("mtime: {e}"),
+    })?;
     let modified_iso = chrono::DateTime::<chrono::Utc>::from(modified).to_rfc3339();
 
     let pool = state.pool();
@@ -100,7 +102,9 @@ pub async fn check_target_path(target_dir: String) -> Result<PathCheckResult, Co
         return Ok(PathCheckResult::Empty);
     }
     let bytes = std::fs::metadata(&target_db)
-        .map_err(|e| CommandError { message: format!("metadata: {e}") })?
+        .map_err(|e| CommandError {
+            message: format!("metadata: {e}"),
+        })?
         .len();
     let report = db_validate_backup(&target_db).await;
     Ok(PathCheckResult::Existing {
@@ -132,7 +136,9 @@ where
     // 2. Replace current pool with a dummy in-memory pool, then close the old one.
     let dummy = sqlx::SqlitePool::connect("sqlite::memory:")
         .await
-        .map_err(|e| CommandError { message: format!("dummy pool: {e}") })?;
+        .map_err(|e| CommandError {
+            message: format!("dummy pool: {e}"),
+        })?;
     let old_pool = state.swap(dummy);
     old_pool.close().await;
 
@@ -156,7 +162,9 @@ where
                 let dummy = state.swap(recovery_pool);
                 dummy.close().await;
             }
-            return Err(CommandError { message: format!("open new db: {e}") });
+            return Err(CommandError {
+                message: format!("open new db: {e}"),
+            });
         }
     };
 
@@ -186,15 +194,15 @@ pub async fn change_data_path(
     }
     let target_db = target_dir_path.join("budget.sqlite");
     let dir = data_dir(&app)?;
-    let current_cfg = AppConfig::load(&dir)
-        .map_err(|e| CommandError { message: format!("load config: {e}") })?;
+    let current_cfg = AppConfig::load(&dir).map_err(|e| CommandError {
+        message: format!("load config: {e}"),
+    })?;
     let current_db_path = PathBuf::from(&current_cfg.db_path);
 
     // Availability check
     let target_existed = target_db.exists();
     match (&action, target_existed) {
-        (ChangePathAction::UseExisting, false)
-        | (ChangePathAction::OverwriteCopy, false) => {
+        (ChangePathAction::UseExisting, false) | (ChangePathAction::OverwriteCopy, false) => {
             return Err(CommandError {
                 message: "Action requires an existing DB at the target path".into(),
             });
@@ -217,31 +225,36 @@ pub async fn change_data_path(
             ChangePathAction::UseExisting => Ok(()),
             ChangePathAction::OverwriteCopy => std::fs::copy(&current_clone, &target_clone)
                 .map(|_| ())
-                .map_err(|e| CommandError { message: format!("copy: {e}") }),
-            ChangePathAction::Move => {
-                match std::fs::rename(&current_clone, &target_clone) {
-                    Ok(_) => Ok(()),
-                    Err(_) => {
-                        std::fs::copy(&current_clone, &target_clone)
-                            .map_err(|e| CommandError { message: format!("copy fallback: {e}") })?;
-                        let _ = std::fs::remove_file(&current_clone);
-                        Ok(())
-                    }
+                .map_err(|e| CommandError {
+                    message: format!("copy: {e}"),
+                }),
+            ChangePathAction::Move => match std::fs::rename(&current_clone, &target_clone) {
+                Ok(_) => Ok(()),
+                Err(_) => {
+                    std::fs::copy(&current_clone, &target_clone).map_err(|e| CommandError {
+                        message: format!("copy fallback: {e}"),
+                    })?;
+                    let _ = std::fs::remove_file(&current_clone);
+                    Ok(())
                 }
-            }
+            },
             ChangePathAction::Copy => std::fs::copy(&current_clone, &target_clone)
                 .map(|_| ())
-                .map_err(|e| CommandError { message: format!("copy: {e}") }),
+                .map_err(|e| CommandError {
+                    message: format!("copy: {e}"),
+                }),
             ChangePathAction::StartFresh => Ok(()),
         }
     };
 
     swap_pool_around(&state, &device, &current_db_path, &target_db, fs_action).await?;
 
-    let new_cfg = AppConfig { db_path: target_db.to_string_lossy().into_owned() };
-    new_cfg
-        .save(&dir)
-        .map_err(|e| CommandError { message: format!("save config: {e}") })?;
+    let new_cfg = AppConfig {
+        db_path: target_db.to_string_lossy().into_owned(),
+    };
+    new_cfg.save(&dir).map_err(|e| CommandError {
+        message: format!("save config: {e}"),
+    })?;
 
     Ok(())
 }
@@ -255,8 +268,9 @@ pub async fn backup_database(
     let pool = state.pool();
     let target = PathBuf::from(&target_path);
     if let Some(parent) = target.parent() {
-        std::fs::create_dir_all(parent)
-            .map_err(|e| CommandError { message: format!("create parent: {e}") })?;
+        std::fs::create_dir_all(parent).map_err(|e| CommandError {
+            message: format!("create parent: {e}"),
+        })?;
     }
     let bytes = db_backup_to(&pool, &target).await?;
     let duration_ms = start.elapsed().as_millis() as u64;
@@ -285,8 +299,9 @@ pub async fn restore_database(
     }
 
     let dir = data_dir(&app)?;
-    let cfg = AppConfig::load(&dir)
-        .map_err(|e| CommandError { message: format!("load config: {e}") })?;
+    let cfg = AppConfig::load(&dir).map_err(|e| CommandError {
+        message: format!("load config: {e}"),
+    })?;
     let current_db_path = PathBuf::from(&cfg.db_path);
 
     let src_clone = source.clone();
@@ -294,10 +309,19 @@ pub async fn restore_database(
     let fs_action = move || -> Result<(), CommandError> {
         std::fs::copy(&src_clone, &dst_clone)
             .map(|_| ())
-            .map_err(|e| CommandError { message: format!("restore copy: {e}") })
+            .map_err(|e| CommandError {
+                message: format!("restore copy: {e}"),
+            })
     };
 
-    swap_pool_around(&state, &device, &current_db_path, &current_db_path, fs_action).await?;
+    swap_pool_around(
+        &state,
+        &device,
+        &current_db_path,
+        &current_db_path,
+        fs_action,
+    )
+    .await?;
     Ok(())
 }
 
@@ -308,20 +332,29 @@ pub async fn wipe_database(
     device: State<'_, DeviceInfo>,
 ) -> Result<(), CommandError> {
     let dir = data_dir(&app)?;
-    let cfg = AppConfig::load(&dir)
-        .map_err(|e| CommandError { message: format!("load config: {e}") })?;
+    let cfg = AppConfig::load(&dir).map_err(|e| CommandError {
+        message: format!("load config: {e}"),
+    })?;
     let current_db_path = PathBuf::from(&cfg.db_path);
 
     let path_clone = current_db_path.clone();
     let fs_action = move || -> Result<(), CommandError> {
         if path_clone.exists() {
-            std::fs::remove_file(&path_clone)
-                .map_err(|e| CommandError { message: format!("remove db: {e}") })?;
+            std::fs::remove_file(&path_clone).map_err(|e| CommandError {
+                message: format!("remove db: {e}"),
+            })?;
         }
         Ok(())
     };
 
-    swap_pool_around(&state, &device, &current_db_path, &current_db_path, fs_action).await?;
+    swap_pool_around(
+        &state,
+        &device,
+        &current_db_path,
+        &current_db_path,
+        fs_action,
+    )
+    .await?;
     Ok(())
 }
 
@@ -332,8 +365,9 @@ pub async fn retry_startup(
     device: State<'_, DeviceInfo>,
 ) -> Result<(), CommandError> {
     let dir = data_dir(&app)?;
-    let cfg = AppConfig::load(&dir)
-        .map_err(|e| CommandError { message: format!("load config: {e}") })?;
+    let cfg = AppConfig::load(&dir).map_err(|e| CommandError {
+        message: format!("load config: {e}"),
+    })?;
     let target = PathBuf::from(&cfg.db_path);
     let parent_ok = target.parent().map(|p| p.is_dir()).unwrap_or(false);
     if !parent_ok {
@@ -360,14 +394,19 @@ pub async fn set_path_and_init(
     }
     let target_db = target_path.join("budget.sqlite");
     let dir = data_dir(&app)?;
-    let current_cfg = AppConfig::load(&dir)
-        .map_err(|e| CommandError { message: format!("load config: {e}") })?;
+    let current_cfg = AppConfig::load(&dir).map_err(|e| CommandError {
+        message: format!("load config: {e}"),
+    })?;
     let current_db_path = PathBuf::from(&current_cfg.db_path);
     let fs = || -> Result<(), CommandError> { Ok(()) };
     swap_pool_around(&state, &device, &current_db_path, &target_db, fs).await?;
-    AppConfig { db_path: target_db.to_string_lossy().into_owned() }
-        .save(&dir)
-        .map_err(|e| CommandError { message: format!("save config: {e}") })?;
+    AppConfig {
+        db_path: target_db.to_string_lossy().into_owned(),
+    }
+    .save(&dir)
+    .map_err(|e| CommandError {
+        message: format!("save config: {e}"),
+    })?;
     Ok(())
 }
 
@@ -378,15 +417,20 @@ pub async fn reset_path_to_default(
     device: State<'_, DeviceInfo>,
 ) -> Result<(), CommandError> {
     let dir = data_dir(&app)?;
-    let current_cfg = AppConfig::load(&dir)
-        .map_err(|e| CommandError { message: format!("load config: {e}") })?;
+    let current_cfg = AppConfig::load(&dir).map_err(|e| CommandError {
+        message: format!("load config: {e}"),
+    })?;
     let current_db_path = PathBuf::from(&current_cfg.db_path);
     let target_db = AppConfig::default_db_path(&dir);
     let fs = || -> Result<(), CommandError> { Ok(()) };
     swap_pool_around(&state, &device, &current_db_path, &target_db, fs).await?;
-    AppConfig { db_path: target_db.to_string_lossy().into_owned() }
-        .save(&dir)
-        .map_err(|e| CommandError { message: format!("save config: {e}") })?;
+    AppConfig {
+        db_path: target_db.to_string_lossy().into_owned(),
+    }
+    .save(&dir)
+    .map_err(|e| CommandError {
+        message: format!("save config: {e}"),
+    })?;
     Ok(())
 }
 
@@ -469,7 +513,10 @@ pub(crate) async fn resolve_conflict_use_other_impl(
 
     let current = dir.join("budget.sqlite");
     if current.exists() {
-        std::fs::rename(&current, trash.join(format!("budget.sqlite.replaced-{now}")))?;
+        std::fs::rename(
+            &current,
+            trash.join(format!("budget.sqlite.replaced-{now}")),
+        )?;
     }
     // Copy other → budget.sqlite (so other still exists for the trash move afterwards)
     std::fs::copy(other, &current)?;
@@ -486,25 +533,33 @@ pub(crate) async fn resolve_conflict_use_other_impl(
 }
 
 /// Central data-dir resolution for conflict commands (same config logic as in lib.rs setup).
-fn resolve_data_dir_for_conflict(app: &tauri::AppHandle) -> Result<std::path::PathBuf, CommandError> {
+fn resolve_data_dir_for_conflict(
+    app: &tauri::AppHandle,
+) -> Result<std::path::PathBuf, CommandError> {
     use tauri::Manager;
     let r = {
         #[cfg(target_os = "android")]
-        { app.path().app_data_dir() }
+        {
+            app.path().app_data_dir()
+        }
         #[cfg(not(target_os = "android"))]
-        { app.path().app_local_data_dir() }
+        {
+            app.path().app_local_data_dir()
+        }
     };
-    r.map_err(|e| CommandError { message: format!("data_dir: {e}") })
+    r.map_err(|e| CommandError {
+        message: format!("data_dir: {e}"),
+    })
 }
 
 #[tauri::command]
-pub async fn resolve_conflict_keep_current(
-    app: tauri::AppHandle,
-) -> Result<(), CommandError> {
+pub async fn resolve_conflict_keep_current(app: tauri::AppHandle) -> Result<(), CommandError> {
     let data_dir = resolve_data_dir_for_conflict(&app)?;
     resolve_conflict_keep_current_impl(&data_dir)
         .await
-        .map_err(|e| CommandError { message: format!("resolve keep: {e}") })
+        .map_err(|e| CommandError {
+            message: format!("resolve keep: {e}"),
+        })
 }
 
 #[tauri::command]
@@ -516,7 +571,9 @@ pub async fn resolve_conflict_use_other(
     let other = std::path::PathBuf::from(other_path);
     resolve_conflict_use_other_impl(&data_dir, &other)
         .await
-        .map_err(|e| CommandError { message: format!("resolve use other: {e}") })
+        .map_err(|e| CommandError {
+            message: format!("resolve use other: {e}"),
+        })
 }
 
 #[tauri::command]
@@ -526,7 +583,9 @@ pub async fn check_sync_conflicts(
     let data_dir = resolve_data_dir_for_conflict(&app)?;
     check_sync_conflicts_impl(&data_dir)
         .await
-        .map_err(|e| CommandError { message: format!("conflict scan: {e}") })
+        .map_err(|e| CommandError {
+            message: format!("conflict scan: {e}"),
+        })
 }
 
 #[cfg(test)]
@@ -538,7 +597,9 @@ mod tests {
     #[tokio::test]
     async fn check_target_path_returns_empty_for_missing() {
         let dir = tempdir().unwrap();
-        let r = check_target_path(dir.path().to_string_lossy().into_owned()).await.unwrap();
+        let r = check_target_path(dir.path().to_string_lossy().into_owned())
+            .await
+            .unwrap();
         match r {
             PathCheckResult::Empty => {}
             _ => panic!("expected Empty"),
@@ -548,11 +609,18 @@ mod tests {
     #[tokio::test]
     async fn check_target_path_returns_existing_valid_for_real_db() {
         let dir = tempdir().unwrap();
-        let pool = connect_file(&dir.path().join("budget.sqlite")).await.unwrap();
+        let pool = connect_file(&dir.path().join("budget.sqlite"))
+            .await
+            .unwrap();
         pool.close().await;
-        let r = check_target_path(dir.path().to_string_lossy().into_owned()).await.unwrap();
+        let r = check_target_path(dir.path().to_string_lossy().into_owned())
+            .await
+            .unwrap();
         match r {
-            PathCheckResult::Existing { db_size_bytes, valid } => {
+            PathCheckResult::Existing {
+                db_size_bytes,
+                valid,
+            } => {
                 assert!(db_size_bytes > 0);
                 assert!(valid);
             }
@@ -561,14 +629,20 @@ mod tests {
     }
 
     fn setup_device() -> DeviceInfo {
-        DeviceInfo { device_id: "test-dev".into(), hostname: "test-host".into() }
+        DeviceInfo {
+            device_id: "test-dev".into(),
+            hostname: "test-host".into(),
+        }
     }
 
     async fn setup_state_with_db(path: &Path) -> DbState {
         let pool = connect_file(path).await.unwrap();
         sqlx::query(
             "INSERT INTO accounts (name, kind, currency) VALUES ('Original', 'bank', 'EUR')",
-        ).execute(&pool).await.unwrap();
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
         DbState(std::sync::RwLock::new(pool))
     }
 
@@ -586,18 +660,23 @@ mod tests {
         let current = src.clone();
         let target = dst_db.clone();
         let fs = move || -> Result<(), CommandError> {
-            std::fs::rename(&current, &target).map_err(|e| CommandError { message: e.to_string() })?;
+            std::fs::rename(&current, &target).map_err(|e| CommandError {
+                message: e.to_string(),
+            })?;
             Ok(())
         };
 
-        swap_pool_around(&state, &device, &src, &dst_db, fs).await.unwrap();
+        swap_pool_around(&state, &device, &src, &dst_db, fs)
+            .await
+            .unwrap();
         assert!(dst_db.exists());
         assert!(!src.exists());
 
         let pool = state.pool();
-        let (name,): (String,) = sqlx::query_as(
-            "SELECT name FROM accounts ORDER BY id LIMIT 1",
-        ).fetch_one(&pool).await.unwrap();
+        let (name,): (String,) = sqlx::query_as("SELECT name FROM accounts ORDER BY id LIMIT 1")
+            .fetch_one(&pool)
+            .await
+            .unwrap();
         assert_eq!(name, "Original");
     }
 
@@ -615,10 +694,14 @@ mod tests {
         let current = src.clone();
         let target = dst_db.clone();
         let fs = move || -> Result<(), CommandError> {
-            std::fs::copy(&current, &target).map_err(|e| CommandError { message: e.to_string() })?;
+            std::fs::copy(&current, &target).map_err(|e| CommandError {
+                message: e.to_string(),
+            })?;
             Ok(())
         };
-        swap_pool_around(&state, &device, &src, &dst_db, fs).await.unwrap();
+        swap_pool_around(&state, &device, &src, &dst_db, fs)
+            .await
+            .unwrap();
         assert!(src.exists(), "original source must remain");
         assert!(dst_db.exists());
     }
@@ -635,11 +718,15 @@ mod tests {
         let device = setup_device();
 
         let fs = || -> Result<(), CommandError> { Ok(()) };
-        swap_pool_around(&state, &device, &src, &dst_db, fs).await.unwrap();
+        swap_pool_around(&state, &device, &src, &dst_db, fs)
+            .await
+            .unwrap();
 
         let pool = state.pool();
         let n: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM accounts")
-            .fetch_one(&pool).await.unwrap();
+            .fetch_one(&pool)
+            .await
+            .unwrap();
         assert_eq!(n, 0);
     }
 
@@ -655,18 +742,22 @@ mod tests {
         let device = setup_device();
 
         let other_pool = connect_file(&dst_db).await.unwrap();
-        sqlx::query(
-            "INSERT INTO accounts (name, kind, currency) VALUES ('Target', 'bank', 'EUR')",
-        ).execute(&other_pool).await.unwrap();
+        sqlx::query("INSERT INTO accounts (name, kind, currency) VALUES ('Target', 'bank', 'EUR')")
+            .execute(&other_pool)
+            .await
+            .unwrap();
         other_pool.close().await;
 
         let fs = || -> Result<(), CommandError> { Ok(()) };
-        swap_pool_around(&state, &device, &src, &dst_db, fs).await.unwrap();
+        swap_pool_around(&state, &device, &src, &dst_db, fs)
+            .await
+            .unwrap();
 
         let pool = state.pool();
-        let (name,): (String,) = sqlx::query_as(
-            "SELECT name FROM accounts ORDER BY id LIMIT 1",
-        ).fetch_one(&pool).await.unwrap();
+        let (name,): (String,) = sqlx::query_as("SELECT name FROM accounts ORDER BY id LIMIT 1")
+            .fetch_one(&pool)
+            .await
+            .unwrap();
         assert_eq!(name, "Target", "UseExisting must retain target DB data");
     }
 
@@ -683,23 +774,29 @@ mod tests {
         let device = setup_device();
 
         let other_pool = connect_file(&dst_db).await.unwrap();
-        sqlx::query(
-            "INSERT INTO accounts (name, kind, currency) VALUES ('Target', 'bank', 'EUR')",
-        ).execute(&other_pool).await.unwrap();
+        sqlx::query("INSERT INTO accounts (name, kind, currency) VALUES ('Target', 'bank', 'EUR')")
+            .execute(&other_pool)
+            .await
+            .unwrap();
         other_pool.close().await;
 
         let current = src.clone();
         let target = dst_db.clone();
         let fs = move || -> Result<(), CommandError> {
-            std::fs::copy(&current, &target).map_err(|e| CommandError { message: e.to_string() })?;
+            std::fs::copy(&current, &target).map_err(|e| CommandError {
+                message: e.to_string(),
+            })?;
             Ok(())
         };
-        swap_pool_around(&state, &device, &src, &dst_db, fs).await.unwrap();
+        swap_pool_around(&state, &device, &src, &dst_db, fs)
+            .await
+            .unwrap();
 
         let pool = state.pool();
-        let (name,): (String,) = sqlx::query_as(
-            "SELECT name FROM accounts ORDER BY id LIMIT 1",
-        ).fetch_one(&pool).await.unwrap();
+        let (name,): (String,) = sqlx::query_as("SELECT name FROM accounts ORDER BY id LIMIT 1")
+            .fetch_one(&pool)
+            .await
+            .unwrap();
         assert_eq!(name, "Original", "OverwriteCopy must have source DB data");
     }
 
@@ -726,14 +823,20 @@ mod tests {
 
         let path_clone = src.clone();
         let fs = move || -> Result<(), CommandError> {
-            if path_clone.exists() { std::fs::remove_file(&path_clone).ok(); }
+            if path_clone.exists() {
+                std::fs::remove_file(&path_clone).ok();
+            }
             Ok(())
         };
-        swap_pool_around(&state, &device, &src, &src, fs).await.unwrap();
+        swap_pool_around(&state, &device, &src, &src, fs)
+            .await
+            .unwrap();
 
         let pool = state.pool();
         let n: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM accounts")
-            .fetch_one(&pool).await.unwrap();
+            .fetch_one(&pool)
+            .await
+            .unwrap();
         assert_eq!(n, 0);
     }
 
@@ -749,21 +852,29 @@ mod tests {
         let bk_pool = connect_file(&backup).await.unwrap();
         sqlx::query(
             "INSERT INTO accounts (name, kind, currency) VALUES ('FromBackup', 'bank', 'EUR')",
-        ).execute(&bk_pool).await.unwrap();
+        )
+        .execute(&bk_pool)
+        .await
+        .unwrap();
         bk_pool.close().await;
 
         let src_clone = backup.clone();
         let dst_clone = src.clone();
         let fs = move || -> Result<(), CommandError> {
-            std::fs::copy(&src_clone, &dst_clone).map_err(|e| CommandError { message: e.to_string() })?;
+            std::fs::copy(&src_clone, &dst_clone).map_err(|e| CommandError {
+                message: e.to_string(),
+            })?;
             Ok(())
         };
-        swap_pool_around(&state, &device, &src, &src, fs).await.unwrap();
+        swap_pool_around(&state, &device, &src, &src, fs)
+            .await
+            .unwrap();
 
         let pool = state.pool();
-        let (name,): (String,) = sqlx::query_as(
-            "SELECT name FROM accounts ORDER BY id LIMIT 1",
-        ).fetch_one(&pool).await.unwrap();
+        let (name,): (String,) = sqlx::query_as("SELECT name FROM accounts ORDER BY id LIMIT 1")
+            .fetch_one(&pool)
+            .await
+            .unwrap();
         assert_eq!(name, "FromBackup");
     }
 
@@ -777,7 +888,9 @@ mod tests {
 
         // fs_action that always fails
         let fs = || -> Result<(), CommandError> {
-            Err(CommandError { message: "simulated fail".into() })
+            Err(CommandError {
+                message: "simulated fail".into(),
+            })
         };
 
         let result = swap_pool_around(&state, &device, &src, &dst_db, fs).await;
@@ -785,9 +898,10 @@ mod tests {
 
         // After failure: DbState must point back to the old DB
         let pool = state.pool();
-        let (name,): (String,) = sqlx::query_as(
-            "SELECT name FROM accounts ORDER BY id LIMIT 1",
-        ).fetch_one(&pool).await.unwrap();
+        let (name,): (String,) = sqlx::query_as("SELECT name FROM accounts ORDER BY id LIMIT 1")
+            .fetch_one(&pool)
+            .await
+            .unwrap();
         assert_eq!(name, "Original", "recovery must restore the old DB");
     }
 
@@ -797,7 +911,9 @@ mod tests {
         let path = dir.path().join("v.sqlite");
         let pool = connect_file(&path).await.unwrap();
         pool.close().await;
-        let v = validate_backup(path.to_string_lossy().into_owned()).await.unwrap();
+        let v = validate_backup(path.to_string_lossy().into_owned())
+            .await
+            .unwrap();
         assert!(v.ok);
     }
 
@@ -808,14 +924,26 @@ mod tests {
 
         // Setup: main DB + two conflict files
         std::fs::write(dir.join("budget.sqlite"), b"main").unwrap();
-        std::fs::write(dir.join("budget.sqlite.sync-conflict-20260524-103045-AB12C.db"), b"a").unwrap();
-        std::fs::write(dir.join("budget.sqlite.sync-conflict-20260525-091500-XY99Z.db"), b"b").unwrap();
+        std::fs::write(
+            dir.join("budget.sqlite.sync-conflict-20260524-103045-AB12C.db"),
+            b"a",
+        )
+        .unwrap();
+        std::fs::write(
+            dir.join("budget.sqlite.sync-conflict-20260525-091500-XY99Z.db"),
+            b"b",
+        )
+        .unwrap();
         // unrelated file — must not end up in the list
         std::fs::write(dir.join("readme.txt"), b"x").unwrap();
 
         let result = check_sync_conflicts_impl(dir).await.unwrap();
 
-        assert_eq!(result.len(), 2, "expected 2 conflict files, found: {result:?}");
+        assert_eq!(
+            result.len(),
+            2,
+            "expected 2 conflict files, found: {result:?}"
+        );
         let names: Vec<&str> = result.iter().map(|f| f.name.as_str()).collect();
         assert!(names.iter().any(|n| n.contains("AB12C")));
         assert!(names.iter().any(|n| n.contains("XY99Z")));
@@ -867,7 +995,8 @@ mod tests {
         // Old budget.sqlite is in trash with original content
         let trash = dir.join("conflict-trash");
         assert!(trash.exists());
-        let entries: Vec<String> = std::fs::read_dir(&trash).unwrap()
+        let entries: Vec<String> = std::fs::read_dir(&trash)
+            .unwrap()
             .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
             .collect();
         // At least 2 files in trash: old budget.sqlite + the conflict-X

@@ -20,3 +20,23 @@ pub fn load_or_create(dir: &Path) -> std::io::Result<String> {
 pub fn hostname() -> String {
     gethostname::gethostname().to_string_lossy().into_owned()
 }
+
+/// Masks a hostname for logging. Hostnames are PII (CLAUDE.md), but a short
+/// prefix is useful to distinguish devices in a sync-conflict log. Keeps at
+/// most the first 3 characters and appends `***`. Empty → "***".
+pub fn mask_hostname(hostname: &str) -> String {
+    let prefix: String = hostname.chars().take(3).collect();
+    format!("{prefix}***")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn mask_hostname_keeps_short_prefix() {
+        assert_eq!(mask_hostname("florians-macbook.local"), "flo***");
+        assert_eq!(mask_hostname("pc"), "pc***");
+        assert_eq!(mask_hostname(""), "***");
+    }
+}
