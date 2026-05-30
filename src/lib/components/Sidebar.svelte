@@ -13,7 +13,7 @@
 
 <aside class="sidebar">
   <div class="brand">
-    <div class="brand-dot">S</div>
+    <div class="brand-dot">N</div>
     {t().appName}
   </div>
 
