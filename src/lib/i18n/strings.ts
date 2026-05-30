@@ -478,7 +478,7 @@ export interface I18N {
 
 export const I18N: Record<Lang, I18N> = {
   de: {
-    appName: 'Saldo.',
+    appName: 'Notchkeep',
     nav: {
       overview: 'Übersicht',
       networth: 'Vermögen',
@@ -971,7 +971,7 @@ export const I18N: Record<Lang, I18N> = {
     weekdays: ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'],
   },
   en: {
-    appName: 'Saldo.',
+    appName: 'Notchkeep',
     nav: {
       overview: 'Overview',
       networth: 'Net Worth',

@@ -13,7 +13,7 @@
 </script>
 
 <header class="mobile-header">
-  <div class="brand-dot">S</div>
+  <div class="brand-dot">N</div>
   <div class="title">{title}</div>
 </header>
 

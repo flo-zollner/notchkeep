@@ -13,7 +13,7 @@
 
 <aside class="rail">
   <a href="/" class="rail-brand" title={t().appName}>
-    <div class="brand-dot">S</div>
+    <div class="brand-dot">N</div>
   </a>
 
   {#each navMain as item (item.id)}
