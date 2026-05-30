@@ -84,10 +84,7 @@ pub async fn fetch_export_rows(
     Ok(rows)
 }
 
-pub fn write_export_csv<W: std::io::Write>(
-    rows: &[ExportRow],
-    writer: W,
-) -> std::io::Result<()> {
+pub fn write_export_csv<W: std::io::Write>(rows: &[ExportRow], writer: W) -> std::io::Result<()> {
     let mut wtr = csv::WriterBuilder::new()
         .delimiter(b',')
         .quote_style(csv::QuoteStyle::Necessary)
@@ -230,10 +227,50 @@ mod tests {
     async fn filter_from_to_inclusive() {
         let pool = connect_memory().await.unwrap();
         let acc = seed_account(&pool, "TR").await;
-        seed_tx(&pool, acc, "2026-04-30", -100, None, Some("vor"), None, None).await;
-        let id_lo = seed_tx(&pool, acc, "2026-05-01", -100, None, Some("low"), None, None).await;
-        let id_hi = seed_tx(&pool, acc, "2026-05-31", -100, None, Some("high"), None, None).await;
-        seed_tx(&pool, acc, "2026-06-01", -100, None, Some("nach"), None, None).await;
+        seed_tx(
+            &pool,
+            acc,
+            "2026-04-30",
+            -100,
+            None,
+            Some("vor"),
+            None,
+            None,
+        )
+        .await;
+        let id_lo = seed_tx(
+            &pool,
+            acc,
+            "2026-05-01",
+            -100,
+            None,
+            Some("low"),
+            None,
+            None,
+        )
+        .await;
+        let id_hi = seed_tx(
+            &pool,
+            acc,
+            "2026-05-31",
+            -100,
+            None,
+            Some("high"),
+            None,
+            None,
+        )
+        .await;
+        seed_tx(
+            &pool,
+            acc,
+            "2026-06-01",
+            -100,
+            None,
+            Some("nach"),
+            None,
+            None,
+        )
+        .await;
 
         let f = ExportFilter {
             from: Some(NaiveDate::from_ymd_opt(2026, 5, 1).unwrap()),
@@ -267,7 +304,17 @@ mod tests {
         let pool = connect_memory().await.unwrap();
         let acc = seed_account(&pool, "TR").await;
         let cat = seed_category(&pool, "Lebensmittel").await;
-        let id_with = seed_tx(&pool, acc, "2026-05-01", -100, Some(cat), Some("a"), None, None).await;
+        let id_with = seed_tx(
+            &pool,
+            acc,
+            "2026-05-01",
+            -100,
+            Some(cat),
+            Some("a"),
+            None,
+            None,
+        )
+        .await;
         seed_tx(&pool, acc, "2026-05-01", -200, None, Some("b"), None, None).await;
 
         let f = ExportFilter {
@@ -284,10 +331,50 @@ mod tests {
     async fn filter_search_matches_counterparty_purpose_or_note() {
         let pool = connect_memory().await.unwrap();
         let acc = seed_account(&pool, "TR").await;
-        let id_cp = seed_tx(&pool, acc, "2026-05-01", -1, None, Some("REWE Markt"), None, None).await;
-        let id_pp = seed_tx(&pool, acc, "2026-05-02", -1, None, Some("X"), Some("Einkauf REWE"), None).await;
-        let id_nt = seed_tx(&pool, acc, "2026-05-03", -1, None, Some("X"), None, Some("Rewe-Notiz")).await;
-        seed_tx(&pool, acc, "2026-05-04", -1, None, Some("Edeka"), Some("Y"), None).await;
+        let id_cp = seed_tx(
+            &pool,
+            acc,
+            "2026-05-01",
+            -1,
+            None,
+            Some("REWE Markt"),
+            None,
+            None,
+        )
+        .await;
+        let id_pp = seed_tx(
+            &pool,
+            acc,
+            "2026-05-02",
+            -1,
+            None,
+            Some("X"),
+            Some("Einkauf REWE"),
+            None,
+        )
+        .await;
+        let id_nt = seed_tx(
+            &pool,
+            acc,
+            "2026-05-03",
+            -1,
+            None,
+            Some("X"),
+            None,
+            Some("Rewe-Notiz"),
+        )
+        .await;
+        seed_tx(
+            &pool,
+            acc,
+            "2026-05-04",
+            -1,
+            None,
+            Some("Edeka"),
+            Some("Y"),
+            None,
+        )
+        .await;
 
         let f = ExportFilter {
             search: Some("rewe".to_string()),
@@ -303,9 +390,39 @@ mod tests {
         let pool = connect_memory().await.unwrap();
         let acc1 = seed_account(&pool, "A1").await;
         let acc2 = seed_account(&pool, "A2").await;
-        let id_match = seed_tx(&pool, acc1, "2026-05-10", -100, None, Some("REWE"), None, None).await;
-        seed_tx(&pool, acc1, "2026-04-10", -100, None, Some("REWE"), None, None).await;
-        seed_tx(&pool, acc2, "2026-05-10", -100, None, Some("REWE"), None, None).await;
+        let id_match = seed_tx(
+            &pool,
+            acc1,
+            "2026-05-10",
+            -100,
+            None,
+            Some("REWE"),
+            None,
+            None,
+        )
+        .await;
+        seed_tx(
+            &pool,
+            acc1,
+            "2026-04-10",
+            -100,
+            None,
+            Some("REWE"),
+            None,
+            None,
+        )
+        .await;
+        seed_tx(
+            &pool,
+            acc2,
+            "2026-05-10",
+            -100,
+            None,
+            Some("REWE"),
+            None,
+            None,
+        )
+        .await;
 
         let f = ExportFilter {
             from: Some(NaiveDate::from_ymd_opt(2026, 5, 1).unwrap()),

@@ -26,15 +26,21 @@ pub enum BelegTyp {
 }
 
 pub fn detect_beleg_typ(text: &str) -> ImportResult<BelegTyp> {
-    if text.contains("Wertpapierabrechnung Kauf") { return Ok(BelegTyp::KaufFondsZert); }
-    if text.contains("Wertpapierabrechnung Verkauf") { return Ok(BelegTyp::VerkaufFondsZert); }
+    if text.contains("Wertpapierabrechnung Kauf") {
+        return Ok(BelegTyp::KaufFondsZert);
+    }
+    if text.contains("Wertpapierabrechnung Verkauf") {
+        return Ok(BelegTyp::VerkaufFondsZert);
+    }
     if text.contains("Storno Ertragsmitteilung") {
         return Ok(BelegTyp::FondsthesaurierungStorno);
     }
     if text.contains("Ertragsmitteilung") && text.contains("thesaurierender") {
         return Ok(BelegTyp::Fondsthesaurierung);
     }
-    if text.contains("Dividendengutschrift") { return Ok(BelegTyp::DividendeAuslaendisch); }
+    if text.contains("Dividendengutschrift") {
+        return Ok(BelegTyp::DividendeAuslaendisch);
+    }
     if text.contains("Sammelabrechnung") && text.contains("Kryptowerte") {
         return Ok(BelegTyp::SammelabrechnungKrypto);
     }
@@ -47,8 +53,12 @@ pub fn detect_beleg_typ(text: &str) -> ImportResult<BelegTyp> {
     if text.contains("Fusion in ") || text.contains("im Rahmen einer Fusion") {
         return Ok(BelegTyp::Fusion);
     }
-    if text.contains("Kontoauszug Nr") { return Ok(BelegTyp::Kontoauszug); }
-    if text.contains("STEUERREPORT") { return Ok(BelegTyp::Steuerreport); }
+    if text.contains("Kontoauszug Nr") {
+        return Ok(BelegTyp::Kontoauszug);
+    }
+    if text.contains("STEUERREPORT") {
+        return Ok(BelegTyp::Steuerreport);
+    }
     if text.contains("Kapitalmaßnahme") || text.contains("Bestandsübertrag") {
         return Ok(BelegTyp::Kapitalmassnahme);
     }
@@ -62,18 +72,26 @@ impl Importer for FlatexPdf {
 
         let beleg = detect_beleg_typ(&text)?;
         let raws = match beleg {
-            BelegTyp::Kontoauszug => return Err(ImportError::Parse(
-                "Account-statement PDFs are not imported. Please upload only \
+            BelegTyp::Kontoauszug => {
+                return Err(ImportError::Parse(
+                    "Account-statement PDFs are not imported. Please upload only \
                  individual documents (buy, sell, reinvestment, dividend, crypto). \
-                 Reason: high risk of duplicate bookings.".into()
-            )),
-            BelegTyp::Steuerreport => return Err(ImportError::Parse(
-                "Tax-report PDFs are not yet supported.".into()
-            )),
-            BelegTyp::Kapitalmassnahme => return Err(ImportError::Parse(
-                "Corporate-action documents are not yet supported — real test \
-                 material is needed first.".into()
-            )),
+                 Reason: high risk of duplicate bookings."
+                        .into(),
+                ))
+            }
+            BelegTyp::Steuerreport => {
+                return Err(ImportError::Parse(
+                    "Tax-report PDFs are not yet supported.".into(),
+                ))
+            }
+            BelegTyp::Kapitalmassnahme => {
+                return Err(ImportError::Parse(
+                    "Corporate-action documents are not yet supported — real test \
+                 material is needed first."
+                        .into(),
+                ))
+            }
             BelegTyp::KaufFondsZert => vec![parse_kauf(&text)?],
             BelegTyp::VerkaufFondsZert => vec![parse_verkauf(&text)?],
             BelegTyp::Fondsthesaurierung => vec![parse_thesaurierung(&text)?],
@@ -84,19 +102,26 @@ impl Importer for FlatexPdf {
             BelegTyp::SammelabrechnungSparplan => parse_sparplan_sammelabrechnung(&text)?,
             BelegTyp::Fusion => parse_fusion(&text)?,
         };
-        Ok(ParseResult { raws, warnings: vec![] })
+        Ok(ParseResult {
+            raws,
+            warnings: vec![],
+        })
     }
 }
 
 /// ISIN pattern: 2 uppercase letters + 9 uppercase alphanumeric characters + 1 digit.
 fn is_valid_isin(s: &str) -> bool {
-    if s.len() != 12 { return false; }
+    if s.len() != 12 {
+        return false;
+    }
     let bytes = s.as_bytes();
     if !(bytes[0].is_ascii_uppercase() && bytes[1].is_ascii_uppercase()) {
         return false;
     }
     for &b in &bytes[2..11] {
-        if !(b.is_ascii_uppercase() || b.is_ascii_digit()) { return false; }
+        if !(b.is_ascii_uppercase() || b.is_ascii_digit()) {
+            return false;
+        }
     }
     bytes[11].is_ascii_digit()
 }
@@ -108,9 +133,13 @@ fn is_valid_isin(s: &str) -> bool {
 fn extract_isin_from_parens(text: &str) -> Option<String> {
     for (start, _) in text.match_indices('(') {
         let after = start + 1;
-        if after + 12 > text.len() { continue; }
+        if after + 12 > text.len() {
+            continue;
+        }
         let candidate_bytes = &text.as_bytes()[after..after + 12];
-        if !candidate_bytes.iter().all(|b| b.is_ascii()) { continue; }
+        if !candidate_bytes.iter().all(|b| b.is_ascii()) {
+            continue;
+        }
         let candidate = &text[after..after + 12];
         if is_valid_isin(candidate) {
             return Some(candidate.to_string());
@@ -134,7 +163,8 @@ pub(crate) fn extract_date_after(text: &str, label: &str) -> Option<NaiveDate> {
             if slice.len() >= 10 {
                 let candidate = &slice[..10];
                 let bytes = candidate.as_bytes();
-                let shape_ok = bytes[2] == b'.' && bytes[5] == b'.'
+                let shape_ok = bytes[2] == b'.'
+                    && bytes[5] == b'.'
                     && bytes[0..2].iter().all(|b| b.is_ascii_digit())
                     && bytes[3..5].iter().all(|b| b.is_ascii_digit())
                     && bytes[6..10].iter().all(|b| b.is_ascii_digit());
@@ -217,14 +247,22 @@ fn parse_de_number_parts(line: &str) -> Option<(i64, String, bool)> {
             let mut j = start;
             while j < bytes.len()
                 && (bytes[j].is_ascii_digit() || bytes[j] == b'.' || bytes[j] == b',')
-            { j += 1; }
+            {
+                j += 1;
+            }
             let raw = &line[start..j];
             let normalized: String = raw.replace('.', "");
             let mut parts = normalized.splitn(2, ',');
             let int_str = parts.next()?;
             let frac_str = parts.next().unwrap_or("");
-            if !int_str.chars().all(|c| c.is_ascii_digit()) { i += 1; continue; }
-            if !frac_str.chars().all(|c| c.is_ascii_digit()) { i += 1; continue; }
+            if !int_str.chars().all(|c| c.is_ascii_digit()) {
+                i += 1;
+                continue;
+            }
+            if !frac_str.chars().all(|c| c.is_ascii_digit()) {
+                i += 1;
+                continue;
+            }
             let int_val: i64 = int_str.parse().ok()?;
             return Some((int_val, frac_str.to_string(), neg));
         }
@@ -258,10 +296,18 @@ fn parse_wertpapierabrechnung(text: &str, side: &'static str) -> ImportResult<Ra
     let shares_micro = extract_micro_after(text, "Ausgeführt")
         .ok_or_else(|| ImportError::Parse("Ausgeführt (shares) not found".into()))?;
     let unit_price_micro = extract_micro_after_word(text, "Kurs");
-    let provision = extract_amount_cents_after(text, "Provision").unwrap_or(0).abs();
-    let fremde_spesen = extract_amount_cents_after(text, "Fremde Spesen").unwrap_or(0).abs();
-    let eigene_spesen = extract_amount_cents_after(text, "Eigene Spesen").unwrap_or(0).abs();
-    let kest_cents = extract_amount_cents_after(text, "Einbeh. KESt").unwrap_or(0).abs();
+    let provision = extract_amount_cents_after(text, "Provision")
+        .unwrap_or(0)
+        .abs();
+    let fremde_spesen = extract_amount_cents_after(text, "Fremde Spesen")
+        .unwrap_or(0)
+        .abs();
+    let eigene_spesen = extract_amount_cents_after(text, "Eigene Spesen")
+        .unwrap_or(0)
+        .abs();
+    let kest_cents = extract_amount_cents_after(text, "Einbeh. KESt")
+        .unwrap_or(0)
+        .abs();
     let raw_ref = extract_value_after(text, "Auftragsnummer");
     let name = extract_security_name_inline(text).unwrap_or_else(|| "(Unbekannt)".into());
 
@@ -297,7 +343,11 @@ fn extract_value_after(text: &str, label: &str) -> Option<String> {
     let line = tail.split('\n').next()?;
     let token = line.trim().trim_start_matches(':').trim();
     let first = token.split_whitespace().next()?;
-    if first.is_empty() { None } else { Some(first.to_string()) }
+    if first.is_empty() {
+        None
+    } else {
+        Some(first.to_string())
+    }
 }
 
 /// Finds the line "Nr.xxx Kauf NAME (ISIN/WKN)" and extracts NAME.
@@ -307,16 +357,25 @@ fn extract_value_after(text: &str, label: &str) -> Option<String> {
 fn extract_security_name_inline(text: &str) -> Option<String> {
     for line in text.lines() {
         // Find the position of the ISIN bracket in this line
-        let isin_paren_pos: Option<usize> = line.match_indices('(')
-            .find_map(|(pos, _)| {
-                let after = pos + 1;
-                if after + 12 > line.len() { return None; }
-                let candidate_bytes = &line.as_bytes()[after..after + 12];
-                if !candidate_bytes.iter().all(|b| b.is_ascii()) { return None; }
-                let candidate = &line[after..after + 12];
-                if is_valid_isin(candidate) { Some(pos) } else { None }
-            });
-        let Some(paren_pos) = isin_paren_pos else { continue };
+        let isin_paren_pos: Option<usize> = line.match_indices('(').find_map(|(pos, _)| {
+            let after = pos + 1;
+            if after + 12 > line.len() {
+                return None;
+            }
+            let candidate_bytes = &line.as_bytes()[after..after + 12];
+            if !candidate_bytes.iter().all(|b| b.is_ascii()) {
+                return None;
+            }
+            let candidate = &line[after..after + 12];
+            if is_valid_isin(candidate) {
+                Some(pos)
+            } else {
+                None
+            }
+        });
+        let Some(paren_pos) = isin_paren_pos else {
+            continue;
+        };
 
         // Before the ISIN bracket: find the last side keyword (Kauf or Verkauf)
         let before = &line[..paren_pos];
@@ -343,7 +402,9 @@ fn parse_thesaurierung(text: &str) -> ImportResult<RawTransaction> {
         .ok_or_else(|| ImportError::Parse("Valuta/Zuflusstag not found".into()))?;
     let amount_cents = extract_amount_cents_after(text, "Endbetrag")
         .ok_or_else(|| ImportError::Parse("Endbetrag not found".into()))?;
-    let kest_cents = extract_amount_cents_after(text, "Einbeh. Steuer").unwrap_or(0).abs();
+    let kest_cents = extract_amount_cents_after(text, "Einbeh. Steuer")
+        .unwrap_or(0)
+        .abs();
     let raw_ref = extract_value_after(text, "Transaktion-Nr.");
     let name = extract_security_name_thesaurierung(text).unwrap_or_else(|| "(Unbekannt)".into());
 
@@ -396,15 +457,26 @@ fn parse_thesaurierung_storno(text: &str) -> ImportResult<RawTransaction> {
 /// Security name in the reinvestment line: "Nr.xxx NAME (ISIN/WKN)".
 fn extract_security_name_thesaurierung(text: &str) -> Option<String> {
     for line in text.lines() {
-        if !line.contains("Nr.") { continue; }
-        if line.contains("Auftragsnummer") { continue; }
-        if line.contains("Transaktion") { continue; }
-        if line.contains("Konto Nr") { continue; }
+        if !line.contains("Nr.") {
+            continue;
+        }
+        if line.contains("Auftragsnummer") {
+            continue;
+        }
+        if line.contains("Transaktion") {
+            continue;
+        }
+        if line.contains("Konto Nr") {
+            continue;
+        }
         if let Some(paren) = line.find('(') {
             if let Some(nr_idx) = line.find("Nr.") {
                 let after_nr = &line[nr_idx + 3..paren];
                 // Skip the number token (digits), then collect the name
-                let rest: String = after_nr.chars().skip_while(|c| !c.is_whitespace()).collect();
+                let rest: String = after_nr
+                    .chars()
+                    .skip_while(|c| !c.is_whitespace())
+                    .collect();
                 let name = rest.trim();
                 if !name.is_empty() {
                     return Some(name.to_string());
@@ -422,22 +494,26 @@ fn parse_dividende(text: &str) -> ImportResult<RawTransaction> {
         .ok_or_else(|| ImportError::Parse("Zahlungstag not found".into()))?;
     let amount_cents = extract_amount_cents_after(text, "Endbetrag")
         .ok_or_else(|| ImportError::Parse("Endbetrag not found".into()))?;
-    let kest_cents = extract_amount_cents_after(text, "Einbeh. Steuer").unwrap_or(0).abs();
+    let kest_cents = extract_amount_cents_after(text, "Einbeh. Steuer")
+        .unwrap_or(0)
+        .abs();
     let raw_ref = extract_value_after(text, "Transaktion-Nr.");
     let name = extract_security_name_thesaurierung(text).unwrap_or_else(|| "(Unbekannt)".into());
 
     // Withholding tax in original currency × FX rate → EUR.
     // Document convention: FX rate = original_currency per EUR.
     // Example: HKD/EUR = 9.1735 → 1.56 HKD ÷ 9.1735 = 0.17 EUR.
-    let quellenst_orig_micro = extract_micro_after(text, "Gez. Quellenst.").unwrap_or(0).abs();
+    let quellenst_orig_micro = extract_micro_after(text, "Gez. Quellenst.")
+        .unwrap_or(0)
+        .abs();
     let fx_orig_per_eur_micro = extract_micro_after(text, "Devisenkurs").unwrap_or(1_000_000);
     let withholding_tax_cents = if fx_orig_per_eur_micro > 0 && quellenst_orig_micro > 0 {
         // quellenst_orig_micro (micro original-currency)
         // ÷ fx_orig_per_eur_micro (micro original per EUR) = micro EUR
         // EUR cents = micro_eur / 10_000
-        let withholding_eur_micro = (quellenst_orig_micro as i128 * 1_000_000i128
-            / fx_orig_per_eur_micro as i128) as i64;
-        (withholding_eur_micro + 5_000) / 10_000   // rounding
+        let withholding_eur_micro =
+            (quellenst_orig_micro as i128 * 1_000_000i128 / fx_orig_per_eur_micro as i128) as i64;
+        (withholding_eur_micro + 5_000) / 10_000 // rounding
     } else {
         0
     };
@@ -480,7 +556,7 @@ fn known_crypto_isin(name_upper: &str) -> Option<&'static str> {
 fn synth_crypto_isin(name_upper: &str) -> String {
     use sha2::{Digest, Sha256};
     let hash = Sha256::digest(name_upper.as_bytes());
-    let hex = format!("{hash:x}");   // 64 lowercase hex characters
+    let hex = format!("{hash:x}"); // 64 lowercase hex characters
     let upper = hex.to_uppercase();
     // 9 alphanum + 1 digit
     let mut core: String = upper.chars().take(9).collect(); // first 9 chars become the body
@@ -540,22 +616,27 @@ fn parse_krypto_sammelabrechnung(text: &str) -> ImportResult<Vec<RawTransaction>
     // "Nr.327516865/1    Kauf                           BITCOIN"
     // We find all such lines and segment the text into per-position blocks.
     let lines: Vec<&str> = text.lines().collect();
-    let mut position_starts: Vec<usize> = Vec::new();  // line numbers of the "Nr." lines
+    let mut position_starts: Vec<usize> = Vec::new(); // line numbers of the "Nr." lines
 
     for (i, line) in lines.iter().enumerate() {
         let trimmed = line.trim();
         // Match "Nr.digits/digits..." (Order-Referenz-Zeile)
-        if !trimmed.starts_with("Nr.") { continue; }
+        if !trimmed.starts_with("Nr.") {
+            continue;
+        }
         let after_nr = &trimmed[3..];
         // Extract and check the first token (up to whitespace)
         let first_token = after_nr.split_whitespace().next().unwrap_or("");
         if let Some(slash_pos) = first_token.find('/') {
             let before_slash = &first_token[..slash_pos];
-            let after_slash = &first_token[slash_pos+1..];
+            let after_slash = &first_token[slash_pos + 1..];
             // Check: NNNN/D — digits before and after slash
             if before_slash.chars().all(|c| c.is_ascii_digit())
                 && !before_slash.is_empty()
-                && after_slash.chars().next().map_or(false, |c| c.is_ascii_digit())
+                && after_slash
+                    .chars()
+                    .next()
+                    .map_or(false, |c| c.is_ascii_digit())
             {
                 // Check: line contains "Kauf" or "Verkauf" (it is a position line)
                 let tokens: Vec<&str> = trimmed.split_whitespace().collect();
@@ -568,14 +649,17 @@ fn parse_krypto_sammelabrechnung(text: &str) -> ImportResult<Vec<RawTransaction>
 
     if position_starts.is_empty() {
         return Err(ImportError::Parse(
-            "Crypto batch statement: no positions found (Nr.X/Y not found)".into()
+            "Crypto batch statement: no positions found (Nr.X/Y not found)".into(),
         ));
     }
 
     let mut out = Vec::new();
 
     for (pos_idx, &start_line) in position_starts.iter().enumerate() {
-        let end_line = position_starts.get(pos_idx + 1).copied().unwrap_or(lines.len());
+        let end_line = position_starts
+            .get(pos_idx + 1)
+            .copied()
+            .unwrap_or(lines.len());
         let block_lines = &lines[start_line..end_line];
         let block = block_lines.join("\n");
 
@@ -588,21 +672,29 @@ fn parse_krypto_sammelabrechnung(text: &str) -> ImportResult<Vec<RawTransaction>
         let raw_ref_display = format!("Nr.{}", raw_ref);
 
         // Side: "Kauf" or "Verkauf" in the tokens
-        let side = tokens.iter()
+        let side = tokens
+            .iter()
             .find_map(|t| {
-                if *t == "Kauf" { Some("buy") }
-                else if *t == "Verkauf" { Some("sell") }
-                else { None }
+                if *t == "Kauf" {
+                    Some("buy")
+                } else if *t == "Verkauf" {
+                    Some("sell")
+                } else {
+                    None
+                }
             })
-            .ok_or_else(|| ImportError::Parse(
-                format!("Crypto document ({raw_ref_display}): Kauf/Verkauf not recognised")
-            ))?;
+            .ok_or_else(|| {
+                ImportError::Parse(format!(
+                    "Crypto document ({raw_ref_display}): Kauf/Verkauf not recognised"
+                ))
+            })?;
 
         // Asset name: all tokens after "Kauf"/"Verkauf" that consist only of uppercase letters
         let side_word = if side == "buy" { "Kauf" } else { "Verkauf" };
         let name_upper = {
             let side_idx = tokens.iter().position(|t| *t == side_word).unwrap();
-            let name_tokens: Vec<&str> = tokens[side_idx+1..].iter()
+            let name_tokens: Vec<&str> = tokens[side_idx + 1..]
+                .iter()
                 .take_while(|t| t.chars().all(|c| c.is_ascii_uppercase() || c == '-'))
                 .copied()
                 .collect();
@@ -611,14 +703,18 @@ fn parse_krypto_sammelabrechnung(text: &str) -> ImportResult<Vec<RawTransaction>
                 name_tokens.join(" ")
             } else {
                 // Fallback: search block lines for an all-caps line
-                block_lines.iter()
+                block_lines
+                    .iter()
                     .skip(1)
                     .take(20)
                     .find_map(|l| {
                         let t = l.trim();
-                        if t.is_empty() || t == "Kauf" || t == "Verkauf" { return None; }
+                        if t.is_empty() || t == "Kauf" || t == "Verkauf" {
+                            return None;
+                        }
                         if t.len() >= 2
-                            && t.chars().all(|c| c.is_ascii_uppercase() || c == ' ' || c == '-')
+                            && t.chars()
+                                .all(|c| c.is_ascii_uppercase() || c == ' ' || c == '-')
                             && t.chars().any(|c| c.is_ascii_uppercase())
                         {
                             Some(t.to_string())
@@ -626,32 +722,40 @@ fn parse_krypto_sammelabrechnung(text: &str) -> ImportResult<Vec<RawTransaction>
                             None
                         }
                     })
-                    .ok_or_else(|| ImportError::Parse(
-                        format!("Crypto document ({raw_ref_display}): asset name not found")
-                    ))?
+                    .ok_or_else(|| {
+                        ImportError::Parse(format!(
+                            "Crypto document ({raw_ref_display}): asset name not found"
+                        ))
+                    })?
             }
         };
 
         // Date: "Schlusstag" or "Valuta"
         let booking_date = extract_date_multiline(&block, "Schlusstag")
             .or_else(|| extract_date_multiline(&block, "Valuta"))
-            .ok_or_else(|| ImportError::Parse(
-                format!("Crypto document ({raw_ref_display}): date not found")
-            ))?;
+            .ok_or_else(|| {
+                ImportError::Parse(format!(
+                    "Crypto document ({raw_ref_display}): date not found"
+                ))
+            })?;
 
         // End amount: last numeric value before "Transaktion-Nr." or end of block
-        let amount_cents = extract_amount_cents_multiline(&block, "Endbetrag")
-            .ok_or_else(|| ImportError::Parse(
-                format!("Crypto document ({raw_ref_display}): Endbetrag not found")
-            ))?;
+        let amount_cents =
+            extract_amount_cents_multiline(&block, "Endbetrag").ok_or_else(|| {
+                ImportError::Parse(format!(
+                    "Crypto document ({raw_ref_display}): Endbetrag not found"
+                ))
+            })?;
 
         // Shares: "davon ausgef." — on the same line
         let shares_micro_abs = extract_micro_after(&block, "davon ausgef.")
             .or_else(|| extract_micro_after(&block, "davon ausgef"))
             .or_else(|| extract_micro_multiline(&block, "Ordervolumen"))
-            .ok_or_else(|| ImportError::Parse(
-                format!("Crypto document ({raw_ref_display}): shares not found")
-            ))?;
+            .ok_or_else(|| {
+                ImportError::Parse(format!(
+                    "Crypto document ({raw_ref_display}): shares not found"
+                ))
+            })?;
         let shares_micro = if side == "sell" {
             -shares_micro_abs.abs()
         } else {
@@ -663,11 +767,13 @@ fn parse_krypto_sammelabrechnung(text: &str) -> ImportResult<Vec<RawTransaction>
 
         // Provision: find the value under "Provision"
         let provision = extract_amount_cents_multiline(&block, "Provision")
-            .unwrap_or(0).abs();
+            .unwrap_or(0)
+            .abs();
 
         // Withheld tax
         let kest_cents = extract_amount_cents_multiline(&block, "Einbeh. Steuer")
-            .unwrap_or(0).abs();
+            .unwrap_or(0)
+            .abs();
 
         let isin = known_crypto_isin(&name_upper)
             .map(String::from)
@@ -700,7 +806,7 @@ fn parse_krypto_sammelabrechnung(text: &str) -> ImportResult<Vec<RawTransaction>
 
     if out.is_empty() {
         return Err(ImportError::Parse(
-            "Crypto batch statement: no positions recognised".into()
+            "Crypto batch statement: no positions recognised".into(),
         ));
     }
     Ok(out)
@@ -715,7 +821,9 @@ fn parse_wertpapier_sammelabrechnung(text: &str) -> ImportResult<Vec<RawTransact
 
     for (i, line) in lines.iter().enumerate() {
         let trimmed = line.trim();
-        if !trimmed.starts_with("Nr.") { continue; }
+        if !trimmed.starts_with("Nr.") {
+            continue;
+        }
         let after_nr = &trimmed[3..];
         let first_token = after_nr.split_whitespace().next().unwrap_or("");
         if let Some(slash_pos) = first_token.find('/') {
@@ -723,7 +831,10 @@ fn parse_wertpapier_sammelabrechnung(text: &str) -> ImportResult<Vec<RawTransact
             let after_slash = &first_token[slash_pos + 1..];
             if before_slash.chars().all(|c| c.is_ascii_digit())
                 && !before_slash.is_empty()
-                && after_slash.chars().next().map_or(false, |c| c.is_ascii_digit())
+                && after_slash
+                    .chars()
+                    .next()
+                    .map_or(false, |c| c.is_ascii_digit())
             {
                 let tokens: Vec<&str> = trimmed.split_whitespace().collect();
                 if tokens.iter().any(|t| *t == "Kauf" || *t == "Verkauf") {
@@ -735,13 +846,16 @@ fn parse_wertpapier_sammelabrechnung(text: &str) -> ImportResult<Vec<RawTransact
 
     if position_starts.is_empty() {
         return Err(ImportError::Parse(
-            "Securities batch statement: no positions found".into()
+            "Securities batch statement: no positions found".into(),
         ));
     }
 
     let mut out = Vec::new();
     for (pos_idx, &start_line) in position_starts.iter().enumerate() {
-        let end_line = position_starts.get(pos_idx + 1).copied().unwrap_or(lines.len());
+        let end_line = position_starts
+            .get(pos_idx + 1)
+            .copied()
+            .unwrap_or(lines.len());
         let block_lines = &lines[start_line..end_line];
         let block = block_lines.join("\n");
 
@@ -750,21 +864,23 @@ fn parse_wertpapier_sammelabrechnung(text: &str) -> ImportResult<Vec<RawTransact
         let raw_ref = tokens[0].trim_start_matches("Nr.").to_string();
         let raw_ref_display = format!("Nr.{raw_ref}");
 
-        let side = tokens.iter()
+        let side = tokens
+            .iter()
             .find_map(|t| match *t {
                 "Kauf" => Some("buy"),
                 "Verkauf" => Some("sell"),
                 _ => None,
             })
-            .ok_or_else(|| ImportError::Parse(
-                format!("WP-batch ({raw_ref_display}): Kauf/Verkauf not recognised")
-            ))?;
+            .ok_or_else(|| {
+                ImportError::Parse(format!(
+                    "WP-batch ({raw_ref_display}): Kauf/Verkauf not recognised"
+                ))
+            })?;
 
         // Real ISIN from the block (bracket pattern)
-        let isin = extract_isin_from_parens(&block)
-            .ok_or_else(|| ImportError::Parse(
-                format!("WP-batch ({raw_ref_display}): ISIN not found")
-            ))?;
+        let isin = extract_isin_from_parens(&block).ok_or_else(|| {
+            ImportError::Parse(format!("WP-batch ({raw_ref_display}): ISIN not found"))
+        })?;
 
         // Asset name: tokens between "Kauf"/"Verkauf" and the `(` bracket in the Nr. line
         let side_word = if side == "buy" { "Kauf" } else { "Verkauf" };
@@ -784,22 +900,22 @@ fn parse_wertpapier_sammelabrechnung(text: &str) -> ImportResult<Vec<RawTransact
         let booking_date = extract_date_multiline(&block, "Schlusstag")
             .or_else(|| extract_date_multiline(&block, "Valuta"))
             .or_else(|| extract_date_multiline(&block, "Handelstag"))
-            .ok_or_else(|| ImportError::Parse(
-                format!("WP-batch ({raw_ref_display}): date not found")
-            ))?;
+            .ok_or_else(|| {
+                ImportError::Parse(format!("WP-batch ({raw_ref_display}): date not found"))
+            })?;
 
-        let amount_cents = extract_amount_cents_multiline(&block, "Endbetrag")
-            .ok_or_else(|| ImportError::Parse(
-                format!("WP-batch ({raw_ref_display}): Endbetrag not found")
-            ))?;
+        let amount_cents =
+            extract_amount_cents_multiline(&block, "Endbetrag").ok_or_else(|| {
+                ImportError::Parse(format!("WP-batch ({raw_ref_display}): Endbetrag not found"))
+            })?;
 
         let shares_micro_abs = extract_micro_after(&block, "davon ausgef.")
             .or_else(|| extract_micro_after(&block, "davon ausgef"))
             .or_else(|| extract_micro_multiline(&block, "Ordervolumen"))
             .or_else(|| extract_micro_after(&block, "Ausgeführt"))
-            .ok_or_else(|| ImportError::Parse(
-                format!("WP-batch ({raw_ref_display}): shares not found")
-            ))?;
+            .ok_or_else(|| {
+                ImportError::Parse(format!("WP-batch ({raw_ref_display}): shares not found"))
+            })?;
         let shares_micro = if side == "sell" {
             -shares_micro_abs.abs()
         } else {
@@ -810,13 +926,17 @@ fn parse_wertpapier_sammelabrechnung(text: &str) -> ImportResult<Vec<RawTransact
             .or_else(|| extract_micro_after_word(&block, "Kurs"));
 
         let provision = extract_amount_cents_multiline(&block, "Provision")
-            .unwrap_or(0).abs();
+            .unwrap_or(0)
+            .abs();
         let fremde_spesen = extract_amount_cents_multiline(&block, "Fremde Spesen")
-            .unwrap_or(0).abs();
+            .unwrap_or(0)
+            .abs();
         let eigene_spesen = extract_amount_cents_multiline(&block, "Eigene Spesen")
-            .unwrap_or(0).abs();
+            .unwrap_or(0)
+            .abs();
         let kest_cents = extract_amount_cents_multiline(&block, "Einbeh. Steuer")
-            .unwrap_or(0).abs();
+            .unwrap_or(0)
+            .abs();
 
         out.push(RawTransaction {
             booking_date,
@@ -855,15 +975,17 @@ fn parse_sparplan_sammelabrechnung(text: &str) -> ImportResult<Vec<RawTransactio
     let isin = extract_value_after(text, "ISIN")
         .filter(|s| is_valid_isin(s))
         .ok_or_else(|| ImportError::Parse("Savings plan: ISIN not found / invalid".into()))?;
-    let name = extract_value_line_after(text, "Bezeichnung")
-        .unwrap_or_else(|| "(Sparplan)".to_string());
+    let name =
+        extract_value_line_after(text, "Bezeichnung").unwrap_or_else(|| "(Sparplan)".to_string());
 
     let mut out = Vec::new();
     let mut idx: usize = 0;
     for line in text.lines() {
         let trimmed = line.trim();
         let tokens: Vec<&str> = trimmed.split_whitespace().collect();
-        if tokens.len() < 6 { continue; }
+        if tokens.len() < 6 {
+            continue;
+        }
         let side = match tokens[0] {
             "Kauf" => "buy",
             "Verkauf" => "sell",
@@ -872,7 +994,7 @@ fn parse_sparplan_sammelabrechnung(text: &str) -> ImportResult<Vec<RawTransactio
         // Token[1] = booking date dd.mm.yyyy, Token[2] = value date dd.mm.yyyy (ignored)
         let buchtag = tokens[1];
         if buchtag.len() != 10 || buchtag.as_bytes().get(2) != Some(&b'.') {
-            continue;   // not a data row
+            continue; // not a data row
         }
         let booking_date = match chrono::NaiveDate::parse_from_str(buchtag, "%d.%m.%Y") {
             Ok(d) => d,
@@ -883,20 +1005,31 @@ fn parse_sparplan_sammelabrechnung(text: &str) -> ImportResult<Vec<RawTransactio
         // Token[5] = "EUR"
         // Token[6] = amount ("100,00")
         // Token[7] = "EUR"
-        let shares_micro = parse_de_decimal_to_micro(tokens[3])
-            .ok_or_else(|| ImportError::Parse(
-                format!("Savings-plan row {idx}: shares not parsable: {:?}", tokens[3])
-            ))?;
-        let unit_price_micro = parse_de_decimal_to_micro(tokens[4])
-            .ok_or_else(|| ImportError::Parse(
-                format!("Savings-plan row {idx}: price not parsable: {:?}", tokens[4])
-            ))?;
+        let shares_micro = parse_de_decimal_to_micro(tokens[3]).ok_or_else(|| {
+            ImportError::Parse(format!(
+                "Savings-plan row {idx}: shares not parsable: {:?}",
+                tokens[3]
+            ))
+        })?;
+        let unit_price_micro = parse_de_decimal_to_micro(tokens[4]).ok_or_else(|| {
+            ImportError::Parse(format!(
+                "Savings-plan row {idx}: price not parsable: {:?}",
+                tokens[4]
+            ))
+        })?;
         // Find amount: token after "EUR" (token 5) → token 6
-        let amount_abs = parse_de_decimal_to_cents(tokens.get(6).unwrap_or(&""))
-            .ok_or_else(|| ImportError::Parse(
-                format!("Savings-plan row {idx}: amount not parsable: {:?}", tokens.get(6))
-            ))?;
-        let amount_cents = if side == "buy" { -amount_abs } else { amount_abs };
+        let amount_abs =
+            parse_de_decimal_to_cents(tokens.get(6).unwrap_or(&"")).ok_or_else(|| {
+                ImportError::Parse(format!(
+                    "Savings-plan row {idx}: amount not parsable: {:?}",
+                    tokens.get(6)
+                ))
+            })?;
+        let amount_cents = if side == "buy" {
+            -amount_abs
+        } else {
+            amount_abs
+        };
 
         out.push(RawTransaction {
             booking_date,
@@ -912,7 +1045,11 @@ fn parse_sparplan_sammelabrechnung(text: &str) -> ImportResult<Vec<RawTransactio
                 asset_class_raw: "FUND".to_string(),
                 name: name.clone(),
                 side: side.to_string(),
-                shares_micro: if side == "sell" { -shares_micro.abs() } else { shares_micro },
+                shares_micro: if side == "sell" {
+                    -shares_micro.abs()
+                } else {
+                    shares_micro
+                },
                 unit_price_micro: Some(unit_price_micro),
                 fee_cents: 0,
                 kest_cents: 0,
@@ -927,7 +1064,7 @@ fn parse_sparplan_sammelabrechnung(text: &str) -> ImportResult<Vec<RawTransactio
 
     if out.is_empty() {
         return Err(ImportError::Parse(
-            "Savings plan: no table rows recognised".into()
+            "Savings plan: no table rows recognised".into(),
         ));
     }
     Ok(out)
@@ -940,7 +1077,11 @@ fn extract_value_line_after(text: &str, label: &str) -> Option<String> {
     let tail = &text[idx + label.len()..];
     let line = tail.split('\n').next()?;
     let value = line.trim().trim_start_matches(':').trim();
-    if value.is_empty() { None } else { Some(value.to_string()) }
+    if value.is_empty() {
+        None
+    } else {
+        Some(value.to_string())
+    }
 }
 
 /// Fusion document: one security is booked out and another (target fund)
@@ -966,49 +1107,57 @@ fn parse_fusion(text: &str) -> ImportResult<Vec<RawTransaction>> {
     let rows = extract_fusion_isin_rows(text);
     if rows.len() < 2 {
         return Err(ImportError::Parse(format!(
-            "Fusion: expected ≥2 ISIN rows (source + target), found {}", rows.len()
+            "Fusion: expected ≥2 ISIN rows (source + target), found {}",
+            rows.len()
         )));
     }
     let (out_isin, out_name, out_shares_micro) = &rows[0];
     let (in_isin, in_name, in_shares_micro) = &rows[1];
 
     // Make the transaction number unique per transaction
-    let tx_nr = extract_value_after(text, "Transaktion-Nr.")
-        .unwrap_or_else(|| "FUSION".to_string());
+    let tx_nr =
+        extract_value_after(text, "Transaktion-Nr.").unwrap_or_else(|| "FUSION".to_string());
 
     // Pairing identifier: same value on source and target row so the
     // FIFO solver can transfer the cost basis from source to target.
     let fusion_group = format!("FUSION-{tx_nr}");
 
-    let make_tx = |isin: &str, name: &str, shares_micro: i64, suffix: &str, side: &str| RawTransaction {
-        booking_date,
-        amount_cents: 0,
-        currency: "EUR".to_string(),
-        // counterparty must be unique per transaction (dedup index: account_id+date+amount+
-        // counterparty+hash). With amount_cents=0, both fusion transactions would otherwise be identical.
-        counterparty: Some(format!("flatexDEGIRO · Fusion {isin}")),
-        purpose: Some(format!("Fusion: {name}")),
-        raw_ref: Some(format!("{fusion_group}-{suffix}")),
-        kind: Some("corporate_action".to_string()),
-        trade: Some(RawTradeFields {
-            isin: isin.to_string(),
-            asset_class_raw: "FUND".to_string(),
-            name: name.to_string(),
-            side: side.to_string(),
-            shares_micro,
-            unit_price_micro: None,
-            fee_cents: 0,
-            kest_cents: 0,
-            withholding_tax_cents: 0,
-            fx_rate_micro: None,
-            fusion_group: Some(fusion_group.clone()),
-        }),
-        counterparty_iban: None,
-    };
+    let make_tx =
+        |isin: &str, name: &str, shares_micro: i64, suffix: &str, side: &str| RawTransaction {
+            booking_date,
+            amount_cents: 0,
+            currency: "EUR".to_string(),
+            // counterparty must be unique per transaction (dedup index: account_id+date+amount+
+            // counterparty+hash). With amount_cents=0, both fusion transactions would otherwise be identical.
+            counterparty: Some(format!("flatexDEGIRO · Fusion {isin}")),
+            purpose: Some(format!("Fusion: {name}")),
+            raw_ref: Some(format!("{fusion_group}-{suffix}")),
+            kind: Some("corporate_action".to_string()),
+            trade: Some(RawTradeFields {
+                isin: isin.to_string(),
+                asset_class_raw: "FUND".to_string(),
+                name: name.to_string(),
+                side: side.to_string(),
+                shares_micro,
+                unit_price_micro: None,
+                fee_cents: 0,
+                kest_cents: 0,
+                withholding_tax_cents: 0,
+                fx_rate_micro: None,
+                fusion_group: Some(fusion_group.clone()),
+            }),
+            counterparty_iban: None,
+        };
 
     Ok(vec![
-        make_tx(out_isin, out_name, -out_shares_micro.abs(), "out", "fusion_out"),
-        make_tx(in_isin,  in_name,   in_shares_micro.abs(),  "in",  "fusion_in"),
+        make_tx(
+            out_isin,
+            out_name,
+            -out_shares_micro.abs(),
+            "out",
+            "fusion_out",
+        ),
+        make_tx(in_isin, in_name, in_shares_micro.abs(), "in", "fusion_in"),
     ])
 }
 
@@ -1019,13 +1168,22 @@ fn extract_valuta_after_fusion(text: &str) -> Option<chrono::NaiveDate> {
     let tail = &text[idx..];
     // Char-boundary-safe iteration using char_indices.
     for (start, _) in tail.char_indices() {
-        if start + 10 > tail.len() { break; }
-        if !tail.is_char_boundary(start + 10) { continue; }
+        if start + 10 > tail.len() {
+            break;
+        }
+        if !tail.is_char_boundary(start + 10) {
+            continue;
+        }
         let candidate = &tail[start..start + 10];
-        if candidate.len() != 10 { continue; }
+        if candidate.len() != 10 {
+            continue;
+        }
         let b = candidate.as_bytes();
-        if b.len() != 10 { continue; }
-        if b[2] == b'.' && b[5] == b'.'
+        if b.len() != 10 {
+            continue;
+        }
+        if b[2] == b'.'
+            && b[5] == b'.'
             && b[0..2].iter().all(|c| c.is_ascii_digit())
             && b[3..5].iter().all(|c| c.is_ascii_digit())
             && b[6..10].iter().all(|c| c.is_ascii_digit())
@@ -1044,9 +1202,13 @@ fn extract_fusion_isin_rows(text: &str) -> Vec<(String, String, i64)> {
     let mut out = Vec::new();
     for line in text.lines() {
         let tokens: Vec<&str> = line.split_whitespace().collect();
-        if tokens.len() < 4 { continue; }
+        if tokens.len() < 4 {
+            continue;
+        }
         // Token[1] must match the ISIN pattern
-        if !is_valid_isin(tokens[1]) { continue; }
+        if !is_valid_isin(tokens[1]) {
+            continue;
+        }
         // Last token must be a German decimal number
         let last = tokens[tokens.len() - 1];
         let shares = match parse_de_decimal_to_micro(last) {
@@ -1121,7 +1283,10 @@ mod tests {
     #[test]
     fn extract_isin_from_parens_finds_isin() {
         let text = "Nr.326003142/1 Kauf ISHARES MSCI WORLD SMALL (IE00BF4RFH31/A2DWBY)";
-        assert_eq!(extract_isin_from_parens(text), Some("IE00BF4RFH31".to_string()));
+        assert_eq!(
+            extract_isin_from_parens(text),
+            Some("IE00BF4RFH31".to_string())
+        );
     }
 
     #[test]
@@ -1140,13 +1305,19 @@ mod tests {
         // Older Flatex document: name contains "(DR" as a distributor suffix without a closing bracket,
         // followed by the real ISIN bracket.
         let text = "LYXOR CORE MSCI WORLD (DR (LU1781541179/LYX0YD)";
-        assert_eq!(extract_isin_from_parens(text), Some("LU1781541179".to_string()));
+        assert_eq!(
+            extract_isin_from_parens(text),
+            Some("LU1781541179".to_string())
+        );
     }
 
     #[test]
     fn extract_isin_from_parens_handles_multiple_picks_first() {
         let text = "(IE00BF4RFH31/A2DWBY) ... (CNE100006WS8/A418NB)";
-        assert_eq!(extract_isin_from_parens(text), Some("IE00BF4RFH31".to_string()));
+        assert_eq!(
+            extract_isin_from_parens(text),
+            Some("IE00BF4RFH31".to_string())
+        );
     }
 
     #[test]

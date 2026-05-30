@@ -2,8 +2,7 @@ use tauri::State;
 
 use crate::commands::accounts::{CommandError, DbState};
 use crate::db::recurring::{
-    self as db_recurring,
-    DetectedRecurring, NewRecurringPayload, RecurringOverview,
+    self as db_recurring, DetectedRecurring, NewRecurringPayload, RecurringOverview,
     RecurringPayment, UpdateRecurringPayload,
 };
 
@@ -53,10 +52,7 @@ pub async fn update_recurring(
 }
 
 #[tauri::command]
-pub async fn delete_recurring(
-    state: State<'_, DbState>,
-    id: i64,
-) -> Result<bool, CommandError> {
+pub async fn delete_recurring(state: State<'_, DbState>, id: i64) -> Result<bool, CommandError> {
     Ok(db_recurring::delete_recurring(&state.pool(), id).await?)
 }
 

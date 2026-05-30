@@ -45,7 +45,8 @@ pub async fn create_security(pool: &SqlitePool, p: NewSecurityPayload) -> DbResu
     if p.isin.trim().is_empty() {
         return Err(DbError::Decode("isin must not be empty".into()));
     }
-    let currency = p.currency
+    let currency = p
+        .currency
         .as_deref()
         .map(|c| c.trim().to_uppercase())
         .filter(|c| !c.is_empty())
@@ -77,10 +78,7 @@ pub async fn get_security(pool: &SqlitePool, id: i64) -> DbResult<Security> {
         .await?)
 }
 
-pub async fn list_securities(
-    pool: &SqlitePool,
-    include_archived: bool,
-) -> DbResult<Vec<Security>> {
+pub async fn list_securities(pool: &SqlitePool, include_archived: bool) -> DbResult<Vec<Security>> {
     let sql = if include_archived {
         format!(
             "SELECT {SECURITY_COLUMNS} FROM securities \
@@ -138,7 +136,11 @@ pub async fn update_security(
         .bind(p.isin.unwrap_or(current.isin))
         .bind(normalize_opt(p.symbol).or(current.symbol))
         .bind(p.name.unwrap_or(current.name))
-        .bind(p.currency.map(|c| c.to_uppercase()).unwrap_or(current.currency))
+        .bind(
+            p.currency
+                .map(|c| c.to_uppercase())
+                .unwrap_or(current.currency),
+        )
         .bind(p.asset_type.unwrap_or(current.asset_type))
         .bind(normalize_opt(p.country).or(current.country))
         .bind(normalize_opt(p.sector).or(current.sector))
@@ -157,12 +159,10 @@ pub async fn resolve_or_create_security(
     name: &str,
     asset_class_raw: &str,
 ) -> DbResult<i64> {
-    if let Some((id,)) = sqlx::query_as::<_, (i64,)>(
-        "SELECT id FROM securities WHERE isin = ?1",
-    )
-    .bind(isin)
-    .fetch_optional(pool)
-    .await?
+    if let Some((id,)) = sqlx::query_as::<_, (i64,)>("SELECT id FROM securities WHERE isin = ?1")
+        .bind(isin)
+        .fetch_optional(pool)
+        .await?
     {
         return Ok(id);
     }
@@ -198,16 +198,21 @@ mod tests {
     #[tokio::test]
     async fn create_security_round_trips_with_defaults() {
         let pool = connect_memory().await.unwrap();
-        let s = create_security(&pool, NewSecurityPayload {
-            isin: "IE00BK5BQT80".into(),
-            symbol: Some("VWCE.DE".into()),
-            name: "Vanguard FTSE All-World".into(),
-            currency: None,
-            asset_type: "etf_equity".into(),
-            country: None,
-            sector: None,
-            note: None,
-        }).await.unwrap();
+        let s = create_security(
+            &pool,
+            NewSecurityPayload {
+                isin: "IE00BK5BQT80".into(),
+                symbol: Some("VWCE.DE".into()),
+                name: "Vanguard FTSE All-World".into(),
+                currency: None,
+                asset_type: "etf_equity".into(),
+                country: None,
+                sector: None,
+                note: None,
+            },
+        )
+        .await
+        .unwrap();
         assert_eq!(s.isin, "IE00BK5BQT80");
         assert_eq!(s.name, "Vanguard FTSE All-World");
         assert_eq!(s.currency, "EUR");
@@ -264,12 +269,21 @@ mod tests {
     #[tokio::test]
     async fn get_security_returns_inserted_row() {
         let pool = connect_memory().await.unwrap();
-        let s = create_security(&pool, NewSecurityPayload {
-            isin: "IE00BK5BQT80".into(),
-            symbol: None, name: "x".into(),
-            currency: None, asset_type: "etf_equity".into(),
-            country: None, sector: None, note: None,
-        }).await.unwrap();
+        let s = create_security(
+            &pool,
+            NewSecurityPayload {
+                isin: "IE00BK5BQT80".into(),
+                symbol: None,
+                name: "x".into(),
+                currency: None,
+                asset_type: "etf_equity".into(),
+                country: None,
+                sector: None,
+                note: None,
+            },
+        )
+        .await
+        .unwrap();
 
         let fetched = get_security(&pool, s.id).await.unwrap();
         assert_eq!(fetched.id, s.id);
@@ -279,18 +293,41 @@ mod tests {
     #[tokio::test]
     async fn list_securities_filters_archived() {
         let pool = connect_memory().await.unwrap();
-        let active = create_security(&pool, NewSecurityPayload {
-            isin: "IE00BK5BQT80".into(), symbol: None, name: "active".into(),
-            currency: None, asset_type: "etf_equity".into(),
-            country: None, sector: None, note: None,
-        }).await.unwrap();
-        let archived = create_security(&pool, NewSecurityPayload {
-            isin: "DE0007164600".into(), symbol: None, name: "archived".into(),
-            currency: None, asset_type: "stock".into(),
-            country: None, sector: None, note: None,
-        }).await.unwrap();
+        let active = create_security(
+            &pool,
+            NewSecurityPayload {
+                isin: "IE00BK5BQT80".into(),
+                symbol: None,
+                name: "active".into(),
+                currency: None,
+                asset_type: "etf_equity".into(),
+                country: None,
+                sector: None,
+                note: None,
+            },
+        )
+        .await
+        .unwrap();
+        let archived = create_security(
+            &pool,
+            NewSecurityPayload {
+                isin: "DE0007164600".into(),
+                symbol: None,
+                name: "archived".into(),
+                currency: None,
+                asset_type: "stock".into(),
+                country: None,
+                sector: None,
+                note: None,
+            },
+        )
+        .await
+        .unwrap();
         sqlx::query("UPDATE securities SET archived = 1 WHERE id = ?1")
-            .bind(archived.id).execute(&pool).await.unwrap();
+            .bind(archived.id)
+            .execute(&pool)
+            .await
+            .unwrap();
 
         let active_only = list_securities(&pool, false).await.unwrap();
         assert_eq!(active_only.len(), 1);
@@ -303,11 +340,21 @@ mod tests {
     #[tokio::test]
     async fn delete_security_removes_row_and_returns_true() {
         let pool = connect_memory().await.unwrap();
-        let s = create_security(&pool, NewSecurityPayload {
-            isin: "IE00BK5BQT80".into(), symbol: None, name: "x".into(),
-            currency: None, asset_type: "etf_equity".into(),
-            country: None, sector: None, note: None,
-        }).await.unwrap();
+        let s = create_security(
+            &pool,
+            NewSecurityPayload {
+                isin: "IE00BK5BQT80".into(),
+                symbol: None,
+                name: "x".into(),
+                currency: None,
+                asset_type: "etf_equity".into(),
+                country: None,
+                sector: None,
+                note: None,
+            },
+        )
+        .await
+        .unwrap();
 
         assert!(delete_security(&pool, s.id).await.unwrap());
         assert!(get_security(&pool, s.id).await.is_err());
@@ -317,23 +364,40 @@ mod tests {
     #[tokio::test]
     async fn update_security_coalesces_partial_payload() {
         let pool = connect_memory().await.unwrap();
-        let s = create_security(&pool, NewSecurityPayload {
-            isin: "IE00BK5BQT80".into(),
-            symbol: Some("VWCE.DE".into()),
-            name: "alt".into(),
-            currency: Some("EUR".into()),
-            asset_type: "etf_equity".into(),
-            country: Some("IE".into()),
-            sector: None,
-            note: Some("note".into()),
-        }).await.unwrap();
+        let s = create_security(
+            &pool,
+            NewSecurityPayload {
+                isin: "IE00BK5BQT80".into(),
+                symbol: Some("VWCE.DE".into()),
+                name: "alt".into(),
+                currency: Some("EUR".into()),
+                asset_type: "etf_equity".into(),
+                country: Some("IE".into()),
+                sector: None,
+                note: Some("note".into()),
+            },
+        )
+        .await
+        .unwrap();
 
         // Change name only, other fields stay.
-        let updated = update_security(&pool, s.id, UpdateSecurityPayload {
-            name: Some("neu".into()),
-            isin: None, symbol: None, currency: None, asset_type: None,
-            country: None, sector: None, note: None, archived: None,
-        }).await.unwrap();
+        let updated = update_security(
+            &pool,
+            s.id,
+            UpdateSecurityPayload {
+                name: Some("neu".into()),
+                isin: None,
+                symbol: None,
+                currency: None,
+                asset_type: None,
+                country: None,
+                sector: None,
+                note: None,
+                archived: None,
+            },
+        )
+        .await
+        .unwrap();
         assert_eq!(updated.name, "neu");
         assert_eq!(updated.symbol.as_deref(), Some("VWCE.DE"));
         assert_eq!(updated.country.as_deref(), Some("IE"));
@@ -341,11 +405,23 @@ mod tests {
         assert!(!updated.archived);
 
         // Set archived = true.
-        let archived = update_security(&pool, s.id, UpdateSecurityPayload {
-            archived: Some(true),
-            isin: None, symbol: None, name: None, currency: None,
-            asset_type: None, country: None, sector: None, note: None,
-        }).await.unwrap();
+        let archived = update_security(
+            &pool,
+            s.id,
+            UpdateSecurityPayload {
+                archived: Some(true),
+                isin: None,
+                symbol: None,
+                name: None,
+                currency: None,
+                asset_type: None,
+                country: None,
+                sector: None,
+                note: None,
+            },
+        )
+        .await
+        .unwrap();
         assert!(archived.archived);
     }
 
@@ -354,29 +430,39 @@ mod tests {
         let pool = connect_memory().await.unwrap();
         sqlx::query(
             "INSERT INTO securities (isin, name, currency, asset_type)
-             VALUES ('US0378331005', 'Apple', 'EUR', 'stock')"
-        ).execute(&pool).await.unwrap();
-        let (existing_id,): (i64,) = sqlx::query_as(
-            "SELECT id FROM securities WHERE isin = 'US0378331005'"
-        ).fetch_one(&pool).await.unwrap();
+             VALUES ('US0378331005', 'Apple', 'EUR', 'stock')",
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+        let (existing_id,): (i64,) =
+            sqlx::query_as("SELECT id FROM securities WHERE isin = 'US0378331005'")
+                .fetch_one(&pool)
+                .await
+                .unwrap();
 
-        let resolved = resolve_or_create_security(
-            &pool, "US0378331005", "ignored — already exists", "STOCK"
-        ).await.unwrap();
+        let resolved =
+            resolve_or_create_security(&pool, "US0378331005", "ignored — already exists", "STOCK")
+                .await
+                .unwrap();
         assert_eq!(resolved, existing_id);
     }
 
     #[tokio::test]
     async fn resolve_creates_new_security_with_mapped_asset_type() {
         let pool = connect_memory().await.unwrap();
-        let id = resolve_or_create_security(
-            &pool, "LU0290358497", "Xtrackers II EUR Overnight", "FUND"
-        ).await.unwrap();
+        let id =
+            resolve_or_create_security(&pool, "LU0290358497", "Xtrackers II EUR Overnight", "FUND")
+                .await
+                .unwrap();
         assert!(id > 0);
 
-        let (name, asset_type, isin): (String, String, String) = sqlx::query_as(
-            "SELECT name, asset_type, isin FROM securities WHERE id = ?"
-        ).bind(id).fetch_one(&pool).await.unwrap();
+        let (name, asset_type, isin): (String, String, String) =
+            sqlx::query_as("SELECT name, asset_type, isin FROM securities WHERE id = ?")
+                .bind(id)
+                .fetch_one(&pool)
+                .await
+                .unwrap();
         assert_eq!(isin, "LU0290358497");
         assert_eq!(name, "Xtrackers II EUR Overnight");
         assert_eq!(asset_type, "etf_equity");
@@ -385,10 +471,15 @@ mod tests {
     #[tokio::test]
     async fn resolve_maps_unknown_asset_class_to_other() {
         let pool = connect_memory().await.unwrap();
-        let id = resolve_or_create_security(&pool, "XX0000000001", "Mystery", "WARRANT").await.unwrap();
-        let (asset_type,): (String,) = sqlx::query_as(
-            "SELECT asset_type FROM securities WHERE id = ?"
-        ).bind(id).fetch_one(&pool).await.unwrap();
+        let id = resolve_or_create_security(&pool, "XX0000000001", "Mystery", "WARRANT")
+            .await
+            .unwrap();
+        let (asset_type,): (String,) =
+            sqlx::query_as("SELECT asset_type FROM securities WHERE id = ?")
+                .bind(id)
+                .fetch_one(&pool)
+                .await
+                .unwrap();
         assert_eq!(asset_type, "other");
     }
 

@@ -1,12 +1,10 @@
 use tauri::State;
 
-use crate::categorization::rules::{
-    Combinator, MatchField, MatchOp, Rule, RuleCondition,
-};
+use crate::categorization::rules::{Combinator, MatchField, MatchOp, Rule, RuleCondition};
 use crate::commands::accounts::{CommandError, DbState};
 use crate::db::rules::{
-    delete_rule as db_delete_rule, insert_rule as db_insert_rule,
-    list_rules as db_list_rules, update_rule as db_update_rule, NewRule,
+    delete_rule as db_delete_rule, insert_rule as db_insert_rule, list_rules as db_list_rules,
+    update_rule as db_update_rule, NewRule,
 };
 use crate::import_flow::{
     bulk_assign_category_by_rule as bulk_assign_impl, count_matching_transactions,
@@ -14,9 +12,7 @@ use crate::import_flow::{
 use crate::model::{NewRuleDto, RuleConditionDto, RuleDto};
 
 #[tauri::command]
-pub async fn list_rules(
-    state: State<'_, DbState>,
-) -> Result<Vec<RuleDto>, CommandError> {
+pub async fn list_rules(state: State<'_, DbState>) -> Result<Vec<RuleDto>, CommandError> {
     let rules = db_list_rules(&state.pool()).await?;
     Ok(rules.into_iter().map(rule_to_dto).collect())
 }
@@ -61,10 +57,7 @@ pub async fn update_rule(
 }
 
 #[tauri::command]
-pub async fn delete_rule(
-    state: State<'_, DbState>,
-    id: i64,
-) -> Result<(), CommandError> {
+pub async fn delete_rule(state: State<'_, DbState>, id: i64) -> Result<(), CommandError> {
     db_delete_rule(&state.pool(), id).await?;
     Ok(())
 }
@@ -208,9 +201,10 @@ fn op_to_dto(op: &MatchOp) -> (&'static str, String) {
         MatchOp::StartsWith(v) => ("starts_with", v.clone()),
         MatchOp::EndsWith(v) => ("ends_with", v.clone()),
         MatchOp::Regex(v) => ("regex", v.clone()),
-        MatchOp::Range { min_cents, max_cents } => {
-            ("range", format!("{min_cents}..{max_cents}"))
-        }
+        MatchOp::Range {
+            min_cents,
+            max_cents,
+        } => ("range", format!("{min_cents}..{max_cents}")),
     }
 }
 
@@ -231,7 +225,10 @@ fn op_from_dto(op: &str, value: &str) -> Result<MatchOp, CommandError> {
             let max_cents = max.parse::<i64>().map_err(|e| CommandError {
                 message: format!("bad range max '{max}': {e}"),
             })?;
-            Ok(MatchOp::Range { min_cents, max_cents })
+            Ok(MatchOp::Range {
+                min_cents,
+                max_cents,
+            })
         }
         other => Err(CommandError {
             message: format!("unknown match op '{other}'"),

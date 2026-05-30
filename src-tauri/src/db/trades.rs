@@ -67,16 +67,20 @@ pub struct TradeWithTx {
 }
 
 const ALLOWED_SIDES: &[&str] = &[
-    "buy", "sell", "dividend", "corporate_action", "fusion_out", "fusion_in", "tax",
+    "buy",
+    "sell",
+    "dividend",
+    "corporate_action",
+    "fusion_out",
+    "fusion_in",
+    "tax",
 ];
 
-pub async fn create_trade(
-    pool: &SqlitePool,
-    p: NewTradePayload,
-) -> DbResult<TradeWithTx> {
+pub async fn create_trade(pool: &SqlitePool, p: NewTradePayload) -> DbResult<TradeWithTx> {
     if !ALLOWED_SIDES.contains(&p.side.as_str()) {
         return Err(DbError::Decode(format!(
-            "side must be one of {ALLOWED_SIDES:?}, got {:?}", p.side,
+            "side must be one of {ALLOWED_SIDES:?}, got {:?}",
+            p.side,
         )));
     }
     if p.fee_cents < 0 {
@@ -89,9 +93,7 @@ pub async fn create_trade(
     // Has no share or price component and maps 1:1 to parent tx.kind='tax'.
     if p.side == "tax" {
         if p.shares_micro != 0 {
-            return Err(DbError::Decode(
-                "side='tax' requires shares_micro=0".into(),
-            ));
+            return Err(DbError::Decode("side='tax' requires shares_micro=0".into()));
         }
         if p.unit_price_micro.is_some() {
             return Err(DbError::Decode(
@@ -106,7 +108,8 @@ pub async fn create_trade(
         Some(id) => Some(id),
         None => crate::db::accounts::resolve_trade_account(pool, p.account_id).await?,
     };
-    let currency = p.currency
+    let currency = p
+        .currency
         .as_deref()
         .map(|c| c.trim().to_uppercase())
         .filter(|c| !c.is_empty())
@@ -161,10 +164,14 @@ pub async fn create_trade(
 pub async fn get_trade(pool: &SqlitePool, tx_id: i64) -> DbResult<TradeWithTx> {
     let trade_sql = format!("SELECT {TRADE_COLUMNS} FROM securities_trades WHERE tx_id = ?1");
     let trade = sqlx::query_as::<_, SecurityTrade>(&trade_sql)
-        .bind(tx_id).fetch_one(pool).await?;
+        .bind(tx_id)
+        .fetch_one(pool)
+        .await?;
     let tx_sql = format!("SELECT {TX_COLUMNS} FROM transactions WHERE id = ?1");
     let tx = sqlx::query_as::<_, Transaction>(&tx_sql)
-        .bind(tx_id).fetch_one(pool).await?;
+        .bind(tx_id)
+        .fetch_one(pool)
+        .await?;
     Ok(TradeWithTx { trade, tx })
 }
 
@@ -219,7 +226,7 @@ pub async fn list_trades(
             bucket_id: r.get("bucket_id"),
             kind: r.get("kind"),
             counterparty_iban: r.get("counterparty_iban"),
-            holding_account_id: None,  // not relevant in the TradeWithTx list
+            holding_account_id: None, // not relevant in the TradeWithTx list
             paired_tx_id: r.get("paired_tx_id"),
             trade_side: None,
         };
@@ -242,25 +249,37 @@ pub async fn update_trade(
     p: UpdateTradePayload,
 ) -> DbResult<SecurityTrade> {
     if let Some(f) = p.fee_cents {
-        if f < 0 { return Err(DbError::Decode("fee_cents must be >= 0".into())); }
+        if f < 0 {
+            return Err(DbError::Decode("fee_cents must be >= 0".into()));
+        }
     }
     if let Some(t) = p.tax_cents {
-        if t < 0 { return Err(DbError::Decode("tax_cents must be >= 0".into())); }
+        if t < 0 {
+            return Err(DbError::Decode("tax_cents must be >= 0".into()));
+        }
     }
     if let Some(k) = p.kest_cents {
-        if k < 0 { return Err(DbError::Decode("kest_cents must be >= 0".into())); }
+        if k < 0 {
+            return Err(DbError::Decode("kest_cents must be >= 0".into()));
+        }
     }
     if let Some(w) = p.withholding_tax_cents {
-        if w < 0 { return Err(DbError::Decode("withholding_tax_cents must be >= 0".into())); }
+        if w < 0 {
+            return Err(DbError::Decode("withholding_tax_cents must be >= 0".into()));
+        }
     }
 
     let current_sql = format!("SELECT {TRADE_COLUMNS} FROM securities_trades WHERE tx_id = ?1");
     let current = sqlx::query_as::<_, SecurityTrade>(&current_sql)
-        .bind(tx_id).fetch_one(pool).await?;
+        .bind(tx_id)
+        .fetch_one(pool)
+        .await?;
 
     let new_kest = p.kest_cents.unwrap_or(current.kest_cents);
-    let new_wht  = p.withholding_tax_cents.unwrap_or(current.withholding_tax_cents);
-    let new_tax  = p.tax_cents.unwrap_or(new_kest + new_wht);
+    let new_wht = p
+        .withholding_tax_cents
+        .unwrap_or(current.withholding_tax_cents);
+    let new_tax = p.tax_cents.unwrap_or(new_kest + new_wht);
 
     let mut tx = pool.begin().await?;
 
@@ -299,9 +318,11 @@ pub async fn update_trade(
         .await?;
 
     if p.amount_cents.is_some() || p.tx_account_id.is_some() {
-        let (curr_amount, curr_acc): (i64, i64) = sqlx::query_as(
-            "SELECT amount_cents, account_id FROM transactions WHERE id = ?1"
-        ).bind(tx_id).fetch_one(&mut *tx).await?;
+        let (curr_amount, curr_acc): (i64, i64) =
+            sqlx::query_as("SELECT amount_cents, account_id FROM transactions WHERE id = ?1")
+                .bind(tx_id)
+                .fetch_one(&mut *tx)
+                .await?;
         sqlx::query("UPDATE transactions SET amount_cents = ?1, account_id = ?2 WHERE id = ?3")
             .bind(p.amount_cents.unwrap_or(curr_amount))
             .bind(p.tx_account_id.unwrap_or(curr_acc))
@@ -329,8 +350,8 @@ pub async fn insert_trade_row(
     kest_cents: i64,
     withholding_tax_cents: i64,
     fx_rate_micro: Option<i64>,
-    target_account_id: Option<i64>,   // None = fallback to tx.account_id
-    fusion_group: Option<&str>,       // Only set for side='fusion_out'|'fusion_in'
+    target_account_id: Option<i64>, // None = fallback to tx.account_id
+    fusion_group: Option<&str>,     // Only set for side='fusion_out'|'fusion_in'
 ) -> DbResult<()> {
     if !ALLOWED_SIDES.contains(&side) {
         return Err(DbError::Decode(format!(
@@ -349,7 +370,7 @@ pub async fn insert_trade_row(
             (tx_id, security_id, side, shares_micro, unit_price_micro, fee_cents,
              tax_cents, kest_cents, withholding_tax_cents, fx_rate_micro,
              account_id, fusion_group)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)"
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
     )
     .bind(tx_id)
     .bind(security_id)
@@ -371,20 +392,29 @@ pub async fn insert_trade_row(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::db::accounts::create_account;
     use crate::db::connect_memory;
     use crate::db::securities::{create_security, NewSecurityPayload};
-    use crate::db::accounts::create_account;
 
     async fn setup_broker_and_security(pool: &sqlx::SqlitePool) -> (i64, i64) {
-        let acc = create_account(pool, "Broker", "broker", "EUR", None, None, None).await.unwrap();
-        let sec = create_security(pool, NewSecurityPayload {
-            isin: "IE00BK5BQT80".into(),
-            symbol: Some("VWCE.DE".into()),
-            name: "Vanguard FTSE All-World".into(),
-            currency: None,
-            asset_type: "etf_equity".into(),
-            country: None, sector: None, note: None,
-        }).await.unwrap();
+        let acc = create_account(pool, "Broker", "broker", "EUR", None, None, None)
+            .await
+            .unwrap();
+        let sec = create_security(
+            pool,
+            NewSecurityPayload {
+                isin: "IE00BK5BQT80".into(),
+                symbol: Some("VWCE.DE".into()),
+                name: "Vanguard FTSE All-World".into(),
+                currency: None,
+                asset_type: "etf_equity".into(),
+                country: None,
+                sector: None,
+                note: None,
+            },
+        )
+        .await
+        .unwrap();
         (acc.id, sec.id)
     }
 
@@ -393,23 +423,28 @@ mod tests {
         let pool = connect_memory().await.unwrap();
         let (acc, sec) = setup_broker_and_security(&pool).await;
 
-        let result = create_trade(&pool, NewTradePayload {
-            account_id: acc,
-            security_id: sec,
-            booking_date: "2026-05-18".into(),
-            side: "buy".into(),
-            shares_micro: 5_000_000,
-            unit_price_micro: Some(100_500_000),
-            fee_cents: 100,
-            kest_cents: 0,
-            withholding_tax_cents: 0,
-            fx_rate_micro: None,
-            amount_cents: -50_350,
-            currency: None,
-            counterparty: Some("Trade Republic".into()),
-            manual_note: None,
-            holding_account_id: None,
-        }).await.unwrap();
+        let result = create_trade(
+            &pool,
+            NewTradePayload {
+                account_id: acc,
+                security_id: sec,
+                booking_date: "2026-05-18".into(),
+                side: "buy".into(),
+                shares_micro: 5_000_000,
+                unit_price_micro: Some(100_500_000),
+                fee_cents: 100,
+                kest_cents: 0,
+                withholding_tax_cents: 0,
+                fx_rate_micro: None,
+                amount_cents: -50_350,
+                currency: None,
+                counterparty: Some("Trade Republic".into()),
+                manual_note: None,
+                holding_account_id: None,
+            },
+        )
+        .await
+        .unwrap();
 
         assert_eq!(result.tx.kind, "buy");
         assert_eq!(result.tx.amount_cents, -50_350);
@@ -426,18 +461,28 @@ mod tests {
     async fn create_trade_sell_inserts_correctly() {
         let pool = connect_memory().await.unwrap();
         let (acc, sec) = setup_broker_and_security(&pool).await;
-        let result = create_trade(&pool, NewTradePayload {
-            account_id: acc, security_id: sec,
-            booking_date: "2026-06-01".into(),
-            side: "sell".into(),
-            shares_micro: -3_000_000,
-            unit_price_micro: Some(110_000_000),
-            fee_cents: 50, kest_cents: 200, withholding_tax_cents: 0,
-            fx_rate_micro: None,
-            amount_cents: 32_750,
-            currency: None, counterparty: None, manual_note: None,
-            holding_account_id: None,
-        }).await.unwrap();
+        let result = create_trade(
+            &pool,
+            NewTradePayload {
+                account_id: acc,
+                security_id: sec,
+                booking_date: "2026-06-01".into(),
+                side: "sell".into(),
+                shares_micro: -3_000_000,
+                unit_price_micro: Some(110_000_000),
+                fee_cents: 50,
+                kest_cents: 200,
+                withholding_tax_cents: 0,
+                fx_rate_micro: None,
+                amount_cents: 32_750,
+                currency: None,
+                counterparty: None,
+                manual_note: None,
+                holding_account_id: None,
+            },
+        )
+        .await
+        .unwrap();
         assert_eq!(result.trade.side, "sell");
         assert_eq!(result.tx.kind, "sell");
         assert_eq!(result.trade.shares_micro, -3_000_000);
@@ -447,18 +492,28 @@ mod tests {
     async fn create_trade_dividend_with_zero_shares() {
         let pool = connect_memory().await.unwrap();
         let (acc, sec) = setup_broker_and_security(&pool).await;
-        let result = create_trade(&pool, NewTradePayload {
-            account_id: acc, security_id: sec,
-            booking_date: "2026-07-01".into(),
-            side: "dividend".into(),
-            shares_micro: 0,
-            unit_price_micro: None,
-            fee_cents: 0, kest_cents: 100, withholding_tax_cents: 0,
-            fx_rate_micro: None,
-            amount_cents: 1_500,
-            currency: None, counterparty: None, manual_note: None,
-            holding_account_id: None,
-        }).await.unwrap();
+        let result = create_trade(
+            &pool,
+            NewTradePayload {
+                account_id: acc,
+                security_id: sec,
+                booking_date: "2026-07-01".into(),
+                side: "dividend".into(),
+                shares_micro: 0,
+                unit_price_micro: None,
+                fee_cents: 0,
+                kest_cents: 100,
+                withholding_tax_cents: 0,
+                fx_rate_micro: None,
+                amount_cents: 1_500,
+                currency: None,
+                counterparty: None,
+                manual_note: None,
+                holding_account_id: None,
+            },
+        )
+        .await
+        .unwrap();
         assert_eq!(result.trade.side, "dividend");
         assert_eq!(result.trade.unit_price_micro, None);
         assert_eq!(result.tx.amount_cents, 1_500);
@@ -468,18 +523,28 @@ mod tests {
     async fn create_trade_side_tax_sets_tx_kind_tax() {
         let pool = connect_memory().await.unwrap();
         let (acc, sec) = setup_broker_and_security(&pool).await;
-        let result = create_trade(&pool, NewTradePayload {
-            account_id: acc, security_id: sec,
-            booking_date: "2026-08-01".into(),
-            side: "tax".into(),
-            shares_micro: 0,
-            unit_price_micro: None,
-            fee_cents: 0, kest_cents: 250, withholding_tax_cents: 0,
-            fx_rate_micro: None,
-            amount_cents: -250,
-            currency: None, counterparty: None, manual_note: None,
-            holding_account_id: None,
-        }).await.unwrap();
+        let result = create_trade(
+            &pool,
+            NewTradePayload {
+                account_id: acc,
+                security_id: sec,
+                booking_date: "2026-08-01".into(),
+                side: "tax".into(),
+                shares_micro: 0,
+                unit_price_micro: None,
+                fee_cents: 0,
+                kest_cents: 250,
+                withholding_tax_cents: 0,
+                fx_rate_micro: None,
+                amount_cents: -250,
+                currency: None,
+                counterparty: None,
+                manual_note: None,
+                holding_account_id: None,
+            },
+        )
+        .await
+        .unwrap();
         assert_eq!(result.tx.kind, "tax");
         assert_eq!(result.trade.side, "tax");
         assert_eq!(result.trade.kest_cents, 250);
@@ -490,12 +555,20 @@ mod tests {
         let pool = connect_memory().await.unwrap();
         let (acc, sec) = setup_broker_and_security(&pool).await;
         let p = NewTradePayload {
-            account_id: acc, security_id: sec,
+            account_id: acc,
+            security_id: sec,
             booking_date: "2026-08-01".into(),
             side: "tax".into(),
-            shares_micro: 1_000_000, unit_price_micro: None,
-            fee_cents: 0, kest_cents: 0, withholding_tax_cents: 0, fx_rate_micro: None,
-            amount_cents: -250, currency: None, counterparty: None, manual_note: None,
+            shares_micro: 1_000_000,
+            unit_price_micro: None,
+            fee_cents: 0,
+            kest_cents: 0,
+            withholding_tax_cents: 0,
+            fx_rate_micro: None,
+            amount_cents: -250,
+            currency: None,
+            counterparty: None,
+            manual_note: None,
             holding_account_id: None,
         };
         assert!(create_trade(&pool, p).await.is_err());
@@ -506,12 +579,20 @@ mod tests {
         let pool = connect_memory().await.unwrap();
         let (acc, sec) = setup_broker_and_security(&pool).await;
         let p = NewTradePayload {
-            account_id: acc, security_id: sec,
+            account_id: acc,
+            security_id: sec,
             booking_date: "2026-05-18".into(),
             side: "transfer".into(),
-            shares_micro: 1_000_000, unit_price_micro: None,
-            fee_cents: 0, kest_cents: 0, withholding_tax_cents: 0, fx_rate_micro: None,
-            amount_cents: 0, currency: None, counterparty: None, manual_note: None,
+            shares_micro: 1_000_000,
+            unit_price_micro: None,
+            fee_cents: 0,
+            kest_cents: 0,
+            withholding_tax_cents: 0,
+            fx_rate_micro: None,
+            amount_cents: 0,
+            currency: None,
+            counterparty: None,
+            manual_note: None,
             holding_account_id: None,
         };
         assert!(create_trade(&pool, p).await.is_err());
@@ -522,12 +603,20 @@ mod tests {
         let pool = connect_memory().await.unwrap();
         let (acc, sec) = setup_broker_and_security(&pool).await;
         let bad = NewTradePayload {
-            account_id: acc, security_id: sec,
+            account_id: acc,
+            security_id: sec,
             booking_date: "2026-05-18".into(),
             side: "buy".into(),
-            shares_micro: 1_000_000, unit_price_micro: Some(100_000_000),
-            fee_cents: -1, kest_cents: 0, withholding_tax_cents: 0, fx_rate_micro: None,
-            amount_cents: -10_000, currency: None, counterparty: None, manual_note: None,
+            shares_micro: 1_000_000,
+            unit_price_micro: Some(100_000_000),
+            fee_cents: -1,
+            kest_cents: 0,
+            withholding_tax_cents: 0,
+            fx_rate_micro: None,
+            amount_cents: -10_000,
+            currency: None,
+            counterparty: None,
+            manual_note: None,
             holding_account_id: None,
         };
         assert!(create_trade(&pool, bad).await.is_err());
@@ -538,18 +627,28 @@ mod tests {
         let pool = connect_memory().await.unwrap();
         let (acc, _real_sec) = setup_broker_and_security(&pool).await;
         let bad = NewTradePayload {
-            account_id: acc, security_id: 99_999,
+            account_id: acc,
+            security_id: 99_999,
             booking_date: "2026-05-18".into(),
             side: "buy".into(),
-            shares_micro: 1_000_000, unit_price_micro: Some(100_000_000),
-            fee_cents: 0, kest_cents: 0, withholding_tax_cents: 0, fx_rate_micro: None,
-            amount_cents: -10_000, currency: None, counterparty: None, manual_note: None,
+            shares_micro: 1_000_000,
+            unit_price_micro: Some(100_000_000),
+            fee_cents: 0,
+            kest_cents: 0,
+            withholding_tax_cents: 0,
+            fx_rate_micro: None,
+            amount_cents: -10_000,
+            currency: None,
+            counterparty: None,
+            manual_note: None,
             holding_account_id: None,
         };
         assert!(create_trade(&pool, bad).await.is_err());
 
         let (count,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM transactions")
-            .fetch_one(&pool).await.unwrap();
+            .fetch_one(&pool)
+            .await
+            .unwrap();
         assert_eq!(count, 0, "Tx must be rolled back");
     }
 
@@ -557,15 +656,28 @@ mod tests {
     async fn get_trade_returns_trade_with_tx() {
         let pool = connect_memory().await.unwrap();
         let (acc, sec) = setup_broker_and_security(&pool).await;
-        let created = create_trade(&pool, NewTradePayload {
-            account_id: acc, security_id: sec,
-            booking_date: "2026-05-18".into(),
-            side: "buy".into(),
-            shares_micro: 1_000_000, unit_price_micro: Some(100_000_000),
-            fee_cents: 0, kest_cents: 0, withholding_tax_cents: 0, fx_rate_micro: None,
-            amount_cents: -10_000, currency: None, counterparty: None, manual_note: None,
-            holding_account_id: None,
-        }).await.unwrap();
+        let created = create_trade(
+            &pool,
+            NewTradePayload {
+                account_id: acc,
+                security_id: sec,
+                booking_date: "2026-05-18".into(),
+                side: "buy".into(),
+                shares_micro: 1_000_000,
+                unit_price_micro: Some(100_000_000),
+                fee_cents: 0,
+                kest_cents: 0,
+                withholding_tax_cents: 0,
+                fx_rate_micro: None,
+                amount_cents: -10_000,
+                currency: None,
+                counterparty: None,
+                manual_note: None,
+                holding_account_id: None,
+            },
+        )
+        .await
+        .unwrap();
 
         let fetched = get_trade(&pool, created.tx.id).await.unwrap();
         assert_eq!(fetched.tx.id, created.tx.id);
@@ -576,22 +688,50 @@ mod tests {
     async fn list_trades_filters_by_security_and_orders_by_date_desc() {
         let pool = connect_memory().await.unwrap();
         let (acc, sec) = setup_broker_and_security(&pool).await;
-        let _t1 = create_trade(&pool, NewTradePayload {
-            account_id: acc, security_id: sec,
-            booking_date: "2026-01-10".into(), side: "buy".into(),
-            shares_micro: 1_000_000, unit_price_micro: Some(100_000_000),
-            fee_cents: 0, kest_cents: 0, withholding_tax_cents: 0, fx_rate_micro: None,
-            amount_cents: -10_000, currency: None, counterparty: None, manual_note: None,
-            holding_account_id: None,
-        }).await.unwrap();
-        let _t2 = create_trade(&pool, NewTradePayload {
-            account_id: acc, security_id: sec,
-            booking_date: "2026-03-15".into(), side: "buy".into(),
-            shares_micro: 1_000_000, unit_price_micro: Some(110_000_000),
-            fee_cents: 0, kest_cents: 0, withholding_tax_cents: 0, fx_rate_micro: None,
-            amount_cents: -11_000, currency: None, counterparty: None, manual_note: None,
-            holding_account_id: None,
-        }).await.unwrap();
+        let _t1 = create_trade(
+            &pool,
+            NewTradePayload {
+                account_id: acc,
+                security_id: sec,
+                booking_date: "2026-01-10".into(),
+                side: "buy".into(),
+                shares_micro: 1_000_000,
+                unit_price_micro: Some(100_000_000),
+                fee_cents: 0,
+                kest_cents: 0,
+                withholding_tax_cents: 0,
+                fx_rate_micro: None,
+                amount_cents: -10_000,
+                currency: None,
+                counterparty: None,
+                manual_note: None,
+                holding_account_id: None,
+            },
+        )
+        .await
+        .unwrap();
+        let _t2 = create_trade(
+            &pool,
+            NewTradePayload {
+                account_id: acc,
+                security_id: sec,
+                booking_date: "2026-03-15".into(),
+                side: "buy".into(),
+                shares_micro: 1_000_000,
+                unit_price_micro: Some(110_000_000),
+                fee_cents: 0,
+                kest_cents: 0,
+                withholding_tax_cents: 0,
+                fx_rate_micro: None,
+                amount_cents: -11_000,
+                currency: None,
+                counterparty: None,
+                manual_note: None,
+                holding_account_id: None,
+            },
+        )
+        .await
+        .unwrap();
 
         let all = list_trades(&pool, None).await.unwrap();
         assert_eq!(all.len(), 2);
@@ -607,21 +747,39 @@ mod tests {
     async fn delete_trade_removes_tx_and_trade() {
         let pool = connect_memory().await.unwrap();
         let (acc, sec) = setup_broker_and_security(&pool).await;
-        let created = create_trade(&pool, NewTradePayload {
-            account_id: acc, security_id: sec,
-            booking_date: "2026-05-18".into(), side: "buy".into(),
-            shares_micro: 1_000_000, unit_price_micro: Some(100_000_000),
-            fee_cents: 0, kest_cents: 0, withholding_tax_cents: 0, fx_rate_micro: None,
-            amount_cents: -10_000, currency: None, counterparty: None, manual_note: None,
-            holding_account_id: None,
-        }).await.unwrap();
+        let created = create_trade(
+            &pool,
+            NewTradePayload {
+                account_id: acc,
+                security_id: sec,
+                booking_date: "2026-05-18".into(),
+                side: "buy".into(),
+                shares_micro: 1_000_000,
+                unit_price_micro: Some(100_000_000),
+                fee_cents: 0,
+                kest_cents: 0,
+                withholding_tax_cents: 0,
+                fx_rate_micro: None,
+                amount_cents: -10_000,
+                currency: None,
+                counterparty: None,
+                manual_note: None,
+                holding_account_id: None,
+            },
+        )
+        .await
+        .unwrap();
         assert!(delete_trade(&pool, created.tx.id).await.unwrap());
 
         let (count,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM securities_trades")
-            .fetch_one(&pool).await.unwrap();
+            .fetch_one(&pool)
+            .await
+            .unwrap();
         assert_eq!(count, 0);
         let (tx_count,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM transactions")
-            .fetch_one(&pool).await.unwrap();
+            .fetch_one(&pool)
+            .await
+            .unwrap();
         assert_eq!(tx_count, 0);
 
         assert!(!delete_trade(&pool, 99_999).await.unwrap());
@@ -631,28 +789,48 @@ mod tests {
     async fn update_trade_coalesces_partial() {
         let pool = connect_memory().await.unwrap();
         let (acc, sec) = setup_broker_and_security(&pool).await;
-        let created = create_trade(&pool, NewTradePayload {
-            account_id: acc, security_id: sec,
-            booking_date: "2026-05-18".into(), side: "buy".into(),
-            shares_micro: 1_000_000, unit_price_micro: Some(100_000_000),
-            fee_cents: 100, kest_cents: 0, withholding_tax_cents: 0, fx_rate_micro: None,
-            amount_cents: -10_010, currency: None, counterparty: None, manual_note: None,
-            holding_account_id: None,
-        }).await.unwrap();
+        let created = create_trade(
+            &pool,
+            NewTradePayload {
+                account_id: acc,
+                security_id: sec,
+                booking_date: "2026-05-18".into(),
+                side: "buy".into(),
+                shares_micro: 1_000_000,
+                unit_price_micro: Some(100_000_000),
+                fee_cents: 100,
+                kest_cents: 0,
+                withholding_tax_cents: 0,
+                fx_rate_micro: None,
+                amount_cents: -10_010,
+                currency: None,
+                counterparty: None,
+                manual_note: None,
+                holding_account_id: None,
+            },
+        )
+        .await
+        .unwrap();
 
-        let updated = update_trade(&pool, created.tx.id, UpdateTradePayload {
-            shares_micro: None,
-            unit_price_micro: None,
-            fee_cents: Some(200),
-            tax_cents: None,
-            fx_rate_micro: None,
-            kest_cents: None,
-            withholding_tax_cents: None,
-            account_id: None,
-            security_id: None,
-            amount_cents: None,
-            tx_account_id: None,
-        }).await.unwrap();
+        let updated = update_trade(
+            &pool,
+            created.tx.id,
+            UpdateTradePayload {
+                shares_micro: None,
+                unit_price_micro: None,
+                fee_cents: Some(200),
+                tax_cents: None,
+                fx_rate_micro: None,
+                kest_cents: None,
+                withholding_tax_cents: None,
+                account_id: None,
+                security_id: None,
+                amount_cents: None,
+                tx_account_id: None,
+            },
+        )
+        .await
+        .unwrap();
         assert_eq!(updated.fee_cents, 200);
         assert_eq!(updated.shares_micro, 1_000_000);
         assert_eq!(updated.unit_price_micro, Some(100_000_000));
@@ -666,28 +844,53 @@ mod tests {
         ).fetch_one(&pool).await.unwrap();
         let (sec_id,): (i64,) = sqlx::query_as(
             "INSERT INTO securities (isin, name, currency, asset_type)
-             VALUES ('LU0290358497', 'Xtrackers', 'EUR', 'etf_equity') RETURNING id"
-        ).fetch_one(&pool).await.unwrap();
+             VALUES ('LU0290358497', 'Xtrackers', 'EUR', 'etf_equity') RETURNING id",
+        )
+        .fetch_one(&pool)
+        .await
+        .unwrap();
         let (tx_id,): (i64,) = sqlx::query_as(
             "INSERT INTO transactions
                 (account_id, booking_date, amount_cents, currency, source, kind, imported_at)
              VALUES (?1, '2026-05-13', -1200000, 'EUR', 'tr_csv', 'buy', '2026-05-19T00:00:00Z')
-             RETURNING id"
-        ).bind(acc_id).fetch_one(&pool).await.unwrap();
+             RETURNING id",
+        )
+        .bind(acc_id)
+        .fetch_one(&pool)
+        .await
+        .unwrap();
 
         insert_trade_row(
-            &pool, tx_id, sec_id, "buy",
-            80_473_721, Some(149_117_000), 100, 0, 0, None, None, None,
-        ).await.unwrap();
+            &pool,
+            tx_id,
+            sec_id,
+            "buy",
+            80_473_721,
+            Some(149_117_000),
+            100,
+            0,
+            0,
+            None,
+            None,
+            None,
+        )
+        .await
+        .unwrap();
 
-        let (count,): (i64,) = sqlx::query_as(
-            "SELECT COUNT(*) FROM securities_trades WHERE tx_id = ?"
-        ).bind(tx_id).fetch_one(&pool).await.unwrap();
+        let (count,): (i64,) =
+            sqlx::query_as("SELECT COUNT(*) FROM securities_trades WHERE tx_id = ?")
+                .bind(tx_id)
+                .fetch_one(&pool)
+                .await
+                .unwrap();
         assert_eq!(count, 1);
 
-        let (shares, side): (i64, String) = sqlx::query_as(
-            "SELECT shares_micro, side FROM securities_trades WHERE tx_id = ?"
-        ).bind(tx_id).fetch_one(&pool).await.unwrap();
+        let (shares, side): (i64, String) =
+            sqlx::query_as("SELECT shares_micro, side FROM securities_trades WHERE tx_id = ?")
+                .bind(tx_id)
+                .fetch_one(&pool)
+                .await
+                .unwrap();
         assert_eq!(shares, 80_473_721);
         assert_eq!(side, "buy");
     }
@@ -695,7 +898,21 @@ mod tests {
     #[tokio::test]
     async fn insert_trade_row_rejects_invalid_side() {
         let pool = connect_memory().await.unwrap();
-        let err = insert_trade_row(&pool, 999, 999, "weirdside", 0, None, 0, 0, 0, None, None, None).await;
+        let err = insert_trade_row(
+            &pool,
+            999,
+            999,
+            "weirdside",
+            0,
+            None,
+            0,
+            0,
+            0,
+            None,
+            None,
+            None,
+        )
+        .await;
         assert!(err.is_err());
         let msg = format!("{:?}", err.err().unwrap());
         assert!(msg.contains("side must be one of"), "got: {msg}");
@@ -707,34 +924,57 @@ mod tests {
         // securities_trades.account_id should automatically point to the institution's depot.
         let pool = connect_memory().await.unwrap();
         sqlx::query("INSERT INTO institutions (name) VALUES ('TR')")
-            .execute(&pool).await.unwrap();
+            .execute(&pool)
+            .await
+            .unwrap();
         let (inst_id,): (i64,) = sqlx::query_as("SELECT id FROM institutions WHERE name='TR'")
-            .fetch_one(&pool).await.unwrap();
-        let verrechnung = create_account(&pool, "V", "bank", "EUR", None, None, Some(inst_id)).await.unwrap();
-        let depot = create_account(&pool, "D", "broker", "EUR", None, None, Some(inst_id)).await.unwrap();
-        let sec = crate::db::securities::create_security(&pool, crate::db::securities::NewSecurityPayload {
-            isin: "IE00BK5BQT82".into(), symbol: None, name: "X".into(),
-            currency: None, asset_type: "etf_equity".into(),
-            country: None, sector: None, note: None,
-        }).await.unwrap();
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+        let verrechnung = create_account(&pool, "V", "bank", "EUR", None, None, Some(inst_id))
+            .await
+            .unwrap();
+        let depot = create_account(&pool, "D", "broker", "EUR", None, None, Some(inst_id))
+            .await
+            .unwrap();
+        let sec = crate::db::securities::create_security(
+            &pool,
+            crate::db::securities::NewSecurityPayload {
+                isin: "IE00BK5BQT82".into(),
+                symbol: None,
+                name: "X".into(),
+                currency: None,
+                asset_type: "etf_equity".into(),
+                country: None,
+                sector: None,
+                note: None,
+            },
+        )
+        .await
+        .unwrap();
 
-        let result = create_trade(&pool, NewTradePayload {
-            account_id: verrechnung.id,
-            security_id: sec.id,
-            booking_date: "2026-05-18".into(),
-            side: "buy".into(),
-            shares_micro: 5_000_000,
-            unit_price_micro: Some(10_000_000),
-            fee_cents: 0,
-            kest_cents: 0,
-            withholding_tax_cents: 0,
-            fx_rate_micro: None,
-            amount_cents: -50_000,
-            currency: None,
-            counterparty: None,
-            manual_note: None,
-            holding_account_id: None,
-        }).await.unwrap();
+        let result = create_trade(
+            &pool,
+            NewTradePayload {
+                account_id: verrechnung.id,
+                security_id: sec.id,
+                booking_date: "2026-05-18".into(),
+                side: "buy".into(),
+                shares_micro: 5_000_000,
+                unit_price_micro: Some(10_000_000),
+                fee_cents: 0,
+                kest_cents: 0,
+                withholding_tax_cents: 0,
+                fx_rate_micro: None,
+                amount_cents: -50_000,
+                currency: None,
+                counterparty: None,
+                manual_note: None,
+                holding_account_id: None,
+            },
+        )
+        .await
+        .unwrap();
 
         // Tx is linked to settlement account
         assert_eq!(result.tx.account_id, verrechnung.id);
@@ -747,18 +987,28 @@ mod tests {
         // User creates directly on the depot → no routing needed, account_id NULL (fallback).
         let pool = connect_memory().await.unwrap();
         let (acc, sec) = setup_broker_and_security(&pool).await;
-        let result = create_trade(&pool, NewTradePayload {
-            account_id: acc,
-            security_id: sec,
-            booking_date: "2026-05-18".into(),
-            side: "buy".into(),
-            shares_micro: 5_000_000,
-            unit_price_micro: Some(10_000_000),
-            fee_cents: 0, kest_cents: 0, withholding_tax_cents: 0, fx_rate_micro: None,
-            amount_cents: -50_000,
-            currency: None, counterparty: None, manual_note: None,
-            holding_account_id: None,
-        }).await.unwrap();
+        let result = create_trade(
+            &pool,
+            NewTradePayload {
+                account_id: acc,
+                security_id: sec,
+                booking_date: "2026-05-18".into(),
+                side: "buy".into(),
+                shares_micro: 5_000_000,
+                unit_price_micro: Some(10_000_000),
+                fee_cents: 0,
+                kest_cents: 0,
+                withholding_tax_cents: 0,
+                fx_rate_micro: None,
+                amount_cents: -50_000,
+                currency: None,
+                counterparty: None,
+                manual_note: None,
+                holding_account_id: None,
+            },
+        )
+        .await
+        .unwrap();
         assert_eq!(result.trade.account_id, None);
     }
 
@@ -767,26 +1017,54 @@ mod tests {
         // Bank account in institution without broker → no routing possible.
         let pool = connect_memory().await.unwrap();
         sqlx::query("INSERT INTO institutions (name) VALUES ('BankOnly')")
-            .execute(&pool).await.unwrap();
-        let (inst_id,): (i64,) = sqlx::query_as("SELECT id FROM institutions WHERE name='BankOnly'")
-            .fetch_one(&pool).await.unwrap();
-        let bank = create_account(&pool, "B", "bank", "EUR", None, None, Some(inst_id)).await.unwrap();
-        let sec = crate::db::securities::create_security(&pool, crate::db::securities::NewSecurityPayload {
-            isin: "IE00BK5BQT83".into(), symbol: None, name: "X".into(),
-            currency: None, asset_type: "etf_equity".into(),
-            country: None, sector: None, note: None,
-        }).await.unwrap();
-        let result = create_trade(&pool, NewTradePayload {
-            account_id: bank.id, security_id: sec.id,
-            booking_date: "2026-05-18".into(),
-            side: "buy".into(),
-            shares_micro: 5_000_000,
-            unit_price_micro: Some(10_000_000),
-            fee_cents: 0, kest_cents: 0, withholding_tax_cents: 0, fx_rate_micro: None,
-            amount_cents: -50_000,
-            currency: None, counterparty: None, manual_note: None,
-            holding_account_id: None,
-        }).await.unwrap();
+            .execute(&pool)
+            .await
+            .unwrap();
+        let (inst_id,): (i64,) =
+            sqlx::query_as("SELECT id FROM institutions WHERE name='BankOnly'")
+                .fetch_one(&pool)
+                .await
+                .unwrap();
+        let bank = create_account(&pool, "B", "bank", "EUR", None, None, Some(inst_id))
+            .await
+            .unwrap();
+        let sec = crate::db::securities::create_security(
+            &pool,
+            crate::db::securities::NewSecurityPayload {
+                isin: "IE00BK5BQT83".into(),
+                symbol: None,
+                name: "X".into(),
+                currency: None,
+                asset_type: "etf_equity".into(),
+                country: None,
+                sector: None,
+                note: None,
+            },
+        )
+        .await
+        .unwrap();
+        let result = create_trade(
+            &pool,
+            NewTradePayload {
+                account_id: bank.id,
+                security_id: sec.id,
+                booking_date: "2026-05-18".into(),
+                side: "buy".into(),
+                shares_micro: 5_000_000,
+                unit_price_micro: Some(10_000_000),
+                fee_cents: 0,
+                kest_cents: 0,
+                withholding_tax_cents: 0,
+                fx_rate_micro: None,
+                amount_cents: -50_000,
+                currency: None,
+                counterparty: None,
+                manual_note: None,
+                holding_account_id: None,
+            },
+        )
+        .await
+        .unwrap();
         assert_eq!(result.trade.account_id, None);
     }
 
@@ -797,51 +1075,121 @@ mod tests {
         sqlx::query(
             "INSERT INTO transactions
                 (account_id, booking_date, amount_cents, currency, source, kind, imported_at)
-             VALUES (?1, '2026-05-15', -10000, 'EUR', 'manual', 'buy', '2026-05-15T00:00:00Z')"
-        ).bind(acc).execute(&pool).await.unwrap();
+             VALUES (?1, '2026-05-15', -10000, 'EUR', 'manual', 'buy', '2026-05-15T00:00:00Z')",
+        )
+        .bind(acc)
+        .execute(&pool)
+        .await
+        .unwrap();
         let (tx_id,): (i64,) = sqlx::query_as("SELECT MAX(id) FROM transactions")
-            .fetch_one(&pool).await.unwrap();
-        insert_trade_row(&pool, tx_id, sec, "buy", 1_000_000, Some(10_000_000), 100, 50, 30, None, None, None)
-            .await.unwrap();
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+        insert_trade_row(
+            &pool,
+            tx_id,
+            sec,
+            "buy",
+            1_000_000,
+            Some(10_000_000),
+            100,
+            50,
+            30,
+            None,
+            None,
+            None,
+        )
+        .await
+        .unwrap();
 
         let payload = UpdateTradePayload {
-            shares_micro: None, unit_price_micro: None, fee_cents: None,
-            tax_cents: None, fx_rate_micro: None,
-            kest_cents: Some(80), withholding_tax_cents: Some(40),
-            account_id: None, security_id: None, amount_cents: None,
+            shares_micro: None,
+            unit_price_micro: None,
+            fee_cents: None,
+            tax_cents: None,
+            fx_rate_micro: None,
+            kest_cents: Some(80),
+            withholding_tax_cents: Some(40),
+            account_id: None,
+            security_id: None,
+            amount_cents: None,
             tx_account_id: None,
         };
         let updated = update_trade(&pool, tx_id, payload).await.unwrap();
         assert_eq!(updated.kest_cents, 80);
         assert_eq!(updated.withholding_tax_cents, 40);
-        assert_eq!(updated.tax_cents, 120, "tax_cents = kest + wht (legacy sum)");
+        assert_eq!(
+            updated.tax_cents, 120,
+            "tax_cents = kest + wht (legacy sum)"
+        );
     }
 
     #[tokio::test]
     async fn update_trade_updates_account_id_and_amount_cents() {
         let pool = connect_memory().await.unwrap();
-        let cash = create_account(&pool, "Cash", "savings", "EUR", None, None, None).await.unwrap();
-        let depot = create_account(&pool, "Depot", "broker", "EUR", None, None, None).await.unwrap();
-        let depot2 = create_account(&pool, "Depot2", "broker", "EUR", None, None, None).await.unwrap();
-        let sec = create_security(&pool, NewSecurityPayload {
-            isin: "LU0290358497".into(), symbol: None, name: "X".into(),
-            currency: None, asset_type: "etf_equity".into(),
-            country: None, sector: None, note: None,
-        }).await.unwrap();
+        let cash = create_account(&pool, "Cash", "savings", "EUR", None, None, None)
+            .await
+            .unwrap();
+        let depot = create_account(&pool, "Depot", "broker", "EUR", None, None, None)
+            .await
+            .unwrap();
+        let depot2 = create_account(&pool, "Depot2", "broker", "EUR", None, None, None)
+            .await
+            .unwrap();
+        let sec = create_security(
+            &pool,
+            NewSecurityPayload {
+                isin: "LU0290358497".into(),
+                symbol: None,
+                name: "X".into(),
+                currency: None,
+                asset_type: "etf_equity".into(),
+                country: None,
+                sector: None,
+                note: None,
+            },
+        )
+        .await
+        .unwrap();
         sqlx::query(
             "INSERT INTO transactions
                 (account_id, booking_date, amount_cents, currency, source, kind, imported_at)
-             VALUES (?1, '2026-05-15', -10000, 'EUR', 'manual', 'buy', '2026-05-15T00:00:00Z')"
-        ).bind(cash.id).execute(&pool).await.unwrap();
+             VALUES (?1, '2026-05-15', -10000, 'EUR', 'manual', 'buy', '2026-05-15T00:00:00Z')",
+        )
+        .bind(cash.id)
+        .execute(&pool)
+        .await
+        .unwrap();
         let (tx_id,): (i64,) = sqlx::query_as("SELECT MAX(id) FROM transactions")
-            .fetch_one(&pool).await.unwrap();
-        insert_trade_row(&pool, tx_id, sec.id, "buy", 1_000_000, Some(10_000_000), 0, 0, 0, None, Some(depot.id), None)
-            .await.unwrap();
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+        insert_trade_row(
+            &pool,
+            tx_id,
+            sec.id,
+            "buy",
+            1_000_000,
+            Some(10_000_000),
+            0,
+            0,
+            0,
+            None,
+            Some(depot.id),
+            None,
+        )
+        .await
+        .unwrap();
 
         let payload = UpdateTradePayload {
-            shares_micro: None, unit_price_micro: None, fee_cents: None,
-            tax_cents: None, fx_rate_micro: None, kest_cents: None,
-            withholding_tax_cents: None, security_id: None,
+            shares_micro: None,
+            unit_price_micro: None,
+            fee_cents: None,
+            tax_cents: None,
+            fx_rate_micro: None,
+            kest_cents: None,
+            withholding_tax_cents: None,
+            security_id: None,
             account_id: Some(depot2.id),
             amount_cents: Some(-12000),
             tx_account_id: None,
@@ -849,9 +1197,12 @@ mod tests {
         let updated = update_trade(&pool, tx_id, payload).await.unwrap();
         assert_eq!(updated.account_id, Some(depot2.id));
 
-        let (new_amount,): (i64,) = sqlx::query_as(
-            "SELECT amount_cents FROM transactions WHERE id = ?1"
-        ).bind(tx_id).fetch_one(&pool).await.unwrap();
+        let (new_amount,): (i64,) =
+            sqlx::query_as("SELECT amount_cents FROM transactions WHERE id = ?1")
+                .bind(tx_id)
+                .fetch_one(&pool)
+                .await
+                .unwrap();
         assert_eq!(new_amount, -12000);
     }
 
@@ -859,27 +1210,63 @@ mod tests {
     async fn update_trade_can_swap_security_id() {
         let pool = connect_memory().await.unwrap();
         let (acc, sec_a) = setup_broker_and_security(&pool).await;
-        let sec_b = create_security(&pool, NewSecurityPayload {
-            isin: "IE00B4L5Y983".into(), symbol: None, name: "Other".into(),
-            currency: None, asset_type: "etf_equity".into(),
-            country: None, sector: None, note: None,
-        }).await.unwrap();
+        let sec_b = create_security(
+            &pool,
+            NewSecurityPayload {
+                isin: "IE00B4L5Y983".into(),
+                symbol: None,
+                name: "Other".into(),
+                currency: None,
+                asset_type: "etf_equity".into(),
+                country: None,
+                sector: None,
+                note: None,
+            },
+        )
+        .await
+        .unwrap();
         sqlx::query(
             "INSERT INTO transactions
                 (account_id, booking_date, amount_cents, currency, source, kind, imported_at)
-             VALUES (?1, '2026-05-15', -10000, 'EUR', 'manual', 'buy', '2026-05-15T00:00:00Z')"
-        ).bind(acc).execute(&pool).await.unwrap();
+             VALUES (?1, '2026-05-15', -10000, 'EUR', 'manual', 'buy', '2026-05-15T00:00:00Z')",
+        )
+        .bind(acc)
+        .execute(&pool)
+        .await
+        .unwrap();
         let (tx_id,): (i64,) = sqlx::query_as("SELECT MAX(id) FROM transactions")
-            .fetch_one(&pool).await.unwrap();
-        insert_trade_row(&pool, tx_id, sec_a, "buy", 1_000_000, Some(10_000_000), 0, 0, 0, None, None, None)
-            .await.unwrap();
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+        insert_trade_row(
+            &pool,
+            tx_id,
+            sec_a,
+            "buy",
+            1_000_000,
+            Some(10_000_000),
+            0,
+            0,
+            0,
+            None,
+            None,
+            None,
+        )
+        .await
+        .unwrap();
 
         let payload = UpdateTradePayload {
-            shares_micro: None, unit_price_micro: None, fee_cents: None,
-            tax_cents: None, fx_rate_micro: None, kest_cents: None,
-            withholding_tax_cents: None, account_id: None,
+            shares_micro: None,
+            unit_price_micro: None,
+            fee_cents: None,
+            tax_cents: None,
+            fx_rate_micro: None,
+            kest_cents: None,
+            withholding_tax_cents: None,
+            account_id: None,
             security_id: Some(sec_b.id),
-            amount_cents: None, tx_account_id: None,
+            amount_cents: None,
+            tx_account_id: None,
         };
         let updated = update_trade(&pool, tx_id, payload).await.unwrap();
         assert_eq!(updated.security_id, sec_b.id);
@@ -892,17 +1279,42 @@ mod tests {
         sqlx::query(
             "INSERT INTO transactions
                 (account_id, booking_date, amount_cents, currency, source, kind, imported_at)
-             VALUES (?1, '2026-05-15', -10000, 'EUR', 'manual', 'buy', '2026-05-15T00:00:00Z')"
-        ).bind(acc).execute(&pool).await.unwrap();
+             VALUES (?1, '2026-05-15', -10000, 'EUR', 'manual', 'buy', '2026-05-15T00:00:00Z')",
+        )
+        .bind(acc)
+        .execute(&pool)
+        .await
+        .unwrap();
         let (tx_id,): (i64,) = sqlx::query_as("SELECT MAX(id) FROM transactions")
-            .fetch_one(&pool).await.unwrap();
-        insert_trade_row(&pool, tx_id, sec, "buy", 1_000_000, Some(10_000_000), 0, 0, 0, None, None, None)
-            .await.unwrap();
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+        insert_trade_row(
+            &pool,
+            tx_id,
+            sec,
+            "buy",
+            1_000_000,
+            Some(10_000_000),
+            0,
+            0,
+            0,
+            None,
+            None,
+            None,
+        )
+        .await
+        .unwrap();
 
         let payload = UpdateTradePayload {
-            shares_micro: None, unit_price_micro: None, fee_cents: None,
-            tax_cents: None, fx_rate_micro: None, kest_cents: None,
-            withholding_tax_cents: None, account_id: None,
+            shares_micro: None,
+            unit_price_micro: None,
+            fee_cents: None,
+            tax_cents: None,
+            fx_rate_micro: None,
+            kest_cents: None,
+            withholding_tax_cents: None,
+            account_id: None,
             security_id: Some(99_999),
             amount_cents: Some(-9999),
             tx_account_id: None,
@@ -910,9 +1322,11 @@ mod tests {
         let res = update_trade(&pool, tx_id, payload).await;
         assert!(res.is_err(), "FK violation must raise an error");
 
-        let (amt,): (i64,) = sqlx::query_as(
-            "SELECT amount_cents FROM transactions WHERE id = ?1"
-        ).bind(tx_id).fetch_one(&pool).await.unwrap();
+        let (amt,): (i64,) = sqlx::query_as("SELECT amount_cents FROM transactions WHERE id = ?1")
+            .bind(tx_id)
+            .fetch_one(&pool)
+            .await
+            .unwrap();
         assert_eq!(amt, -10000, "Rollback: amount_cents unchanged");
     }
 }

@@ -2,9 +2,9 @@ use chrono::NaiveDate;
 use sha2::{Digest, Sha256};
 
 pub mod csv_bank_statement;
-pub mod trade_republic_csv;
 pub mod flatex_pdf;
 pub mod sparkasse_csv;
+pub mod trade_republic_csv;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct RawTransaction {
@@ -29,7 +29,7 @@ pub struct RawTradeFields {
     /// Raw CSV value before mapping (e.g. "FUND"). Mapping happens at insert time.
     pub asset_class_raw: String,
     pub name: String,
-    pub side: String,  // 'buy' | 'sell' | 'dividend' | 'corporate_action' | 'fusion_out' | 'fusion_in'
+    pub side: String, // 'buy' | 'sell' | 'dividend' | 'corporate_action' | 'fusion_out' | 'fusion_in'
     pub shares_micro: i64,
     pub unit_price_micro: Option<i64>,
     pub fee_cents: i64,
@@ -99,6 +99,8 @@ mod tests {
     fn hash_is_64_hex_chars() {
         let h = source_file_hash(b"anything");
         assert_eq!(h.len(), 64);
-        assert!(h.chars().all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase()));
+        assert!(h
+            .chars()
+            .all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase()));
     }
 }

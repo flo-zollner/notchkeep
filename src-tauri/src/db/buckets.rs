@@ -103,11 +103,7 @@ pub async fn delete_bucket(pool: &SqlitePool, id: i64) -> DbResult<bool> {
     Ok(res.rows_affected() > 0)
 }
 
-pub async fn update_bucket(
-    pool: &SqlitePool,
-    id: i64,
-    p: UpdateBucketPayload,
-) -> DbResult<Bucket> {
+pub async fn update_bucket(pool: &SqlitePool, id: i64, p: UpdateBucketPayload) -> DbResult<Bucket> {
     if let Some(n) = &p.name {
         if n.trim().is_empty() {
             return Err(DbError::Decode("name must not be empty".into()));
@@ -187,15 +183,20 @@ mod tests {
     #[tokio::test]
     async fn create_and_get_bucket_round_trips() {
         let pool = connect_memory().await.unwrap();
-        let b = create_bucket(&pool, NewBucketPayload {
-            name: "Urlaub 2026".into(),
-            icon: Some("plane".into()),
-            color: Some("var(--c1)".into()),
-            note: None,
-            target_cents: Some(200_000),
-            start_date: Some("2026-01-01".into()),
-            target_date: Some("2026-08-01".into()),
-        }).await.unwrap();
+        let b = create_bucket(
+            &pool,
+            NewBucketPayload {
+                name: "Urlaub 2026".into(),
+                icon: Some("plane".into()),
+                color: Some("var(--c1)".into()),
+                note: None,
+                target_cents: Some(200_000),
+                start_date: Some("2026-01-01".into()),
+                target_date: Some("2026-08-01".into()),
+            },
+        )
+        .await
+        .unwrap();
         assert_eq!(b.name, "Urlaub 2026");
         assert_eq!(b.target_cents, Some(200_000));
         assert!(!b.archived);
@@ -208,16 +209,38 @@ mod tests {
     #[tokio::test]
     async fn list_buckets_excludes_archived_by_default() {
         let pool = connect_memory().await.unwrap();
-        let a = create_bucket(&pool, NewBucketPayload {
-            name: "active".into(), icon: None, color: None, note: None,
-            target_cents: None, start_date: None, target_date: None,
-        }).await.unwrap();
-        let _b = create_bucket(&pool, NewBucketPayload {
-            name: "archived".into(), icon: None, color: None, note: None,
-            target_cents: None, start_date: None, target_date: None,
-        }).await.unwrap();
+        let a = create_bucket(
+            &pool,
+            NewBucketPayload {
+                name: "active".into(),
+                icon: None,
+                color: None,
+                note: None,
+                target_cents: None,
+                start_date: None,
+                target_date: None,
+            },
+        )
+        .await
+        .unwrap();
+        let _b = create_bucket(
+            &pool,
+            NewBucketPayload {
+                name: "archived".into(),
+                icon: None,
+                color: None,
+                note: None,
+                target_cents: None,
+                start_date: None,
+                target_date: None,
+            },
+        )
+        .await
+        .unwrap();
         sqlx::query("UPDATE buckets SET archived = 1 WHERE name = 'archived'")
-            .execute(&pool).await.unwrap();
+            .execute(&pool)
+            .await
+            .unwrap();
 
         let listed = list_buckets(&pool, false).await.unwrap();
         assert_eq!(listed.len(), 1);
@@ -230,59 +253,106 @@ mod tests {
     #[tokio::test]
     async fn update_bucket_coalesces_partial_payload() {
         let pool = connect_memory().await.unwrap();
-        let b = create_bucket(&pool, NewBucketPayload {
-            name: "alt".into(),
-            icon: Some("plane".into()), color: None, note: None,
-            target_cents: Some(100_000),
-            start_date: Some("2026-01-01".into()), target_date: None,
-        }).await.unwrap();
+        let b = create_bucket(
+            &pool,
+            NewBucketPayload {
+                name: "alt".into(),
+                icon: Some("plane".into()),
+                color: None,
+                note: None,
+                target_cents: Some(100_000),
+                start_date: Some("2026-01-01".into()),
+                target_date: None,
+            },
+        )
+        .await
+        .unwrap();
 
         // Partial update: name only, other fields are preserved.
-        let updated = update_bucket(&pool, b.id, UpdateBucketPayload {
-            name: Some("neu".into()),
-            icon: None, color: None, note: None,
-            target_cents: None, start_date: None, target_date: None,
-            archived: None,
-        }).await.unwrap();
+        let updated = update_bucket(
+            &pool,
+            b.id,
+            UpdateBucketPayload {
+                name: Some("neu".into()),
+                icon: None,
+                color: None,
+                note: None,
+                target_cents: None,
+                start_date: None,
+                target_date: None,
+                archived: None,
+            },
+        )
+        .await
+        .unwrap();
         assert_eq!(updated.name, "neu");
         assert_eq!(updated.icon.as_deref(), Some("plane"));
         assert_eq!(updated.target_cents, Some(100_000));
         assert!(!updated.archived);
 
         // Set archived = true.
-        let archived = update_bucket(&pool, b.id, UpdateBucketPayload {
-            name: None, icon: None, color: None, note: None,
-            target_cents: None, start_date: None, target_date: None,
-            archived: Some(true),
-        }).await.unwrap();
+        let archived = update_bucket(
+            &pool,
+            b.id,
+            UpdateBucketPayload {
+                name: None,
+                icon: None,
+                color: None,
+                note: None,
+                target_cents: None,
+                start_date: None,
+                target_date: None,
+                archived: Some(true),
+            },
+        )
+        .await
+        .unwrap();
         assert!(archived.archived);
     }
 
     #[tokio::test]
     async fn delete_bucket_sets_tx_bucket_id_to_null() {
         let pool = connect_memory().await.unwrap();
-        let acc = crate::db::accounts::create_account(
-            &pool, "A", "bank", "EUR", None, None, None,
-        ).await.unwrap();
-        let b = create_bucket(&pool, NewBucketPayload {
-            name: "test".into(), icon: None, color: None, note: None,
-            target_cents: None, start_date: None, target_date: None,
-        }).await.unwrap();
+        let acc = crate::db::accounts::create_account(&pool, "A", "bank", "EUR", None, None, None)
+            .await
+            .unwrap();
+        let b = create_bucket(
+            &pool,
+            NewBucketPayload {
+                name: "test".into(),
+                icon: None,
+                color: None,
+                note: None,
+                target_cents: None,
+                start_date: None,
+                target_date: None,
+            },
+        )
+        .await
+        .unwrap();
         sqlx::query(
             "INSERT INTO transactions
                 (account_id, booking_date, amount_cents, currency, counterparty, source, bucket_id)
              VALUES (?1, '2026-05-01', 1000, 'EUR', 'x', 'manual', ?2)",
         )
-        .bind(acc.id).bind(b.id)
-        .execute(&pool).await.unwrap();
+        .bind(acc.id)
+        .bind(b.id)
+        .execute(&pool)
+        .await
+        .unwrap();
 
         assert!(delete_bucket(&pool, b.id).await.unwrap());
 
-        let (cnt,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM transactions WHERE bucket_id IS NOT NULL")
-            .fetch_one(&pool).await.unwrap();
+        let (cnt,): (i64,) =
+            sqlx::query_as("SELECT COUNT(*) FROM transactions WHERE bucket_id IS NOT NULL")
+                .fetch_one(&pool)
+                .await
+                .unwrap();
         assert_eq!(cnt, 0);
         let (still_there,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM transactions")
-            .fetch_one(&pool).await.unwrap();
+            .fetch_one(&pool)
+            .await
+            .unwrap();
         assert_eq!(still_there, 1, "Tx itself must be preserved");
     }
 
@@ -295,18 +365,35 @@ mod tests {
     #[tokio::test]
     async fn bucket_balance_combines_allocations_and_assigned_tx() {
         let pool = connect_memory().await.unwrap();
-        let acc = crate::db::accounts::create_account(
-            &pool, "A", "bank", "EUR", None, None, None,
-        ).await.unwrap();
-        let b = create_bucket(&pool, NewBucketPayload {
-            name: "x".into(), icon: None, color: None, note: None,
-            target_cents: None, start_date: None, target_date: None,
-        }).await.unwrap();
+        let acc = crate::db::accounts::create_account(&pool, "A", "bank", "EUR", None, None, None)
+            .await
+            .unwrap();
+        let b = create_bucket(
+            &pool,
+            NewBucketPayload {
+                name: "x".into(),
+                icon: None,
+                color: None,
+                note: None,
+                target_cents: None,
+                start_date: None,
+                target_date: None,
+            },
+        )
+        .await
+        .unwrap();
         // 200 EUR reserved (allocation), 50 EUR outflow assigned -> 150 EUR
         crate::db::bucket_allocations::create_allocation(
-            &pool, crate::db::bucket_allocations::NewBucketAllocationPayload {
-                bucket_id: b.id, amount_cents: 20000, occurred_on: None, note: None,
-            }).await.unwrap();
+            &pool,
+            crate::db::bucket_allocations::NewBucketAllocationPayload {
+                bucket_id: b.id,
+                amount_cents: 20000,
+                occurred_on: None,
+                note: None,
+            },
+        )
+        .await
+        .unwrap();
         sqlx::query(
             "INSERT INTO transactions
                 (account_id, booking_date, amount_cents, currency, counterparty, source, kind, bucket_id)
@@ -321,32 +408,69 @@ mod tests {
     #[tokio::test]
     async fn bucket_balance_empty_is_zero() {
         let pool = connect_memory().await.unwrap();
-        let b = create_bucket(&pool, NewBucketPayload {
-            name: "x".into(), icon: None, color: None, note: None,
-            target_cents: None, start_date: None, target_date: None,
-        }).await.unwrap();
+        let b = create_bucket(
+            &pool,
+            NewBucketPayload {
+                name: "x".into(),
+                icon: None,
+                color: None,
+                note: None,
+                target_cents: None,
+                start_date: None,
+                target_date: None,
+            },
+        )
+        .await
+        .unwrap();
         assert_eq!(bucket_balance(&pool, b.id).await.unwrap(), 0);
     }
 
     #[tokio::test]
     async fn list_bucket_progress_includes_allocations() {
         let pool = connect_memory().await.unwrap();
-        let acc = crate::db::accounts::create_account(
-            &pool, "A", "bank", "EUR", None, None, None,
-        ).await.unwrap();
-        let b1 = create_bucket(&pool, NewBucketPayload {
-            name: "b1".into(), icon: None, color: None, note: None,
-            target_cents: None, start_date: None, target_date: None,
-        }).await.unwrap();
-        let b2 = create_bucket(&pool, NewBucketPayload {
-            name: "b2".into(), icon: None, color: None, note: None,
-            target_cents: None, start_date: None, target_date: None,
-        }).await.unwrap();
+        let acc = crate::db::accounts::create_account(&pool, "A", "bank", "EUR", None, None, None)
+            .await
+            .unwrap();
+        let b1 = create_bucket(
+            &pool,
+            NewBucketPayload {
+                name: "b1".into(),
+                icon: None,
+                color: None,
+                note: None,
+                target_cents: None,
+                start_date: None,
+                target_date: None,
+            },
+        )
+        .await
+        .unwrap();
+        let b2 = create_bucket(
+            &pool,
+            NewBucketPayload {
+                name: "b2".into(),
+                icon: None,
+                color: None,
+                note: None,
+                target_cents: None,
+                start_date: None,
+                target_date: None,
+            },
+        )
+        .await
+        .unwrap();
         // b1: 100 EUR allocation + 30 EUR outflow = 70 EUR, tx_count = 1
         crate::db::bucket_allocations::create_allocation(
-            &pool, crate::db::bucket_allocations::NewBucketAllocationPayload {
-                bucket_id: b1.id, amount_cents: 10000, occurred_on: None, note: None,
-            }).await.unwrap();
+            &pool,
+            crate::db::bucket_allocations::NewBucketAllocationPayload {
+                bucket_id: b1.id,
+                amount_cents: 10000,
+                occurred_on: None,
+                note: None,
+            },
+        )
+        .await
+        .unwrap();
         sqlx::query(
             "INSERT INTO transactions
                 (account_id, booking_date, amount_cents, currency, counterparty, source, kind, bucket_id)
@@ -355,9 +479,16 @@ mod tests {
         .bind(acc.id).bind(b1.id).execute(&pool).await.unwrap();
         // b2: 300 EUR allocation only, no outflow
         crate::db::bucket_allocations::create_allocation(
-            &pool, crate::db::bucket_allocations::NewBucketAllocationPayload {
-                bucket_id: b2.id, amount_cents: 30000, occurred_on: None, note: None,
-            }).await.unwrap();
+            &pool,
+            crate::db::bucket_allocations::NewBucketAllocationPayload {
+                bucket_id: b2.id,
+                amount_cents: 30000,
+                occurred_on: None,
+                note: None,
+            },
+        )
+        .await
+        .unwrap();
 
         let mut progress = list_bucket_progress(&pool).await.unwrap();
         progress.sort_by_key(|p| p.bucket_id);
@@ -377,13 +508,23 @@ mod tests {
         // assert the balance is preserved exactly. Keep this SQL in sync with
         // migrations/0003_buckets_envelope.sql.
         let pool = connect_memory().await.unwrap();
-        let acc = crate::db::accounts::create_account(
-            &pool, "A", "bank", "EUR", None, None, None,
-        ).await.unwrap();
-        let b = create_bucket(&pool, NewBucketPayload {
-            name: "Legacy".into(), icon: None, color: None, note: None,
-            target_cents: None, start_date: None, target_date: None,
-        }).await.unwrap();
+        let acc = crate::db::accounts::create_account(&pool, "A", "bank", "EUR", None, None, None)
+            .await
+            .unwrap();
+        let b = create_bucket(
+            &pool,
+            NewBucketPayload {
+                name: "Legacy".into(),
+                icon: None,
+                color: None,
+                note: None,
+                target_cents: None,
+                start_date: None,
+                target_date: None,
+            },
+        )
+        .await
+        .unwrap();
         sqlx::query(
             "INSERT INTO transactions
                 (account_id, booking_date, amount_cents, currency, counterparty, source, kind, bucket_id)
@@ -397,7 +538,11 @@ mod tests {
         // Old balance under the legacy rule: SUM(all tagged tx).
         let (old_balance,): (i64,) = sqlx::query_as(
             "SELECT COALESCE(SUM(amount_cents),0) FROM transactions WHERE bucket_id = ?1",
-        ).bind(b.id).fetch_one(&pool).await.unwrap();
+        )
+        .bind(b.id)
+        .fetch_one(&pool)
+        .await
+        .unwrap();
         assert_eq!(old_balance, 85000);
 
         // Migration 0003 data step (verbatim):
@@ -412,30 +557,44 @@ mod tests {
         sqlx::query(
             "UPDATE transactions SET bucket_id = NULL
               WHERE bucket_id IS NOT NULL AND amount_cents >= 0",
-        ).execute(&pool).await.unwrap();
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
 
         // New balance (new formula) must equal the old balance exactly.
         assert_eq!(bucket_balance(&pool, b.id).await.unwrap(), 85000);
-        let seeds = crate::db::bucket_allocations::list_allocations(&pool, Some(b.id)).await.unwrap();
+        let seeds = crate::db::bucket_allocations::list_allocations(&pool, Some(b.id))
+            .await
+            .unwrap();
         assert_eq!(seeds.len(), 1);
         assert_eq!(seeds[0].amount_cents, 100000);
-        let (tagged_tx,): (i64,) = sqlx::query_as(
-            "SELECT COUNT(*) FROM transactions WHERE bucket_id = ?1",
-        ).bind(b.id).fetch_one(&pool).await.unwrap();
+        let (tagged_tx,): (i64,) =
+            sqlx::query_as("SELECT COUNT(*) FROM transactions WHERE bucket_id = ?1")
+                .bind(b.id)
+                .fetch_one(&pool)
+                .await
+                .unwrap();
         assert_eq!(tagged_tx, 1, "only the outflow stays tagged");
     }
 
     #[tokio::test]
     async fn create_bucket_normalizes_empty_strings_to_none() {
         let pool = connect_memory().await.unwrap();
-        let b = create_bucket(&pool, NewBucketPayload {
-            name: "x".into(),
-            icon: Some("".into()),
-            color: Some("  ".into()),
-            note: Some("".into()),
-            target_cents: None,
-            start_date: None, target_date: None,
-        }).await.unwrap();
+        let b = create_bucket(
+            &pool,
+            NewBucketPayload {
+                name: "x".into(),
+                icon: Some("".into()),
+                color: Some("  ".into()),
+                note: Some("".into()),
+                target_cents: None,
+                start_date: None,
+                target_date: None,
+            },
+        )
+        .await
+        .unwrap();
         assert!(b.icon.is_none());
         assert!(b.color.is_none());
         assert!(b.note.is_none());

@@ -10,10 +10,10 @@ use crate::db::budgets::{self as db_budgets, BudgetEntry};
 pub struct CategoryMonthBudget {
     pub category_id: i64,
     pub category_name: String,
-    pub budget_cents: Option<i64>,        // effective (forward-filled)
-    pub override_cents: Option<i64>,      // explicit (for edit-state)
+    pub budget_cents: Option<i64>,   // effective (forward-filled)
+    pub override_cents: Option<i64>, // explicit (for edit-state)
     pub spent_cents: i64,
-    pub rollover_cents: i64,              // 0 in 6m1, populated in 6m2
+    pub rollover_cents: i64, // 0 in 6m1, populated in 6m2
     pub rollover_enabled: bool,
 }
 
@@ -46,7 +46,9 @@ pub async fn set_budget(
     validate_year(year)?;
     validate_month(month)?;
     if amount_cents < 0 {
-        return Err(CommandError { message: "amount_cents must be >= 0".into() });
+        return Err(CommandError {
+            message: "amount_cents must be >= 0".into(),
+        });
     }
     Ok(db_budgets::set_budget(&state.pool(), category_id, year, month, amount_cents).await?)
 }
@@ -87,7 +89,9 @@ pub async fn month_overview(
     )
     .fetch_all(&pool)
     .await
-    .map_err(|e| CommandError { message: e.to_string() })?;
+    .map_err(|e| CommandError {
+        message: e.to_string(),
+    })?;
 
     // 2. Effective budgets per category (forward-fill).
     let eff = db_budgets::effective_budgets_for_month(&pool, year, month).await?;
@@ -102,7 +106,9 @@ pub async fn month_overview(
     .bind(month)
     .fetch_all(&pool)
     .await
-    .map_err(|e| CommandError { message: e.to_string() })?;
+    .map_err(|e| CommandError {
+        message: e.to_string(),
+    })?;
     let override_map: std::collections::HashMap<i64, i64> = overrides.into_iter().collect();
 
     // 4. Spent per category from monthly_spending. Note: monthly_spending
@@ -168,16 +174,18 @@ pub async fn uncategorized_monthly_spent(
         .bind(&to)
         .fetch_one(&pool)
         .await
-        .map_err(|e| CommandError { message: e.to_string() })?;
+        .map_err(|e| CommandError {
+            message: e.to_string(),
+        })?;
     Ok(sum)
 }
 
 #[derive(Debug, Clone, serde::Serialize, sqlx::FromRow)]
 #[serde(rename_all = "camelCase")]
 pub struct InvestmentFlow {
-    pub buys_cents: i64,       // positive (absolute purchases)
-    pub sells_cents: i64,      // positive (absolute sale proceeds)
-    pub dividends_cents: i64,  // positive (dividend income)
+    pub buys_cents: i64,         // positive (absolute purchases)
+    pub sells_cents: i64,        // positive (absolute sale proceeds)
+    pub dividends_cents: i64,    // positive (dividend income)
     pub net_invested_cents: i64, // buys − sells (positive = net cash into investments)
 }
 
@@ -205,23 +213,41 @@ pub async fn investment_flow_for_month(
     // buy: amount_cents is negative (cash out). We want the ABSOLUTE sum.
     let (buys,): (i64,) = sqlx::query_as(
         "SELECT COALESCE(SUM(-amount_cents), 0) FROM transactions
-          WHERE kind = 'buy' AND booking_date >= ?1 AND booking_date < ?2"
-    ).bind(&from).bind(&to).fetch_one(&pool).await
-     .map_err(|e| CommandError { message: e.to_string() })?;
+          WHERE kind = 'buy' AND booking_date >= ?1 AND booking_date < ?2",
+    )
+    .bind(&from)
+    .bind(&to)
+    .fetch_one(&pool)
+    .await
+    .map_err(|e| CommandError {
+        message: e.to_string(),
+    })?;
 
     // sell: amount_cents positive (cash in) — direct sum.
     let (sells,): (i64,) = sqlx::query_as(
         "SELECT COALESCE(SUM(amount_cents), 0) FROM transactions
-          WHERE kind = 'sell' AND booking_date >= ?1 AND booking_date < ?2"
-    ).bind(&from).bind(&to).fetch_one(&pool).await
-     .map_err(|e| CommandError { message: e.to_string() })?;
+          WHERE kind = 'sell' AND booking_date >= ?1 AND booking_date < ?2",
+    )
+    .bind(&from)
+    .bind(&to)
+    .fetch_one(&pool)
+    .await
+    .map_err(|e| CommandError {
+        message: e.to_string(),
+    })?;
 
     // dividend: amount_cents positive — direct sum.
     let (dividends,): (i64,) = sqlx::query_as(
         "SELECT COALESCE(SUM(amount_cents), 0) FROM transactions
-          WHERE kind = 'dividend' AND booking_date >= ?1 AND booking_date < ?2"
-    ).bind(&from).bind(&to).fetch_one(&pool).await
-     .map_err(|e| CommandError { message: e.to_string() })?;
+          WHERE kind = 'dividend' AND booking_date >= ?1 AND booking_date < ?2",
+    )
+    .bind(&from)
+    .bind(&to)
+    .fetch_one(&pool)
+    .await
+    .map_err(|e| CommandError {
+        message: e.to_string(),
+    })?;
 
     Ok(InvestmentFlow {
         buys_cents: buys,

@@ -2,13 +2,17 @@ use chrono::NaiveDate;
 use tauri::State;
 
 use crate::commands::accounts::{CommandError, DbState};
-use crate::db::trades::{
-    self as db_trades, NewTradePayload, TradeWithTx, UpdateTradePayload,
-};
+use crate::db::trades::{self as db_trades, NewTradePayload, TradeWithTx, UpdateTradePayload};
 use crate::model::SecurityTrade;
 
 const ALLOWED_SIDES: &[&str] = &[
-    "buy", "sell", "dividend", "corporate_action", "fusion_out", "fusion_in", "tax",
+    "buy",
+    "sell",
+    "dividend",
+    "corporate_action",
+    "fusion_out",
+    "fusion_in",
+    "tax",
 ];
 
 fn validate_side(s: &str) -> Result<(), CommandError> {
@@ -37,10 +41,7 @@ pub async fn list_trades(
 }
 
 #[tauri::command]
-pub async fn get_trade(
-    state: State<'_, DbState>,
-    tx_id: i64,
-) -> Result<TradeWithTx, CommandError> {
+pub async fn get_trade(state: State<'_, DbState>, tx_id: i64) -> Result<TradeWithTx, CommandError> {
     Ok(db_trades::get_trade(&state.pool(), tx_id).await?)
 }
 
@@ -52,10 +53,14 @@ pub async fn create_trade(
     validate_side(&payload.side)?;
     validate_booking_date(&payload.booking_date)?;
     if payload.fee_cents < 0 {
-        return Err(CommandError { message: "fee_cents must be >= 0".into() });
+        return Err(CommandError {
+            message: "fee_cents must be >= 0".into(),
+        });
     }
     if payload.kest_cents < 0 || payload.withholding_tax_cents < 0 {
-        return Err(CommandError { message: "tax fields must be >= 0".into() });
+        return Err(CommandError {
+            message: "tax fields must be >= 0".into(),
+        });
     }
     match payload.side.as_str() {
         "buy" | "sell" if payload.unit_price_micro.is_none() => {
@@ -78,10 +83,7 @@ pub async fn update_trade(
 }
 
 #[tauri::command]
-pub async fn delete_trade(
-    state: State<'_, DbState>,
-    tx_id: i64,
-) -> Result<bool, CommandError> {
+pub async fn delete_trade(state: State<'_, DbState>, tx_id: i64) -> Result<bool, CommandError> {
     Ok(db_trades::delete_trade(&state.pool(), tx_id).await?)
 }
 
@@ -91,7 +93,9 @@ mod tests {
 
     #[test]
     fn validate_side_whitelist() {
-        for s in ALLOWED_SIDES { assert!(validate_side(s).is_ok()); }
+        for s in ALLOWED_SIDES {
+            assert!(validate_side(s).is_ok());
+        }
         assert!(validate_side("transfer").is_err());
         assert!(validate_side("").is_err());
     }
@@ -110,6 +114,6 @@ mod tests {
         assert!(validate_booking_date("2026-04-31").is_err()); // April 31
         assert!(validate_booking_date("2026-13-99").is_err()); // both bad
         assert!(validate_booking_date("2025-02-29").is_err()); // not leap
-        assert!(validate_booking_date("2024-02-29").is_ok());  // leap year
+        assert!(validate_booking_date("2024-02-29").is_ok()); // leap year
     }
 }

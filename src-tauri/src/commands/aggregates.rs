@@ -3,13 +3,11 @@ use tauri::State;
 use crate::commands::accounts::{CommandError, DbState};
 use crate::db::aggregates::{
     account_monthly_cashflow as db_account_monthly_cashflow,
-    bucket_monthly_flow as db_bucket_monthly_flow,
-    cashflow_breakdown as db_cashflow_breakdown,
+    bucket_monthly_flow as db_bucket_monthly_flow, cashflow_breakdown as db_cashflow_breakdown,
     category_breakdown as db_category_breakdown, daily_spending as db_daily_spending,
     monthly_cashflow as db_monthly_cashflow,
     monthly_cashflow_excl_invest as db_monthly_cashflow_excl_invest,
-    monthly_spending as db_monthly_spending,
-    CashflowSlice, CategorySpending, MonthlyFlow,
+    monthly_spending as db_monthly_spending, CashflowSlice, CategorySpending, MonthlyFlow,
 };
 use crate::db::networth::{
     net_worth_forecast as db_net_worth_forecast, net_worth_history as db_net_worth_history,
@@ -87,10 +85,14 @@ pub async fn bucket_monthly_flow(
     months: u32,
 ) -> Result<Vec<MonthlyFlow>, CommandError> {
     if !(1..=12).contains(&end_month) {
-        return Err(CommandError { message: format!("invalid month: {end_month}") });
+        return Err(CommandError {
+            message: format!("invalid month: {end_month}"),
+        });
     }
     if !(1..=120).contains(&months) {
-        return Err(CommandError { message: format!("invalid months count: {months}") });
+        return Err(CommandError {
+            message: format!("invalid months count: {months}"),
+        });
     }
     Ok(db_bucket_monthly_flow(&state.pool(), bucket_id, end_year, end_month, months).await?)
 }
@@ -176,7 +178,14 @@ pub async fn net_worth_forecast(
             message: format!("invalid forecast_months: {forecast_months}"),
         });
     }
-    Ok(db_net_worth_forecast(&state.pool(), end_year, end_month, history_window, forecast_months).await?)
+    Ok(db_net_worth_forecast(
+        &state.pool(),
+        end_year,
+        end_month,
+        history_window,
+        forecast_months,
+    )
+    .await?)
 }
 
 #[tauri::command]
@@ -185,12 +194,17 @@ pub async fn cashflow_breakdown(
     from: String,
     to: String,
 ) -> Result<Vec<CashflowSlice>, CommandError> {
-    let from_d = chrono::NaiveDate::parse_from_str(&from, "%Y-%m-%d")
-        .map_err(|e| CommandError { message: format!("invalid from {from:?}: {e}") })?;
-    let to_d = chrono::NaiveDate::parse_from_str(&to, "%Y-%m-%d")
-        .map_err(|e| CommandError { message: format!("invalid to {to:?}: {e}") })?;
+    let from_d =
+        chrono::NaiveDate::parse_from_str(&from, "%Y-%m-%d").map_err(|e| CommandError {
+            message: format!("invalid from {from:?}: {e}"),
+        })?;
+    let to_d = chrono::NaiveDate::parse_from_str(&to, "%Y-%m-%d").map_err(|e| CommandError {
+        message: format!("invalid to {to:?}: {e}"),
+    })?;
     if from_d >= to_d {
-        return Err(CommandError { message: format!("from ({from}) must be < to ({to})") });
+        return Err(CommandError {
+            message: format!("from ({from}) must be < to ({to})"),
+        });
     }
     Ok(db_cashflow_breakdown(&state.pool(), &from, &to).await?)
 }

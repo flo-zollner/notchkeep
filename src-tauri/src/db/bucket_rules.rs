@@ -1,6 +1,6 @@
+use super::DbResult;
 use serde::{Deserialize, Serialize};
 use sqlx::SqlitePool;
-use super::DbResult;
 
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
 #[serde(rename_all = "camelCase")]
@@ -32,18 +32,21 @@ pub async fn list_bucket_rules(pool: &SqlitePool) -> DbResult<Vec<BucketRule>> {
         "SELECT id, priority, name, counterparty_contains, min_amount_cents, max_amount_cents,
                 target_bucket_id, enabled
            FROM bucket_rules
-          ORDER BY priority ASC, id ASC"
+          ORDER BY priority ASC, id ASC",
     )
     .fetch_all(pool)
     .await?)
 }
 
-pub async fn create_bucket_rule(pool: &SqlitePool, payload: &NewBucketRulePayload) -> DbResult<i64> {
+pub async fn create_bucket_rule(
+    pool: &SqlitePool,
+    payload: &NewBucketRulePayload,
+) -> DbResult<i64> {
     let row: (i64,) = sqlx::query_as(
         "INSERT INTO bucket_rules (priority, name, counterparty_contains, min_amount_cents,
                                     max_amount_cents, target_bucket_id, enabled)
          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
-         RETURNING id"
+         RETURNING id",
     )
     .bind(payload.priority)
     .bind(&payload.name)
@@ -63,7 +66,7 @@ pub async fn update_bucket_rule(pool: &SqlitePool, rule: &BucketRule) -> DbResul
             SET priority = ?2, name = ?3, counterparty_contains = ?4,
                 min_amount_cents = ?5, max_amount_cents = ?6,
                 target_bucket_id = ?7, enabled = ?8
-          WHERE id = ?1"
+          WHERE id = ?1",
     )
     .bind(rule.id)
     .bind(rule.priority)
@@ -89,10 +92,7 @@ pub async fn delete_bucket_rule(pool: &SqlitePool, id: i64) -> DbResult<()> {
 /// Applies all active bucket rules to income transactions without a bucket from the last
 /// `days` days. Returns the number of transactions that were assigned a bucket by a rule.
 /// First-match-wins ordered by priority ASC.
-pub async fn apply_bucket_rules_to_recent_income(
-    pool: &SqlitePool,
-    days: u32,
-) -> DbResult<usize> {
+pub async fn apply_bucket_rules_to_recent_income(pool: &SqlitePool, days: u32) -> DbResult<usize> {
     let rules = list_bucket_rules(pool).await?;
     let active: Vec<_> = rules.into_iter().filter(|r| r.enabled).collect();
     if active.is_empty() {
@@ -114,7 +114,7 @@ pub async fn apply_bucket_rules_to_recent_income(
            FROM transactions
           WHERE amount_cents > 0
             AND bucket_id IS NULL
-            AND booking_date >= ?1"
+            AND booking_date >= ?1",
     )
     .bind(&cutoff_str)
     .fetch_all(pool)
@@ -125,7 +125,11 @@ pub async fn apply_bucket_rules_to_recent_income(
         let cp_lower = tx.counterparty.as_deref().unwrap_or("").to_lowercase();
         for rule in &active {
             // Counterparty match (substring, case-insensitive — empty needle matches all)
-            let needle = rule.counterparty_contains.as_deref().unwrap_or("").to_lowercase();
+            let needle = rule
+                .counterparty_contains
+                .as_deref()
+                .unwrap_or("")
+                .to_lowercase();
             if !needle.is_empty() && !cp_lower.contains(&needle) {
                 continue;
             }
@@ -147,7 +151,7 @@ pub async fn apply_bucket_rules_to_recent_income(
                 .execute(pool)
                 .await?;
             updated += 1;
-            break;  // first match wins
+            break; // first match wins
         }
     }
     Ok(updated)
@@ -159,9 +163,11 @@ mod tests {
     use crate::db::connect_memory;
 
     async fn seed_bucket(pool: &SqlitePool, name: &str) -> i64 {
-        let row: (i64,) = sqlx::query_as(
-            "INSERT INTO buckets (name) VALUES (?1) RETURNING id"
-        ).bind(name).fetch_one(pool).await.unwrap();
+        let row: (i64,) = sqlx::query_as("INSERT INTO buckets (name) VALUES (?1) RETURNING id")
+            .bind(name)
+            .fetch_one(pool)
+            .await
+            .unwrap();
         row.0
     }
 
@@ -172,7 +178,13 @@ mod tests {
         row.0
     }
 
-    async fn seed_income(pool: &SqlitePool, account_id: i64, amount: i64, counterparty: &str, date: &str) -> i64 {
+    async fn seed_income(
+        pool: &SqlitePool,
+        account_id: i64,
+        amount: i64,
+        counterparty: &str,
+        date: &str,
+    ) -> i64 {
         let row: (i64,) = sqlx::query_as(
             "INSERT INTO transactions (account_id, booking_date, amount_cents, currency, counterparty, source, imported_at)
              VALUES (?1, ?2, ?3, 'EUR', ?4, 'manual', '2026-01-01T00:00:00Z')
@@ -186,10 +198,13 @@ mod tests {
         let pool = connect_memory().await.unwrap();
         let bid = seed_bucket(&pool, "Reise").await;
         let payload = NewBucketRulePayload {
-            priority: 50, name: "Gehalt → Reise".into(),
+            priority: 50,
+            name: "Gehalt → Reise".into(),
             counterparty_contains: Some("Arbeitgeber".into()),
-            min_amount_cents: Some(100_000), max_amount_cents: None,
-            target_bucket_id: bid, enabled: true,
+            min_amount_cents: Some(100_000),
+            max_amount_cents: None,
+            target_bucket_id: bid,
+            enabled: true,
         };
         let id = create_bucket_rule(&pool, &payload).await.unwrap();
         let rules = list_bucket_rules(&pool).await.unwrap();
@@ -206,19 +221,35 @@ mod tests {
         let pool = connect_memory().await.unwrap();
         let acc = seed_account(&pool).await;
         let bid = seed_bucket(&pool, "Reise").await;
-        let today = chrono::Utc::now().date_naive().format("%Y-%m-%d").to_string();
+        let today = chrono::Utc::now()
+            .date_naive()
+            .format("%Y-%m-%d")
+            .to_string();
         let tx_id = seed_income(&pool, acc, 250_000, "Arbeitgeber GmbH", &today).await;
-        create_bucket_rule(&pool, &NewBucketRulePayload {
-            priority: 100, name: "Gehalt".into(),
-            counterparty_contains: Some("Arbeitgeber".into()),
-            min_amount_cents: None, max_amount_cents: None,
-            target_bucket_id: bid, enabled: true,
-        }).await.unwrap();
+        create_bucket_rule(
+            &pool,
+            &NewBucketRulePayload {
+                priority: 100,
+                name: "Gehalt".into(),
+                counterparty_contains: Some("Arbeitgeber".into()),
+                min_amount_cents: None,
+                max_amount_cents: None,
+                target_bucket_id: bid,
+                enabled: true,
+            },
+        )
+        .await
+        .unwrap();
 
-        let n = apply_bucket_rules_to_recent_income(&pool, 30).await.unwrap();
+        let n = apply_bucket_rules_to_recent_income(&pool, 30)
+            .await
+            .unwrap();
         assert_eq!(n, 1);
         let row: (Option<i64>,) = sqlx::query_as("SELECT bucket_id FROM transactions WHERE id = ?")
-            .bind(tx_id).fetch_one(&pool).await.unwrap();
+            .bind(tx_id)
+            .fetch_one(&pool)
+            .await
+            .unwrap();
         assert_eq!(row.0, Some(bid));
     }
 
@@ -227,22 +258,46 @@ mod tests {
         let pool = connect_memory().await.unwrap();
         let acc = seed_account(&pool).await;
         let bid = seed_bucket(&pool, "Big").await;
-        let today = chrono::Utc::now().date_naive().format("%Y-%m-%d").to_string();
+        let today = chrono::Utc::now()
+            .date_naive()
+            .format("%Y-%m-%d")
+            .to_string();
         let small = seed_income(&pool, acc, 5_000, "Refund", &today).await;
         let big = seed_income(&pool, acc, 500_000, "Refund", &today).await;
-        create_bucket_rule(&pool, &NewBucketRulePayload {
-            priority: 100, name: "Big-Refunds".into(),
-            counterparty_contains: Some("Refund".into()),
-            min_amount_cents: Some(100_000), max_amount_cents: None,
-            target_bucket_id: bid, enabled: true,
-        }).await.unwrap();
+        create_bucket_rule(
+            &pool,
+            &NewBucketRulePayload {
+                priority: 100,
+                name: "Big-Refunds".into(),
+                counterparty_contains: Some("Refund".into()),
+                min_amount_cents: Some(100_000),
+                max_amount_cents: None,
+                target_bucket_id: bid,
+                enabled: true,
+            },
+        )
+        .await
+        .unwrap();
 
-        apply_bucket_rules_to_recent_income(&pool, 30).await.unwrap();
-        let small_b: (Option<i64>,) = sqlx::query_as("SELECT bucket_id FROM transactions WHERE id = ?")
-            .bind(small).fetch_one(&pool).await.unwrap();
-        let big_b: (Option<i64>,) = sqlx::query_as("SELECT bucket_id FROM transactions WHERE id = ?")
-            .bind(big).fetch_one(&pool).await.unwrap();
-        assert!(small_b.0.is_none(), "small income below min should not match");
+        apply_bucket_rules_to_recent_income(&pool, 30)
+            .await
+            .unwrap();
+        let small_b: (Option<i64>,) =
+            sqlx::query_as("SELECT bucket_id FROM transactions WHERE id = ?")
+                .bind(small)
+                .fetch_one(&pool)
+                .await
+                .unwrap();
+        let big_b: (Option<i64>,) =
+            sqlx::query_as("SELECT bucket_id FROM transactions WHERE id = ?")
+                .bind(big)
+                .fetch_one(&pool)
+                .await
+                .unwrap();
+        assert!(
+            small_b.0.is_none(),
+            "small income below min should not match"
+        );
         assert_eq!(big_b.0, Some(bid));
     }
 
@@ -252,22 +307,48 @@ mod tests {
         let acc = seed_account(&pool).await;
         let b1 = seed_bucket(&pool, "P50").await;
         let b2 = seed_bucket(&pool, "P100").await;
-        let today = chrono::Utc::now().date_naive().format("%Y-%m-%d").to_string();
+        let today = chrono::Utc::now()
+            .date_naive()
+            .format("%Y-%m-%d")
+            .to_string();
         let tx = seed_income(&pool, acc, 100_000, "Arbeitgeber", &today).await;
-        create_bucket_rule(&pool, &NewBucketRulePayload {
-            priority: 100, name: "Lower-Priority".into(),
-            counterparty_contains: None, min_amount_cents: None, max_amount_cents: None,
-            target_bucket_id: b2, enabled: true,
-        }).await.unwrap();
-        create_bucket_rule(&pool, &NewBucketRulePayload {
-            priority: 50, name: "Higher-Priority".into(),
-            counterparty_contains: None, min_amount_cents: None, max_amount_cents: None,
-            target_bucket_id: b1, enabled: true,
-        }).await.unwrap();
+        create_bucket_rule(
+            &pool,
+            &NewBucketRulePayload {
+                priority: 100,
+                name: "Lower-Priority".into(),
+                counterparty_contains: None,
+                min_amount_cents: None,
+                max_amount_cents: None,
+                target_bucket_id: b2,
+                enabled: true,
+            },
+        )
+        .await
+        .unwrap();
+        create_bucket_rule(
+            &pool,
+            &NewBucketRulePayload {
+                priority: 50,
+                name: "Higher-Priority".into(),
+                counterparty_contains: None,
+                min_amount_cents: None,
+                max_amount_cents: None,
+                target_bucket_id: b1,
+                enabled: true,
+            },
+        )
+        .await
+        .unwrap();
 
-        apply_bucket_rules_to_recent_income(&pool, 30).await.unwrap();
+        apply_bucket_rules_to_recent_income(&pool, 30)
+            .await
+            .unwrap();
         let row: (Option<i64>,) = sqlx::query_as("SELECT bucket_id FROM transactions WHERE id = ?")
-            .bind(tx).fetch_one(&pool).await.unwrap();
+            .bind(tx)
+            .fetch_one(&pool)
+            .await
+            .unwrap();
         assert_eq!(row.0, Some(b1), "priority 50 wins over 100");
     }
 
@@ -278,7 +359,10 @@ mod tests {
         let pool = connect_memory().await.unwrap();
         let acc = seed_account(&pool).await;
         let bid = seed_bucket(&pool, "SomeBucket").await;
-        let today = chrono::Utc::now().date_naive().format("%Y-%m-%d").to_string();
+        let today = chrono::Utc::now()
+            .date_naive()
+            .format("%Y-%m-%d")
+            .to_string();
 
         // Insert an expense tx (amount < 0)
         let (expense_id,): (i64,) = sqlx::query_as(
@@ -287,17 +371,31 @@ mod tests {
              RETURNING id"
         ).bind(acc).bind(&today).fetch_one(&pool).await.unwrap();
 
-        create_bucket_rule(&pool, &NewBucketRulePayload {
-            priority: 10, name: "Match-all".into(),
-            counterparty_contains: None, min_amount_cents: None, max_amount_cents: None,
-            target_bucket_id: bid, enabled: true,
-        }).await.unwrap();
+        create_bucket_rule(
+            &pool,
+            &NewBucketRulePayload {
+                priority: 10,
+                name: "Match-all".into(),
+                counterparty_contains: None,
+                min_amount_cents: None,
+                max_amount_cents: None,
+                target_bucket_id: bid,
+                enabled: true,
+            },
+        )
+        .await
+        .unwrap();
 
-        let n = apply_bucket_rules_to_recent_income(&pool, 30).await.unwrap();
+        let n = apply_bucket_rules_to_recent_income(&pool, 30)
+            .await
+            .unwrap();
         assert_eq!(n, 0, "expense tx must not be processed by bucket rules");
 
         let row: (Option<i64>,) = sqlx::query_as("SELECT bucket_id FROM transactions WHERE id = ?")
-            .bind(expense_id).fetch_one(&pool).await.unwrap();
+            .bind(expense_id)
+            .fetch_one(&pool)
+            .await
+            .unwrap();
         assert!(row.0.is_none(), "expense tx bucket_id must remain NULL");
     }
 
@@ -307,20 +405,37 @@ mod tests {
         let pool = connect_memory().await.unwrap();
         let acc = seed_account(&pool).await;
         let bid = seed_bucket(&pool, "Disabled").await;
-        let today = chrono::Utc::now().date_naive().format("%Y-%m-%d").to_string();
+        let today = chrono::Utc::now()
+            .date_naive()
+            .format("%Y-%m-%d")
+            .to_string();
         let tx_id = seed_income(&pool, acc, 200_000, "Arbeitgeber", &today).await;
 
-        create_bucket_rule(&pool, &NewBucketRulePayload {
-            priority: 10, name: "Disabled-Rule".into(),
-            counterparty_contains: None, min_amount_cents: None, max_amount_cents: None,
-            target_bucket_id: bid, enabled: false,
-        }).await.unwrap();
+        create_bucket_rule(
+            &pool,
+            &NewBucketRulePayload {
+                priority: 10,
+                name: "Disabled-Rule".into(),
+                counterparty_contains: None,
+                min_amount_cents: None,
+                max_amount_cents: None,
+                target_bucket_id: bid,
+                enabled: false,
+            },
+        )
+        .await
+        .unwrap();
 
-        let n = apply_bucket_rules_to_recent_income(&pool, 30).await.unwrap();
+        let n = apply_bucket_rules_to_recent_income(&pool, 30)
+            .await
+            .unwrap();
         assert_eq!(n, 0, "disabled rule must not match");
 
         let row: (Option<i64>,) = sqlx::query_as("SELECT bucket_id FROM transactions WHERE id = ?")
-            .bind(tx_id).fetch_one(&pool).await.unwrap();
+            .bind(tx_id)
+            .fetch_one(&pool)
+            .await
+            .unwrap();
         assert!(row.0.is_none());
     }
 }

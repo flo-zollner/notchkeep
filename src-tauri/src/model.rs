@@ -13,7 +13,7 @@ pub struct Account {
     pub archived: bool,
     pub parent_id: Option<i64>,
     pub iban: Option<String>,
-    pub institution_id: Option<i64>,    // NEW
+    pub institution_id: Option<i64>, // NEW
     pub created_at: String,
 }
 
@@ -177,8 +177,8 @@ pub struct SecurityTrade {
     pub unit_price_micro: Option<i64>,
     pub fee_cents: i64,
     pub tax_cents: i64,
-    pub kest_cents: i64,              // NEW
-    pub withholding_tax_cents: i64,   // NEW
+    pub kest_cents: i64,            // NEW
+    pub withholding_tax_cents: i64, // NEW
     pub fx_rate_micro: Option<i64>,
-    pub account_id: Option<i64>,    // NEW — depot account when explicitly routed
+    pub account_id: Option<i64>, // NEW — depot account when explicitly routed
 }

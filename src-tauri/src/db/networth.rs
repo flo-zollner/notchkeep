@@ -112,7 +112,11 @@ pub async fn net_worth_history(
                 break;
             }
         }
-        out.push(NetWorthPoint { year: y, month: m, total_cents: running });
+        out.push(NetWorthPoint {
+            year: y,
+            month: m,
+            total_cents: running,
+        });
     }
 
     // 6e: Add portfolio market value per bucket (last day of month).
@@ -122,7 +126,8 @@ pub async fn net_worth_history(
             .and_then(|d| d.pred_opt())
             .map(|d| d.format("%Y-%m-%d").to_string())
             .unwrap_or_else(|| format!("{:04}-{:02}-28", point.year, point.month));
-        let portfolio_value = crate::db::portfolio::portfolio_value_on_date(pool, &last_day).await?;
+        let portfolio_value =
+            crate::db::portfolio::portfolio_value_on_date(pool, &last_day).await?;
         point.total_cents += portfolio_value;
     }
 
@@ -222,12 +227,7 @@ mod tests {
         id
     }
 
-    async fn insert_tx(
-        pool: &SqlitePool,
-        account_id: i64,
-        booking_date: &str,
-        amount_cents: i64,
-    ) {
+    async fn insert_tx(pool: &SqlitePool, account_id: i64, booking_date: &str, amount_cents: i64) {
         sqlx::query(
             "INSERT INTO transactions
                 (account_id, booking_date, amount_cents, currency, counterparty, source)
@@ -254,16 +254,28 @@ mod tests {
         let pool = connect_memory().await.unwrap();
         let acc = seed_account(&pool, "A").await;
         insert_tx(&pool, acc, "2026-03-15", 100_000).await; // +1000.00
-        insert_tx(&pool, acc, "2026-04-10", 50_000).await;  // +500.00
+        insert_tx(&pool, acc, "2026-04-10", 50_000).await; // +500.00
         insert_tx(&pool, acc, "2026-05-05", -20_000).await; // -200.00
 
         let result = net_worth_history(&pool, 2026, 5, 3).await.unwrap();
         assert_eq!(
             result,
             vec![
-                NetWorthPoint { year: 2026, month: 3, total_cents: 100_000 },
-                NetWorthPoint { year: 2026, month: 4, total_cents: 150_000 },
-                NetWorthPoint { year: 2026, month: 5, total_cents: 130_000 },
+                NetWorthPoint {
+                    year: 2026,
+                    month: 3,
+                    total_cents: 100_000
+                },
+                NetWorthPoint {
+                    year: 2026,
+                    month: 4,
+                    total_cents: 150_000
+                },
+                NetWorthPoint {
+                    year: 2026,
+                    month: 5,
+                    total_cents: 130_000
+                },
             ]
         );
     }
@@ -279,7 +291,11 @@ mod tests {
         let result = net_worth_history(&pool, 2026, 5, 1).await.unwrap();
         assert_eq!(
             result,
-            vec![NetWorthPoint { year: 2026, month: 5, total_cents: 100_000 }]
+            vec![NetWorthPoint {
+                year: 2026,
+                month: 5,
+                total_cents: 100_000
+            }]
         );
     }
 
@@ -294,9 +310,21 @@ mod tests {
         assert_eq!(
             result,
             vec![
-                NetWorthPoint { year: 2026, month: 3, total_cents: 50_000 },
-                NetWorthPoint { year: 2026, month: 4, total_cents: 50_000 },
-                NetWorthPoint { year: 2026, month: 5, total_cents: 80_000 },
+                NetWorthPoint {
+                    year: 2026,
+                    month: 3,
+                    total_cents: 50_000
+                },
+                NetWorthPoint {
+                    year: 2026,
+                    month: 4,
+                    total_cents: 50_000
+                },
+                NetWorthPoint {
+                    year: 2026,
+                    month: 5,
+                    total_cents: 80_000
+                },
             ]
         );
     }
@@ -312,8 +340,16 @@ mod tests {
         assert_eq!(
             result,
             vec![
-                NetWorthPoint { year: 2026, month: 12, total_cents: 100_000 },
-                NetWorthPoint { year: 2027, month: 1, total_cents: 125_000 },
+                NetWorthPoint {
+                    year: 2026,
+                    month: 12,
+                    total_cents: 100_000
+                },
+                NetWorthPoint {
+                    year: 2027,
+                    month: 1,
+                    total_cents: 125_000
+                },
             ]
         );
     }
@@ -330,10 +366,26 @@ mod tests {
         assert_eq!(
             result,
             vec![
-                NetWorthPoint { year: 2026, month: 2, total_cents: 100_000 },
-                NetWorthPoint { year: 2026, month: 3, total_cents: 100_000 },
-                NetWorthPoint { year: 2026, month: 4, total_cents: 100_000 },
-                NetWorthPoint { year: 2026, month: 5, total_cents: 150_000 },
+                NetWorthPoint {
+                    year: 2026,
+                    month: 2,
+                    total_cents: 100_000
+                },
+                NetWorthPoint {
+                    year: 2026,
+                    month: 3,
+                    total_cents: 100_000
+                },
+                NetWorthPoint {
+                    year: 2026,
+                    month: 4,
+                    total_cents: 100_000
+                },
+                NetWorthPoint {
+                    year: 2026,
+                    month: 5,
+                    total_cents: 150_000
+                },
             ]
         );
     }
@@ -349,7 +401,11 @@ mod tests {
         let result = net_worth_history(&pool, 2026, 5, 1).await.unwrap();
         assert_eq!(
             result,
-            vec![NetWorthPoint { year: 2026, month: 5, total_cents: 150_000 }]
+            vec![NetWorthPoint {
+                year: 2026,
+                month: 5,
+                total_cents: 150_000
+            }]
         );
     }
 
@@ -404,9 +460,36 @@ mod tests {
         assert_eq!(result.len(), 3);
         // History window 6 months → 5 Δ values, all 10_000 → μ=10_000, σ=0.
         // last = 150_000 (100k + 5×10k).
-        assert_eq!(result[0], NetWorthForecastPoint { year: 2026, month: 6, mid_cents: 160_000, lo_cents: 160_000, hi_cents: 160_000 });
-        assert_eq!(result[1], NetWorthForecastPoint { year: 2026, month: 7, mid_cents: 170_000, lo_cents: 170_000, hi_cents: 170_000 });
-        assert_eq!(result[2], NetWorthForecastPoint { year: 2026, month: 8, mid_cents: 180_000, lo_cents: 180_000, hi_cents: 180_000 });
+        assert_eq!(
+            result[0],
+            NetWorthForecastPoint {
+                year: 2026,
+                month: 6,
+                mid_cents: 160_000,
+                lo_cents: 160_000,
+                hi_cents: 160_000
+            }
+        );
+        assert_eq!(
+            result[1],
+            NetWorthForecastPoint {
+                year: 2026,
+                month: 7,
+                mid_cents: 170_000,
+                lo_cents: 170_000,
+                hi_cents: 170_000
+            }
+        );
+        assert_eq!(
+            result[2],
+            NetWorthForecastPoint {
+                year: 2026,
+                month: 8,
+                mid_cents: 180_000,
+                lo_cents: 180_000,
+                hi_cents: 180_000
+            }
+        );
     }
 
     #[tokio::test]
@@ -414,12 +497,18 @@ mod tests {
         let pool = connect_memory().await.unwrap();
         let (acc_id,): (i64,) = sqlx::query_as(
             "INSERT INTO accounts (name, kind, currency)
-             VALUES ('Broker', 'broker', 'EUR') RETURNING id"
-        ).fetch_one(&pool).await.unwrap();
+             VALUES ('Broker', 'broker', 'EUR') RETURNING id",
+        )
+        .fetch_one(&pool)
+        .await
+        .unwrap();
         let (sec_id,): (i64,) = sqlx::query_as(
             "INSERT INTO securities (isin, name, currency, asset_type)
-             VALUES ('US0378331005', 'Apple', 'EUR', 'stock') RETURNING id"
-        ).fetch_one(&pool).await.unwrap();
+             VALUES ('US0378331005', 'Apple', 'EUR', 'stock') RETURNING id",
+        )
+        .fetch_one(&pool)
+        .await
+        .unwrap();
         // Initial Cash-Tx +1000
         sqlx::query(
             "INSERT INTO transactions (account_id, booking_date, amount_cents, currency, source, kind, imported_at)
@@ -437,7 +526,8 @@ mod tests {
         ).bind(tx_id).bind(sec_id).execute(&pool).await.unwrap();
         // Price €70 to month-end February
         crate::db::prices::upsert_price(&pool, sec_id, "2026-02-28", 70_000_000, "yahoo")
-            .await.unwrap();
+            .await
+            .unwrap();
 
         let hist = net_worth_history(&pool, 2026, 2, 2).await.unwrap();
         assert_eq!(hist.len(), 2);
@@ -455,9 +545,9 @@ mod tests {
         insert_tx(&pool, acc, "2025-12-01", 100_000).await;
         // Jan: no tx → Δ=0
         insert_tx(&pool, acc, "2026-02-01", 20_000).await; // Δ=20_000
-        // Mar: no tx → Δ=0
+                                                           // Mar: no tx → Δ=0
         insert_tx(&pool, acc, "2026-04-01", 20_000).await; // Δ=20_000
-        // May: no tx → Δ=0
+                                                           // May: no tx → Δ=0
 
         let result = net_worth_forecast(&pool, 2026, 5, 6, 3).await.unwrap();
         assert_eq!(result.len(), 3);
@@ -473,7 +563,10 @@ mod tests {
         assert_eq!(result[0].mid_cents, 148_000);
         assert!(result[0].hi_cents > result[0].mid_cents);
         assert!(result[0].lo_cents < result[0].mid_cents);
-        assert_eq!(result[0].hi_cents - result[0].mid_cents, result[0].mid_cents - result[0].lo_cents);
+        assert_eq!(
+            result[0].hi_cents - result[0].mid_cents,
+            result[0].mid_cents - result[0].lo_cents
+        );
 
         // Cone widens from i=1 to i=3.
         let width1 = result[0].hi_cents - result[0].lo_cents;

@@ -171,7 +171,11 @@ pub async fn rollover_for_month(
         // y_raw = key / 12, m_raw = key % 12. If m_raw == 0 → m=12, y=y_raw-1.
         let y_raw = key / 12;
         let m_raw = key % 12;
-        let (y, m) = if m_raw == 0 { (y_raw - 1, 12) } else { (y_raw, m_raw) };
+        let (y, m) = if m_raw == 0 {
+            (y_raw - 1, 12)
+        } else {
+            (y_raw, m_raw)
+        };
 
         let spent: i64 = monthly_spent_for_category(pool, category_id, y, m).await?;
         sum += current_budget - spent;
@@ -261,33 +265,30 @@ mod tests {
 
         set_budget(&pool, cat, 2026, 5, 50000).await.unwrap();
 
-        let count: (i64,) = sqlx::query_as(
-            "SELECT COUNT(*) FROM category_budgets WHERE category_id = ?1",
-        )
-        .bind(cat)
-        .fetch_one(&pool)
-        .await
-        .unwrap();
+        let count: (i64,) =
+            sqlx::query_as("SELECT COUNT(*) FROM category_budgets WHERE category_id = ?1")
+                .bind(cat)
+                .fetch_one(&pool)
+                .await
+                .unwrap();
         assert_eq!(count.0, 1);
 
         set_budget(&pool, cat, 2026, 5, 60000).await.unwrap();
 
-        let count2: (i64,) = sqlx::query_as(
-            "SELECT COUNT(*) FROM category_budgets WHERE category_id = ?1",
-        )
-        .bind(cat)
-        .fetch_one(&pool)
-        .await
-        .unwrap();
+        let count2: (i64,) =
+            sqlx::query_as("SELECT COUNT(*) FROM category_budgets WHERE category_id = ?1")
+                .bind(cat)
+                .fetch_one(&pool)
+                .await
+                .unwrap();
         assert_eq!(count2.0, 1);
 
-        let amount: (i64,) = sqlx::query_as(
-            "SELECT amount_cents FROM category_budgets WHERE category_id = ?1",
-        )
-        .bind(cat)
-        .fetch_one(&pool)
-        .await
-        .unwrap();
+        let amount: (i64,) =
+            sqlx::query_as("SELECT amount_cents FROM category_budgets WHERE category_id = ?1")
+                .bind(cat)
+                .fetch_one(&pool)
+                .await
+                .unwrap();
         assert_eq!(amount.0, 60000);
     }
 
@@ -301,13 +302,12 @@ mod tests {
         let result = clear_budget(&pool, cat, 2026, 5).await.unwrap();
         assert!(result);
 
-        let count: (i64,) = sqlx::query_as(
-            "SELECT COUNT(*) FROM category_budgets WHERE category_id = ?1",
-        )
-        .bind(cat)
-        .fetch_one(&pool)
-        .await
-        .unwrap();
+        let count: (i64,) =
+            sqlx::query_as("SELECT COUNT(*) FROM category_budgets WHERE category_id = ?1")
+                .bind(cat)
+                .fetch_one(&pool)
+                .await
+                .unwrap();
         assert_eq!(count.0, 0);
 
         let result2 = clear_budget(&pool, cat, 2026, 5).await.unwrap();
@@ -332,9 +332,15 @@ mod tests {
         set_budget(&pool, cat, 2026, 3, 50000).await.unwrap();
 
         // direct hit
-        assert_eq!(effective_budget(&pool, cat, 2026, 3).await.unwrap(), Some(50000));
+        assert_eq!(
+            effective_budget(&pool, cat, 2026, 3).await.unwrap(),
+            Some(50000)
+        );
         // forward-filled from March
-        assert_eq!(effective_budget(&pool, cat, 2026, 4).await.unwrap(), Some(50000));
+        assert_eq!(
+            effective_budget(&pool, cat, 2026, 4).await.unwrap(),
+            Some(50000)
+        );
         // before any override
         assert_eq!(effective_budget(&pool, cat, 2026, 2).await.unwrap(), None);
     }
@@ -346,8 +352,14 @@ mod tests {
 
         set_budget(&pool, cat, 2025, 12, 50000).await.unwrap();
 
-        assert_eq!(effective_budget(&pool, cat, 2026, 1).await.unwrap(), Some(50000));
-        assert_eq!(effective_budget(&pool, cat, 2026, 5).await.unwrap(), Some(50000));
+        assert_eq!(
+            effective_budget(&pool, cat, 2026, 1).await.unwrap(),
+            Some(50000)
+        );
+        assert_eq!(
+            effective_budget(&pool, cat, 2026, 5).await.unwrap(),
+            Some(50000)
+        );
     }
 
     #[tokio::test]
@@ -359,13 +371,34 @@ mod tests {
         set_budget(&pool, cat, 2026, 4, 50000).await.unwrap();
         set_budget(&pool, cat, 2026, 8, 70000).await.unwrap();
 
-        assert_eq!(effective_budget(&pool, cat, 2026, 1).await.unwrap(), Some(30000));
-        assert_eq!(effective_budget(&pool, cat, 2026, 2).await.unwrap(), Some(30000));
-        assert_eq!(effective_budget(&pool, cat, 2026, 3).await.unwrap(), Some(30000));
-        assert_eq!(effective_budget(&pool, cat, 2026, 4).await.unwrap(), Some(50000));
-        assert_eq!(effective_budget(&pool, cat, 2026, 7).await.unwrap(), Some(50000));
-        assert_eq!(effective_budget(&pool, cat, 2026, 8).await.unwrap(), Some(70000));
-        assert_eq!(effective_budget(&pool, cat, 2026, 12).await.unwrap(), Some(70000));
+        assert_eq!(
+            effective_budget(&pool, cat, 2026, 1).await.unwrap(),
+            Some(30000)
+        );
+        assert_eq!(
+            effective_budget(&pool, cat, 2026, 2).await.unwrap(),
+            Some(30000)
+        );
+        assert_eq!(
+            effective_budget(&pool, cat, 2026, 3).await.unwrap(),
+            Some(30000)
+        );
+        assert_eq!(
+            effective_budget(&pool, cat, 2026, 4).await.unwrap(),
+            Some(50000)
+        );
+        assert_eq!(
+            effective_budget(&pool, cat, 2026, 7).await.unwrap(),
+            Some(50000)
+        );
+        assert_eq!(
+            effective_budget(&pool, cat, 2026, 8).await.unwrap(),
+            Some(70000)
+        );
+        assert_eq!(
+            effective_budget(&pool, cat, 2026, 12).await.unwrap(),
+            Some(70000)
+        );
     }
 
     #[tokio::test]
@@ -415,9 +448,18 @@ mod tests {
 
         let rows = list_budget_overrides(&pool, cat).await.unwrap();
         assert_eq!(rows.len(), 3);
-        assert_eq!((rows[0].year, rows[0].month, rows[0].amount_cents), (2025, 12, 30000));
-        assert_eq!((rows[1].year, rows[1].month, rows[1].amount_cents), (2026, 1, 40000));
-        assert_eq!((rows[2].year, rows[2].month, rows[2].amount_cents), (2026, 3, 50000));
+        assert_eq!(
+            (rows[0].year, rows[0].month, rows[0].amount_cents),
+            (2025, 12, 30000)
+        );
+        assert_eq!(
+            (rows[1].year, rows[1].month, rows[1].amount_cents),
+            (2026, 1, 40000)
+        );
+        assert_eq!(
+            (rows[2].year, rows[2].month, rows[2].amount_cents),
+            (2026, 3, 50000)
+        );
     }
 
     #[tokio::test]
@@ -426,7 +468,9 @@ mod tests {
         // Migration 0010 has already run on connect_memory.
         // Default categories from 0003 had NULL budget_cents → no overrides expected.
         let (count,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM category_budgets")
-            .fetch_one(&pool).await.unwrap();
+            .fetch_one(&pool)
+            .await
+            .unwrap();
         assert_eq!(
             count, 0,
             "Default categories had NULL budget_cents, no override expected"
@@ -465,7 +509,7 @@ mod tests {
 
         set_budget(&pool, cat, 2026, 2, 50000).await.unwrap();
         seed_spent(&pool, cat, "2026-02-15", -40000).await; // +10000
-        // March: no new override → inherits 50000.
+                                                            // March: no new override → inherits 50000.
         seed_spent(&pool, cat, "2026-03-15", -45000).await; // +5000
         set_budget(&pool, cat, 2026, 4, 30000).await.unwrap();
         seed_spent(&pool, cat, "2026-04-15", -32000).await; // -2000
@@ -539,7 +583,9 @@ mod tests {
         .await
         .unwrap();
 
-        let spent = monthly_spent_for_category(&pool, cat, 2026, 5).await.unwrap();
+        let spent = monthly_spent_for_category(&pool, cat, 2026, 5)
+            .await
+            .unwrap();
         // Only the -30000 expense should count; transfer (-10000) must be excluded.
         assert_eq!(spent, 30000);
     }

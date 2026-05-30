@@ -56,10 +56,7 @@ pub async fn price_on_date(
 }
 
 /// Most recent price. None if none has been stored yet.
-pub async fn latest_price(
-    pool: &SqlitePool,
-    security_id: i64,
-) -> DbResult<Option<(String, i64)>> {
+pub async fn latest_price(pool: &SqlitePool, security_id: i64) -> DbResult<Option<(String, i64)>> {
     let row: Option<(String, i64)> = sqlx::query_as(
         "SELECT date, close_micro FROM security_prices
           WHERE security_id = ?1
@@ -110,16 +107,27 @@ mod tests {
     async fn upsert_inserts_then_updates() {
         let pool = connect_memory().await.unwrap();
         let sec = seed_sec(&pool, "US0378331005").await;
-        upsert_price(&pool, sec, "2026-05-19", 180_500_000, "yahoo").await.unwrap();
-        upsert_price(&pool, sec, "2026-05-19", 181_000_000, "yahoo").await.unwrap();
+        upsert_price(&pool, sec, "2026-05-19", 180_500_000, "yahoo")
+            .await
+            .unwrap();
+        upsert_price(&pool, sec, "2026-05-19", 181_000_000, "yahoo")
+            .await
+            .unwrap();
 
         let (count,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM security_prices")
-            .fetch_one(&pool).await.unwrap();
+            .fetch_one(&pool)
+            .await
+            .unwrap();
         assert_eq!(count, 1, "second upsert updates, not inserts");
 
         let (close,): (i64,) = sqlx::query_as(
-            "SELECT close_micro FROM security_prices WHERE security_id = ? AND date = ?"
-        ).bind(sec).bind("2026-05-19").fetch_one(&pool).await.unwrap();
+            "SELECT close_micro FROM security_prices WHERE security_id = ? AND date = ?",
+        )
+        .bind(sec)
+        .bind("2026-05-19")
+        .fetch_one(&pool)
+        .await
+        .unwrap();
         assert_eq!(close, 181_000_000);
     }
 
@@ -127,12 +135,25 @@ mod tests {
     async fn price_on_date_finds_latest_le_target() {
         let pool = connect_memory().await.unwrap();
         let sec = seed_sec(&pool, "US0378331005").await;
-        upsert_price(&pool, sec, "2026-03-15", 150_000_000, "yahoo").await.unwrap();
-        upsert_price(&pool, sec, "2026-04-15", 160_000_000, "yahoo").await.unwrap();
+        upsert_price(&pool, sec, "2026-03-15", 150_000_000, "yahoo")
+            .await
+            .unwrap();
+        upsert_price(&pool, sec, "2026-04-15", 160_000_000, "yahoo")
+            .await
+            .unwrap();
 
-        assert_eq!(price_on_date(&pool, sec, "2026-04-15").await.unwrap(), Some(160_000_000));
-        assert_eq!(price_on_date(&pool, sec, "2026-04-01").await.unwrap(), Some(150_000_000));
-        assert_eq!(price_on_date(&pool, sec, "2026-03-15").await.unwrap(), Some(150_000_000));
+        assert_eq!(
+            price_on_date(&pool, sec, "2026-04-15").await.unwrap(),
+            Some(160_000_000)
+        );
+        assert_eq!(
+            price_on_date(&pool, sec, "2026-04-01").await.unwrap(),
+            Some(150_000_000)
+        );
+        assert_eq!(
+            price_on_date(&pool, sec, "2026-03-15").await.unwrap(),
+            Some(150_000_000)
+        );
         assert_eq!(price_on_date(&pool, sec, "2026-03-14").await.unwrap(), None);
     }
 
@@ -140,8 +161,12 @@ mod tests {
     async fn latest_price_returns_newest() {
         let pool = connect_memory().await.unwrap();
         let sec = seed_sec(&pool, "US0378331005").await;
-        upsert_price(&pool, sec, "2026-03-15", 150_000_000, "yahoo").await.unwrap();
-        upsert_price(&pool, sec, "2026-04-15", 160_000_000, "yahoo").await.unwrap();
+        upsert_price(&pool, sec, "2026-03-15", 150_000_000, "yahoo")
+            .await
+            .unwrap();
+        upsert_price(&pool, sec, "2026-04-15", 160_000_000, "yahoo")
+            .await
+            .unwrap();
 
         let (date, close) = latest_price(&pool, sec).await.unwrap().unwrap();
         assert_eq!(date, "2026-04-15");
@@ -153,9 +178,15 @@ mod tests {
         let pool = connect_memory().await.unwrap();
         let s1 = seed_sec(&pool, "US0378331005").await;
         let s2 = seed_sec(&pool, "US5949181045").await;
-        upsert_price(&pool, s1, "2026-03-15", 150_000_000, "yahoo").await.unwrap();
-        upsert_price(&pool, s1, "2026-04-15", 160_000_000, "yahoo").await.unwrap();
-        upsert_price(&pool, s2, "2026-04-10", 300_000_000, "yahoo").await.unwrap();
+        upsert_price(&pool, s1, "2026-03-15", 150_000_000, "yahoo")
+            .await
+            .unwrap();
+        upsert_price(&pool, s1, "2026-04-15", 160_000_000, "yahoo")
+            .await
+            .unwrap();
+        upsert_price(&pool, s2, "2026-04-10", 300_000_000, "yahoo")
+            .await
+            .unwrap();
 
         let mut all = latest_per_security(&pool).await.unwrap();
         all.sort_by_key(|(id, _, _)| *id);

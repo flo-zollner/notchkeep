@@ -1,9 +1,7 @@
 use tauri::State;
 
 use crate::commands::accounts::{CommandError, DbState};
-use crate::db::institutions::{
-    self as db_inst, NewInstitutionPayload, UpdateInstitutionPayload,
-};
+use crate::db::institutions::{self as db_inst, NewInstitutionPayload, UpdateInstitutionPayload};
 use crate::model::{Institution, InstitutionSummary};
 
 #[tauri::command]
@@ -31,8 +29,16 @@ pub async fn get_institution(
 
 fn normalize_str_uppercase(v: &mut Option<String>) {
     if let Some(s) = v {
-        let cleaned: String = s.chars().filter(|c| !c.is_whitespace()).collect::<String>().to_uppercase();
-        *v = if cleaned.is_empty() { None } else { Some(cleaned) };
+        let cleaned: String = s
+            .chars()
+            .filter(|c| !c.is_whitespace())
+            .collect::<String>()
+            .to_uppercase();
+        *v = if cleaned.is_empty() {
+            None
+        } else {
+            Some(cleaned)
+        };
     }
 }
 
@@ -44,41 +50,66 @@ fn normalize_payload(p: &mut NewInstitutionPayload) {
 
 fn normalize_str_uppercase_inner(v: &mut Option<Option<String>>) {
     if let Some(Some(s)) = v {
-        let cleaned: String = s.chars().filter(|c| !c.is_whitespace()).collect::<String>().to_uppercase();
+        let cleaned: String = s
+            .chars()
+            .filter(|c| !c.is_whitespace())
+            .collect::<String>()
+            .to_uppercase();
         // Empty after trim → explicitly clear (Some(None)); not-present stays unchanged.
-        *v = Some(if cleaned.is_empty() { None } else { Some(cleaned) });
+        *v = Some(if cleaned.is_empty() {
+            None
+        } else {
+            Some(cleaned)
+        });
     }
     // None outer = preserve; Some(None) = clear → no change needed.
 }
 
 fn normalize_update_payload(p: &mut UpdateInstitutionPayload) {
-    if let Some(n) = &mut p.name { *n = n.trim().to_string(); }
+    if let Some(n) = &mut p.name {
+        *n = n.trim().to_string();
+    }
     normalize_str_uppercase_inner(&mut p.bic);
     normalize_str_uppercase_inner(&mut p.country);
 }
 
 fn validate_bic(bic: Option<&str>) -> Result<(), CommandError> {
-    let Some(s) = bic else { return Ok(()); };
+    let Some(s) = bic else {
+        return Ok(());
+    };
     if !(s.len() == 8 || s.len() == 11) {
-        return Err(CommandError { message: format!("bic must be 8 or 11 chars, got {}", s.len()) });
+        return Err(CommandError {
+            message: format!("bic must be 8 or 11 chars, got {}", s.len()),
+        });
     }
-    if !s.chars().all(|c| c.is_ascii_uppercase() || c.is_ascii_digit()) {
-        return Err(CommandError { message: "bic must be A-Z, 0-9 only".into() });
+    if !s
+        .chars()
+        .all(|c| c.is_ascii_uppercase() || c.is_ascii_digit())
+    {
+        return Err(CommandError {
+            message: "bic must be A-Z, 0-9 only".into(),
+        });
     }
     Ok(())
 }
 
 fn validate_country(country: Option<&str>) -> Result<(), CommandError> {
-    let Some(s) = country else { return Ok(()); };
+    let Some(s) = country else {
+        return Ok(());
+    };
     if s.len() != 2 || !s.chars().all(|c| c.is_ascii_uppercase()) {
-        return Err(CommandError { message: "country must be 2 uppercase letters (ISO 3166-1)".into() });
+        return Err(CommandError {
+            message: "country must be 2 uppercase letters (ISO 3166-1)".into(),
+        });
     }
     Ok(())
 }
 
 fn validate_new_payload(p: &NewInstitutionPayload) -> Result<(), CommandError> {
     if p.name.trim().is_empty() {
-        return Err(CommandError { message: "name must not be empty".into() });
+        return Err(CommandError {
+            message: "name must not be empty".into(),
+        });
     }
     validate_bic(p.bic.as_deref())?;
     validate_country(p.country.as_deref())?;
@@ -99,7 +130,9 @@ pub async fn create_institution(
 fn validate_update_payload(p: &UpdateInstitutionPayload) -> Result<(), CommandError> {
     if let Some(n) = &p.name {
         if n.trim().is_empty() {
-            return Err(CommandError { message: "name must not be empty".into() });
+            return Err(CommandError {
+                message: "name must not be empty".into(),
+            });
         }
     }
     validate_bic(p.bic.as_ref().and_then(|o| o.as_deref()))?;
@@ -135,10 +168,7 @@ pub(crate) async fn delete_institution_inner(
 }
 
 #[tauri::command]
-pub async fn delete_institution(
-    state: State<'_, DbState>,
-    id: i64,
-) -> Result<(), CommandError> {
+pub async fn delete_institution(state: State<'_, DbState>, id: i64) -> Result<(), CommandError> {
     delete_institution_inner(&state.pool(), id).await
 }
 
@@ -152,9 +182,19 @@ mod tests {
     async fn list_get_round_trip_via_db_layer() {
         // State<'_> cannot be directly instantiated; test against db_inst instead.
         let pool = connect_memory().await.unwrap();
-        let inst = create_institution(&pool, NewInstitutionPayload {
-            name: "X".into(), icon: None, color: None, bic: None, country: None, note: None,
-        }).await.unwrap();
+        let inst = create_institution(
+            &pool,
+            NewInstitutionPayload {
+                name: "X".into(),
+                icon: None,
+                color: None,
+                bic: None,
+                country: None,
+                note: None,
+            },
+        )
+        .await
+        .unwrap();
         let listed = db_inst::list_institutions(&pool, false).await.unwrap();
         assert_eq!(listed.len(), 1);
         let got = db_inst::get_institution(&pool, inst.id).await.unwrap();
@@ -163,7 +203,12 @@ mod tests {
 
     fn payload(name: &str) -> NewInstitutionPayload {
         NewInstitutionPayload {
-            name: name.into(), icon: None, color: None, bic: None, country: None, note: None,
+            name: name.into(),
+            icon: None,
+            color: None,
+            bic: None,
+            country: None,
+            note: None,
         }
     }
 
@@ -226,9 +271,13 @@ mod tests {
     #[tokio::test]
     async fn update_validates_bic_format() {
         let mut p = UpdateInstitutionPayload {
-            name: None, icon: None, color: None,
+            name: None,
+            icon: None,
+            color: None,
             bic: Some(Some("invalid!".into())),
-            country: None, note: None, archived: None,
+            country: None,
+            note: None,
+            archived: None,
         };
         normalize_update_payload(&mut p);
         let err = validate_update_payload(&p).unwrap_err();
@@ -238,23 +287,48 @@ mod tests {
     #[tokio::test]
     async fn delete_with_accounts_returns_structured_error() {
         let pool = connect_memory().await.unwrap();
-        let inst = create_institution(&pool, NewInstitutionPayload {
-            name: "X".into(), icon: None, color: None, bic: None, country: None, note: None,
-        }).await.unwrap();
-        crate::db::accounts::create_account(&pool, "A", "bank", "EUR", None, None, Some(inst.id)).await.unwrap();
+        let inst = create_institution(
+            &pool,
+            NewInstitutionPayload {
+                name: "X".into(),
+                icon: None,
+                color: None,
+                bic: None,
+                country: None,
+                note: None,
+            },
+        )
+        .await
+        .unwrap();
+        crate::db::accounts::create_account(&pool, "A", "bank", "EUR", None, None, Some(inst.id))
+            .await
+            .unwrap();
 
         let err = delete_institution_inner(&pool, inst.id).await.unwrap_err();
-        assert!(err.message.starts_with("institution-has-accounts:"),
-            "expected prefix institution-has-accounts:, got {}", err.message);
+        assert!(
+            err.message.starts_with("institution-has-accounts:"),
+            "expected prefix institution-has-accounts:, got {}",
+            err.message
+        );
         assert!(err.message.ends_with(":1"));
     }
 
     #[tokio::test]
     async fn delete_succeeds_when_no_accounts() {
         let pool = connect_memory().await.unwrap();
-        let inst = create_institution(&pool, NewInstitutionPayload {
-            name: "X".into(), icon: None, color: None, bic: None, country: None, note: None,
-        }).await.unwrap();
+        let inst = create_institution(
+            &pool,
+            NewInstitutionPayload {
+                name: "X".into(),
+                icon: None,
+                color: None,
+                bic: None,
+                country: None,
+                note: None,
+            },
+        )
+        .await
+        .unwrap();
         delete_institution_inner(&pool, inst.id).await.unwrap();
         assert!(db_inst::get_institution(&pool, inst.id).await.is_err());
     }

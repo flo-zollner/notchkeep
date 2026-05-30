@@ -81,7 +81,10 @@ mod tests {
         let outcome = categorize(&MatchContext::new(&t, None), &rules, &history, 0.5);
         assert!(matches!(
             outcome,
-            CategorizationOutcome::Rule { rule_id: 7, category_id: 42 }
+            CategorizationOutcome::Rule {
+                rule_id: 7,
+                category_id: 42
+            }
         ));
     }
 
@@ -134,7 +137,10 @@ mod tests {
             combinator: Combinator::And,
             conditions: vec![RuleCondition {
                 field: MatchField::Amount,
-                op: MatchOp::Range { min_cents: -2000, max_cents: -1000 },
+                op: MatchOp::Range {
+                    min_cents: -2000,
+                    max_cents: -1000,
+                },
             }],
             target_category_id: 11,
             enabled: true,
@@ -147,7 +153,10 @@ mod tests {
         );
         assert!(matches!(
             outcome,
-            CategorizationOutcome::Rule { rule_id: 3, category_id: 11 }
+            CategorizationOutcome::Rule {
+                rule_id: 3,
+                category_id: 11
+            }
         ));
     }
 
@@ -180,7 +189,10 @@ mod tests {
         );
         assert!(matches!(
             outcome,
-            CategorizationOutcome::Rule { rule_id: 9, category_id: 5 }
+            CategorizationOutcome::Rule {
+                rule_id: 9,
+                category_id: 5
+            }
         ));
 
         // Different account → no match

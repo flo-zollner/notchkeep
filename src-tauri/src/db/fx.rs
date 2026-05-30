@@ -106,7 +106,9 @@ mod tests {
     #[tokio::test]
     async fn upsert_and_read_rate() {
         let pool = connect_memory().await.unwrap();
-        upsert_rate(&pool, "USD", "2026-05-19", 909_100, "yahoo").await.unwrap();
+        upsert_rate(&pool, "USD", "2026-05-19", 909_100, "yahoo")
+            .await
+            .unwrap();
         let r = rate_on_date(&pool, "usd", "2026-05-19").await.unwrap();
         assert_eq!(r, Some(909_100));
     }
@@ -114,13 +116,26 @@ mod tests {
     #[tokio::test]
     async fn rate_on_date_returns_latest_le() {
         let pool = connect_memory().await.unwrap();
-        upsert_rate(&pool, "USD", "2026-03-15", 900_000, "yahoo").await.unwrap();
-        upsert_rate(&pool, "USD", "2026-04-15", 910_000, "yahoo").await.unwrap();
+        upsert_rate(&pool, "USD", "2026-03-15", 900_000, "yahoo")
+            .await
+            .unwrap();
+        upsert_rate(&pool, "USD", "2026-04-15", 910_000, "yahoo")
+            .await
+            .unwrap();
 
-        assert_eq!(rate_on_date(&pool, "USD", "2026-04-15").await.unwrap(), Some(910_000));
-        assert_eq!(rate_on_date(&pool, "USD", "2026-04-01").await.unwrap(), Some(900_000));
+        assert_eq!(
+            rate_on_date(&pool, "USD", "2026-04-15").await.unwrap(),
+            Some(910_000)
+        );
+        assert_eq!(
+            rate_on_date(&pool, "USD", "2026-04-01").await.unwrap(),
+            Some(900_000)
+        );
         // Before all rates: falls back to the next one in the future.
-        assert_eq!(rate_on_date(&pool, "USD", "2026-03-14").await.unwrap(), Some(900_000));
+        assert_eq!(
+            rate_on_date(&pool, "USD", "2026-03-14").await.unwrap(),
+            Some(900_000)
+        );
     }
 
     /// Real bug: Yahoo often delivers the price from the last market day (e.g.
@@ -131,8 +146,12 @@ mod tests {
     #[tokio::test]
     async fn rate_on_date_falls_back_to_earliest_future_when_no_past_rate() {
         let pool = connect_memory().await.unwrap();
-        upsert_rate(&pool, "HKD", "2026-05-23", 110_009, "yahoo").await.unwrap();
-        upsert_rate(&pool, "HKD", "2026-06-01", 111_000, "yahoo").await.unwrap();
+        upsert_rate(&pool, "HKD", "2026-05-23", 110_009, "yahoo")
+            .await
+            .unwrap();
+        upsert_rate(&pool, "HKD", "2026-06-01", 111_000, "yahoo")
+            .await
+            .unwrap();
 
         // Price date 22.5. — no FX ≤ 22.5. exists → take the earliest
         // rate AFTER (23.5.), not the even later one (1.6.).
@@ -143,13 +162,22 @@ mod tests {
     #[tokio::test]
     async fn rate_on_date_returns_none_for_unknown_currency() {
         let pool = connect_memory().await.unwrap();
-        assert_eq!(rate_on_date(&pool, "XYZ", "2026-05-22").await.unwrap(), None);
+        assert_eq!(
+            rate_on_date(&pool, "XYZ", "2026-05-22").await.unwrap(),
+            None
+        );
     }
 
     #[tokio::test]
     async fn eur_always_one_million() {
         let pool = connect_memory().await.unwrap();
-        assert_eq!(rate_on_date(&pool, "EUR", "2026-05-19").await.unwrap(), Some(1_000_000));
-        assert_eq!(rate_on_date(&pool, "eur", "2026-05-19").await.unwrap(), Some(1_000_000));
+        assert_eq!(
+            rate_on_date(&pool, "EUR", "2026-05-19").await.unwrap(),
+            Some(1_000_000)
+        );
+        assert_eq!(
+            rate_on_date(&pool, "eur", "2026-05-19").await.unwrap(),
+            Some(1_000_000)
+        );
     }
 }

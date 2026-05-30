@@ -10,8 +10,7 @@ use super::{DbError, DbResult};
 /// - `corporate_action`: splits/mergers with no cashflow (typically amount=0).
 /// `buy`/`sell` are included as expense/income — the user treats
 /// securities purchases like regular expenses on the cash account.
-pub(crate) const EXCLUDED_KINDS_SQL: &str =
-    "kind NOT IN ('transfer', 'corporate_action')";
+pub(crate) const EXCLUDED_KINDS_SQL: &str = "kind NOT IN ('transfer', 'corporate_action')";
 
 #[derive(Debug, Clone, Serialize, sqlx::FromRow, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
@@ -68,10 +67,10 @@ pub async fn category_breakdown(
          ORDER BY category_id"
     );
     let rows = sqlx::query_as::<_, CategorySpending>(&sql)
-    .bind(from)
-    .bind(to)
-    .fetch_all(pool)
-    .await?;
+        .bind(from)
+        .bind(to)
+        .fetch_all(pool)
+        .await?;
     Ok(rows)
 }
 
@@ -137,11 +136,11 @@ pub async fn bucket_monthly_flow(
          GROUP BY year, month"
     );
     let rows: Vec<(String, String, i64, i64)> = sqlx::query_as(&bucket_sql)
-    .bind(&from)
-    .bind(&to)
-    .bind(bucket_id)
-    .fetch_all(pool)
-    .await?;
+        .bind(&from)
+        .bind(&to)
+        .bind(bucket_id)
+        .fetch_all(pool)
+        .await?;
 
     let mut map: HashMap<(i32, u32), (i64, i64)> = HashMap::with_capacity(rows.len());
     for (y_str, m_str, in_c, out_c) in rows {
@@ -158,7 +157,12 @@ pub async fn bucket_monthly_flow(
         .into_iter()
         .map(|(y, m)| {
             let (in_cents, out_cents) = map.get(&(y, m)).copied().unwrap_or((0, 0));
-            MonthlyFlow { year: y, month: m, in_cents, out_cents }
+            MonthlyFlow {
+                year: y,
+                month: m,
+                in_cents,
+                out_cents,
+            }
         })
         .collect())
 }
@@ -177,7 +181,11 @@ async fn monthly_cashflow_filtered(
     let (after_y, after_m) = step_month(end_year, end_month, 1);
     let to = format!("{after_y:04}-{after_m:02}-01");
 
-    let extra_kind_filter = if exclude_invest { " AND kind NOT IN ('buy','sell')" } else { "" };
+    let extra_kind_filter = if exclude_invest {
+        " AND kind NOT IN ('buy','sell')"
+    } else {
+        ""
+    };
     let base_sql = format!(
         "SELECT
             strftime('%Y', booking_date) AS year,
@@ -229,7 +237,12 @@ async fn monthly_cashflow_filtered(
         .into_iter()
         .map(|(y, m)| {
             let (in_cents, out_cents) = map.get(&(y, m)).copied().unwrap_or((0, 0));
-            MonthlyFlow { year: y, month: m, in_cents, out_cents }
+            MonthlyFlow {
+                year: y,
+                month: m,
+                in_cents,
+                out_cents,
+            }
         })
         .collect())
 }
@@ -251,10 +264,10 @@ pub async fn daily_spending(pool: &SqlitePool, year: i32, month: u32) -> DbResul
          GROUP BY day"
     );
     let rows: Vec<(String, i64)> = sqlx::query_as(&daily_sql)
-    .bind(&from)
-    .bind(&to)
-    .fetch_all(pool)
-    .await?;
+        .bind(&from)
+        .bind(&to)
+        .fetch_all(pool)
+        .await?;
 
     let len = days_in_month(year, month) as usize;
     let mut out = vec![0_i64; len];
@@ -329,10 +342,10 @@ pub async fn cashflow_breakdown(
           ORDER BY sign DESC, sum_abs_cents DESC"
     );
     let rows: Vec<CashflowSlice> = sqlx::query_as(&breakdown_sql)
-    .bind(from)
-    .bind(to)
-    .fetch_all(pool)
-    .await?;
+        .bind(from)
+        .bind(to)
+        .fetch_all(pool)
+        .await?;
     Ok(rows)
 }
 
@@ -370,7 +383,15 @@ mod tests {
         booking_date: &str,
         amount_cents: i64,
     ) {
-        insert_tx_with_kind(pool, account_id, category_id, booking_date, amount_cents, "expense").await;
+        insert_tx_with_kind(
+            pool,
+            account_id,
+            category_id,
+            booking_date,
+            amount_cents,
+            "expense",
+        )
+        .await;
     }
 
     async fn insert_tx_with_kind(
@@ -426,8 +447,14 @@ mod tests {
         assert_eq!(
             result,
             vec![
-                CategorySpending { category_id: groceries, spent_cents: 4650 },
-                CategorySpending { category_id: rent, spent_cents: 128000 },
+                CategorySpending {
+                    category_id: groceries,
+                    spent_cents: 4650
+                },
+                CategorySpending {
+                    category_id: rent,
+                    spent_cents: 128000
+                },
             ]
         );
     }
@@ -440,7 +467,10 @@ mod tests {
 
         insert_tx(&pool, acc, Some(income), "2026-05-30", 250000).await;
         let result = monthly_spending(&pool, 2026, 5).await.unwrap();
-        assert!(result.is_empty(), "income should be filtered out: {result:?}");
+        assert!(
+            result.is_empty(),
+            "income should be filtered out: {result:?}"
+        );
     }
 
     #[tokio::test]
@@ -456,7 +486,10 @@ mod tests {
         let result = monthly_spending(&pool, 2026, 5).await.unwrap();
         assert_eq!(
             result,
-            vec![CategorySpending { category_id: cat, spent_cents: 2000 }]
+            vec![CategorySpending {
+                category_id: cat,
+                spent_cents: 2000
+            }]
         );
     }
 
@@ -472,7 +505,10 @@ mod tests {
         let result = monthly_spending(&pool, 2026, 5).await.unwrap();
         assert_eq!(
             result,
-            vec![CategorySpending { category_id: cat, spent_cents: 2500 }]
+            vec![CategorySpending {
+                category_id: cat,
+                spent_cents: 2500
+            }]
         );
     }
 
@@ -488,7 +524,10 @@ mod tests {
         let result = monthly_spending(&pool, 2026, 12).await.unwrap();
         assert_eq!(
             result,
-            vec![CategorySpending { category_id: cat, spent_cents: 1500 }]
+            vec![CategorySpending {
+                category_id: cat,
+                spent_cents: 1500
+            }]
         );
     }
 
@@ -512,8 +551,14 @@ mod tests {
         assert_eq!(
             result,
             vec![
-                CategorySpending { category_id: groceries, spent_cents: 300 },
-                CategorySpending { category_id: rent, spent_cents: 50_000 },
+                CategorySpending {
+                    category_id: groceries,
+                    spent_cents: 300
+                },
+                CategorySpending {
+                    category_id: rent,
+                    spent_cents: 50_000
+                },
             ]
         );
     }
@@ -525,9 +570,24 @@ mod tests {
         assert_eq!(
             result,
             vec![
-                MonthlyFlow { year: 2026, month: 3, in_cents: 0, out_cents: 0 },
-                MonthlyFlow { year: 2026, month: 4, in_cents: 0, out_cents: 0 },
-                MonthlyFlow { year: 2026, month: 5, in_cents: 0, out_cents: 0 },
+                MonthlyFlow {
+                    year: 2026,
+                    month: 3,
+                    in_cents: 0,
+                    out_cents: 0
+                },
+                MonthlyFlow {
+                    year: 2026,
+                    month: 4,
+                    in_cents: 0,
+                    out_cents: 0
+                },
+                MonthlyFlow {
+                    year: 2026,
+                    month: 5,
+                    in_cents: 0,
+                    out_cents: 0
+                },
             ]
         );
     }
@@ -548,8 +608,18 @@ mod tests {
         assert_eq!(
             result,
             vec![
-                MonthlyFlow { year: 2026, month: 4, in_cents: 300_000, out_cents: 125_000 },
-                MonthlyFlow { year: 2026, month: 5, in_cents: 280_000, out_cents: 90_000 },
+                MonthlyFlow {
+                    year: 2026,
+                    month: 4,
+                    in_cents: 300_000,
+                    out_cents: 125_000
+                },
+                MonthlyFlow {
+                    year: 2026,
+                    month: 5,
+                    in_cents: 280_000,
+                    out_cents: 90_000
+                },
             ]
         );
     }
@@ -567,9 +637,24 @@ mod tests {
         assert_eq!(
             result,
             vec![
-                MonthlyFlow { year: 2026, month: 3, in_cents: 0, out_cents: 0 },
-                MonthlyFlow { year: 2026, month: 4, in_cents: 0, out_cents: 0 },
-                MonthlyFlow { year: 2026, month: 5, in_cents: 0, out_cents: 50_000 },
+                MonthlyFlow {
+                    year: 2026,
+                    month: 3,
+                    in_cents: 0,
+                    out_cents: 0
+                },
+                MonthlyFlow {
+                    year: 2026,
+                    month: 4,
+                    in_cents: 0,
+                    out_cents: 0
+                },
+                MonthlyFlow {
+                    year: 2026,
+                    month: 5,
+                    in_cents: 0,
+                    out_cents: 50_000
+                },
             ]
         );
     }
@@ -673,8 +758,18 @@ mod tests {
         assert_eq!(
             result,
             vec![
-                MonthlyFlow { year: 2026, month: 12, in_cents: 0, out_cents: 1_000 },
-                MonthlyFlow { year: 2027, month: 1, in_cents: 5_000, out_cents: 2_000 },
+                MonthlyFlow {
+                    year: 2026,
+                    month: 12,
+                    in_cents: 0,
+                    out_cents: 1_000
+                },
+                MonthlyFlow {
+                    year: 2027,
+                    month: 1,
+                    in_cents: 5_000,
+                    out_cents: 2_000
+                },
             ]
         );
     }
@@ -690,23 +785,42 @@ mod tests {
         insert_tx(&pool, b, None, "2026-05-05", 999_999).await;
         insert_tx(&pool, b, None, "2026-05-20", -50_000).await;
 
-        let only_a = account_monthly_cashflow(&pool, a, 2026, 5, 1).await.unwrap();
+        let only_a = account_monthly_cashflow(&pool, a, 2026, 5, 1)
+            .await
+            .unwrap();
         assert_eq!(
             only_a,
-            vec![MonthlyFlow { year: 2026, month: 5, in_cents: 300_000, out_cents: 120_000 }]
+            vec![MonthlyFlow {
+                year: 2026,
+                month: 5,
+                in_cents: 300_000,
+                out_cents: 120_000
+            }]
         );
 
-        let only_b = account_monthly_cashflow(&pool, b, 2026, 5, 1).await.unwrap();
+        let only_b = account_monthly_cashflow(&pool, b, 2026, 5, 1)
+            .await
+            .unwrap();
         assert_eq!(
             only_b,
-            vec![MonthlyFlow { year: 2026, month: 5, in_cents: 999_999, out_cents: 50_000 }]
+            vec![MonthlyFlow {
+                year: 2026,
+                month: 5,
+                in_cents: 999_999,
+                out_cents: 50_000
+            }]
         );
 
         // Unfiltered monthly_cashflow sees both.
         let combined = monthly_cashflow(&pool, 2026, 5, 1).await.unwrap();
         assert_eq!(
             combined,
-            vec![MonthlyFlow { year: 2026, month: 5, in_cents: 1_299_999, out_cents: 170_000 }]
+            vec![MonthlyFlow {
+                year: 2026,
+                month: 5,
+                in_cents: 1_299_999,
+                out_cents: 170_000
+            }]
         );
     }
 
@@ -714,8 +828,12 @@ mod tests {
     async fn account_monthly_cashflow_includes_subtree() {
         use crate::db::accounts::create_account;
         let pool = connect_memory().await.unwrap();
-        let parent = create_account(&pool, "p", "bank", "EUR", None, None, None).await.unwrap();
-        let child = create_account(&pool, "c", "cash", "EUR", Some(parent.id), None, None).await.unwrap();
+        let parent = create_account(&pool, "p", "bank", "EUR", None, None, None)
+            .await
+            .unwrap();
+        let child = create_account(&pool, "c", "cash", "EUR", Some(parent.id), None, None)
+            .await
+            .unwrap();
 
         sqlx::query(
             "INSERT INTO transactions
@@ -723,9 +841,16 @@ mod tests {
              VALUES
                 (?1, '2026-05-15',  500, 'EUR', 'a', 'manual'),
                 (?2, '2026-05-20', -200, 'EUR', 'b', 'manual')",
-        ).bind(parent.id).bind(child.id).execute(&pool).await.unwrap();
+        )
+        .bind(parent.id)
+        .bind(child.id)
+        .execute(&pool)
+        .await
+        .unwrap();
 
-        let rows = account_monthly_cashflow(&pool, parent.id, 2026, 5, 1).await.unwrap();
+        let rows = account_monthly_cashflow(&pool, parent.id, 2026, 5, 1)
+            .await
+            .unwrap();
         assert_eq!(rows.len(), 1);
         assert_eq!(rows[0].in_cents, 500);
         assert_eq!(rows[0].out_cents, 200);
@@ -734,13 +859,30 @@ mod tests {
     #[tokio::test]
     async fn account_monthly_cashflow_zero_filled_for_unknown_account() {
         let pool = connect_memory().await.unwrap();
-        let result = account_monthly_cashflow(&pool, 12345, 2026, 5, 3).await.unwrap();
+        let result = account_monthly_cashflow(&pool, 12345, 2026, 5, 3)
+            .await
+            .unwrap();
         assert_eq!(
             result,
             vec![
-                MonthlyFlow { year: 2026, month: 3, in_cents: 0, out_cents: 0 },
-                MonthlyFlow { year: 2026, month: 4, in_cents: 0, out_cents: 0 },
-                MonthlyFlow { year: 2026, month: 5, in_cents: 0, out_cents: 0 },
+                MonthlyFlow {
+                    year: 2026,
+                    month: 3,
+                    in_cents: 0,
+                    out_cents: 0
+                },
+                MonthlyFlow {
+                    year: 2026,
+                    month: 4,
+                    in_cents: 0,
+                    out_cents: 0
+                },
+                MonthlyFlow {
+                    year: 2026,
+                    month: 5,
+                    in_cents: 0,
+                    out_cents: 0
+                },
             ]
         );
     }
@@ -748,7 +890,9 @@ mod tests {
     #[tokio::test]
     async fn cashflow_breakdown_empty_db_returns_empty() {
         let pool = connect_memory().await.unwrap();
-        let result = cashflow_breakdown(&pool, "2026-01-01", "2026-06-01").await.unwrap();
+        let result = cashflow_breakdown(&pool, "2026-01-01", "2026-06-01")
+            .await
+            .unwrap();
         assert!(result.is_empty());
     }
 
@@ -758,40 +902,59 @@ mod tests {
         let (acc,): (i64,) = sqlx::query_as(
             "INSERT INTO accounts (name, kind, currency)
              VALUES ('Giro', 'bank', 'EUR') RETURNING id",
-        ).fetch_one(&pool).await.unwrap();
+        )
+        .fetch_one(&pool)
+        .await
+        .unwrap();
         let (cat_income,): (i64,) = sqlx::query_as(
             "INSERT INTO categories (parent_id, name) VALUES (NULL, 'Gehalt') RETURNING id",
-        ).fetch_one(&pool).await.unwrap();
+        )
+        .fetch_one(&pool)
+        .await
+        .unwrap();
         let (cat_food,): (i64,) = sqlx::query_as(
             "INSERT INTO categories (parent_id, name) VALUES (NULL, 'Lebensmittel') RETURNING id",
-        ).fetch_one(&pool).await.unwrap();
+        )
+        .fetch_one(&pool)
+        .await
+        .unwrap();
 
         for &(date, amt, cat) in &[
-            ("2026-05-01",  300_000_i64, Some(cat_income)),
-            ("2026-05-15",  300_000,     Some(cat_income)),
-            ("2026-05-05",  -20_000,     Some(cat_food)),
-            ("2026-05-10",  -15_000,     Some(cat_food)),
-            ("2026-05-20",  -25_000,     Some(cat_food)),
-            ("2026-05-12",  -10_000,     None::<i64>),
+            ("2026-05-01", 300_000_i64, Some(cat_income)),
+            ("2026-05-15", 300_000, Some(cat_income)),
+            ("2026-05-05", -20_000, Some(cat_food)),
+            ("2026-05-10", -15_000, Some(cat_food)),
+            ("2026-05-20", -25_000, Some(cat_food)),
+            ("2026-05-12", -10_000, None::<i64>),
         ] {
             sqlx::query(
                 "INSERT INTO transactions
                     (account_id, booking_date, amount_cents, currency,
                      category_id, source, kind, imported_at)
-                 VALUES (?1, ?2, ?3, 'EUR', ?4, 'manual', 'expense', '2026-05-20T00:00:00Z')"
+                 VALUES (?1, ?2, ?3, 'EUR', ?4, 'manual', 'expense', '2026-05-20T00:00:00Z')",
             )
-            .bind(acc).bind(date).bind(amt).bind(cat)
-            .execute(&pool).await.unwrap();
+            .bind(acc)
+            .bind(date)
+            .bind(amt)
+            .bind(cat)
+            .execute(&pool)
+            .await
+            .unwrap();
         }
 
-        let result = cashflow_breakdown(&pool, "2026-05-01", "2026-06-01").await.unwrap();
+        let result = cashflow_breakdown(&pool, "2026-05-01", "2026-06-01")
+            .await
+            .unwrap();
         assert_eq!(result.len(), 3);
 
         let income = result.iter().find(|s| s.sign == 1).unwrap();
         assert_eq!(income.category_id, Some(cat_income));
         assert_eq!(income.sum_abs_cents, 600_000);
 
-        let food = result.iter().find(|s| s.category_id == Some(cat_food)).unwrap();
+        let food = result
+            .iter()
+            .find(|s| s.category_id == Some(cat_food))
+            .unwrap();
         assert_eq!(food.sign, -1);
         assert_eq!(food.sum_abs_cents, 60_000);
 
@@ -806,7 +969,10 @@ mod tests {
         let (acc,): (i64,) = sqlx::query_as(
             "INSERT INTO accounts (name, kind, currency)
              VALUES ('Giro', 'bank', 'EUR') RETURNING id",
-        ).fetch_one(&pool).await.unwrap();
+        )
+        .fetch_one(&pool)
+        .await
+        .unwrap();
         sqlx::query(
             "INSERT INTO transactions
                 (account_id, booking_date, amount_cents, currency,
@@ -815,7 +981,9 @@ mod tests {
         )
         .bind(acc).execute(&pool).await.unwrap();
 
-        let result = cashflow_breakdown(&pool, "2026-05-01", "2026-06-01").await.unwrap();
+        let result = cashflow_breakdown(&pool, "2026-05-01", "2026-06-01")
+            .await
+            .unwrap();
         assert!(result.is_empty(), "amount=0 tx must be filtered out");
     }
 
@@ -834,7 +1002,10 @@ mod tests {
 
         let result = monthly_spending(&pool, 2026, 5).await.unwrap();
         assert_eq!(result.len(), 1);
-        assert_eq!(result[0].spent_cents, 10_000, "transfer must be excluded from monthly_spending");
+        assert_eq!(
+            result[0].spent_cents, 10_000,
+            "transfer must be excluded from monthly_spending"
+        );
     }
 
     #[tokio::test]
@@ -846,9 +1017,14 @@ mod tests {
         insert_tx_with_kind(&pool, acc, Some(cat), "2026-05-10", -10_000, "expense").await;
         insert_tx_with_kind(&pool, acc, Some(cat), "2026-05-15", -50_000, "transfer").await;
 
-        let result = category_breakdown(&pool, "2026-05-01", "2026-06-01").await.unwrap();
+        let result = category_breakdown(&pool, "2026-05-01", "2026-06-01")
+            .await
+            .unwrap();
         assert_eq!(result.len(), 1);
-        assert_eq!(result[0].spent_cents, 10_000, "transfer must be excluded from category_breakdown");
+        assert_eq!(
+            result[0].spent_cents, 10_000,
+            "transfer must be excluded from category_breakdown"
+        );
     }
 
     #[tokio::test]
@@ -860,7 +1036,10 @@ mod tests {
         insert_tx_with_kind(&pool, acc, None, "2026-05-10", -50_000, "transfer").await;
 
         let result = daily_spending(&pool, 2026, 5).await.unwrap();
-        assert_eq!(result[9], 10_000, "transfer must be excluded from daily_spending");
+        assert_eq!(
+            result[9], 10_000,
+            "transfer must be excluded from daily_spending"
+        );
         assert_eq!(result.iter().sum::<i64>(), 10_000);
     }
 
@@ -872,10 +1051,15 @@ mod tests {
         insert_tx_with_kind(&pool, acc, None, "2026-05-10", -10_000, "expense").await;
         insert_tx_with_kind(&pool, acc, None, "2026-05-10", -50_000, "transfer").await;
 
-        let result = cashflow_breakdown(&pool, "2026-05-01", "2026-06-01").await.unwrap();
+        let result = cashflow_breakdown(&pool, "2026-05-01", "2026-06-01")
+            .await
+            .unwrap();
         // Only the expense row should appear
         assert_eq!(result.len(), 1);
-        assert_eq!(result[0].sum_abs_cents, 10_000, "transfer must be excluded from cashflow_breakdown");
+        assert_eq!(
+            result[0].sum_abs_cents, 10_000,
+            "transfer must be excluded from cashflow_breakdown"
+        );
     }
 
     #[tokio::test]
@@ -888,7 +1072,10 @@ mod tests {
 
         let result = monthly_cashflow(&pool, 2026, 5, 1).await.unwrap();
         assert_eq!(result.len(), 1);
-        assert_eq!(result[0].out_cents, 10_000, "transfer must be excluded from monthly_cashflow_filtered");
+        assert_eq!(
+            result[0].out_cents, 10_000,
+            "transfer must be excluded from monthly_cashflow_filtered"
+        );
         assert_eq!(result[0].in_cents, 0);
     }
 
@@ -896,9 +1083,11 @@ mod tests {
     async fn bucket_monthly_flow_excludes_transfers() {
         let pool = connect_memory().await.unwrap();
         let acc = seed_account(&pool, "Giro").await;
-        let (bucket_id,): (i64,) = sqlx::query_as(
-            "INSERT INTO buckets (name) VALUES ('TestBucket') RETURNING id",
-        ).fetch_one(&pool).await.unwrap();
+        let (bucket_id,): (i64,) =
+            sqlx::query_as("INSERT INTO buckets (name) VALUES ('TestBucket') RETURNING id")
+                .fetch_one(&pool)
+                .await
+                .unwrap();
 
         // Income expense with bucket
         sqlx::query(
@@ -907,7 +1096,11 @@ mod tests {
                  source, kind, bucket_id)
              VALUES (?1, '2026-05-10', 10_000, 'EUR', 'income-cp', 'manual', 'income', ?2)",
         )
-        .bind(acc).bind(bucket_id).execute(&pool).await.unwrap();
+        .bind(acc)
+        .bind(bucket_id)
+        .execute(&pool)
+        .await
+        .unwrap();
 
         // Transfer with same bucket — should be excluded
         sqlx::query(
@@ -916,11 +1109,20 @@ mod tests {
                  source, kind, bucket_id)
              VALUES (?1, '2026-05-10', 50_000, 'EUR', 'transfer-cp', 'manual', 'transfer', ?2)",
         )
-        .bind(acc).bind(bucket_id).execute(&pool).await.unwrap();
+        .bind(acc)
+        .bind(bucket_id)
+        .execute(&pool)
+        .await
+        .unwrap();
 
-        let result = bucket_monthly_flow(&pool, bucket_id, 2026, 5, 1).await.unwrap();
+        let result = bucket_monthly_flow(&pool, bucket_id, 2026, 5, 1)
+            .await
+            .unwrap();
         assert_eq!(result.len(), 1);
-        assert_eq!(result[0].in_cents, 10_000, "transfer must be excluded from bucket_monthly_flow");
+        assert_eq!(
+            result[0].in_cents, 10_000,
+            "transfer must be excluded from bucket_monthly_flow"
+        );
         assert_eq!(result[0].out_cents, 0);
     }
 
@@ -944,6 +1146,9 @@ mod tests {
         assert_eq!(flows.len(), 1);
         // buy now counts as expense, sell as income; transfer stays excluded.
         assert_eq!(flows[0].in_cents, 50000, "sell should count as income");
-        assert_eq!(flows[0].out_cents, 101100, "expense+buy+fee = 1000+100000+100");
+        assert_eq!(
+            flows[0].out_cents, 101100,
+            "expense+buy+fee = 1000+100000+100"
+        );
     }
 }

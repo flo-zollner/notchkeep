@@ -15,10 +15,7 @@ pub async fn list_buckets(
 }
 
 #[tauri::command]
-pub async fn get_bucket(
-    state: State<'_, DbState>,
-    id: i64,
-) -> Result<Bucket, CommandError> {
+pub async fn get_bucket(state: State<'_, DbState>, id: i64) -> Result<Bucket, CommandError> {
     Ok(db_buckets::get_bucket(&state.pool(), id).await?)
 }
 
@@ -28,11 +25,15 @@ pub async fn create_bucket(
     payload: NewBucketPayload,
 ) -> Result<Bucket, CommandError> {
     if payload.name.trim().is_empty() {
-        return Err(CommandError { message: "name must not be empty".into() });
+        return Err(CommandError {
+            message: "name must not be empty".into(),
+        });
     }
     if let Some(tc) = payload.target_cents {
         if tc < 0 {
-            return Err(CommandError { message: "target_cents must be >= 0".into() });
+            return Err(CommandError {
+                message: "target_cents must be >= 0".into(),
+            });
         }
     }
     validate_date_opt("start_date", payload.start_date.as_deref())?;
@@ -55,12 +56,16 @@ pub async fn update_bucket(
 ) -> Result<Bucket, CommandError> {
     if let Some(n) = &payload.name {
         if n.trim().is_empty() {
-            return Err(CommandError { message: "name must not be empty".into() });
+            return Err(CommandError {
+                message: "name must not be empty".into(),
+            });
         }
     }
     if let Some(tc) = payload.target_cents {
         if tc < 0 {
-            return Err(CommandError { message: "target_cents must be >= 0".into() });
+            return Err(CommandError {
+                message: "target_cents must be >= 0".into(),
+            });
         }
     }
     validate_date_opt("start_date", payload.start_date.as_deref())?;
@@ -69,18 +74,12 @@ pub async fn update_bucket(
 }
 
 #[tauri::command]
-pub async fn delete_bucket(
-    state: State<'_, DbState>,
-    id: i64,
-) -> Result<bool, CommandError> {
+pub async fn delete_bucket(state: State<'_, DbState>, id: i64) -> Result<bool, CommandError> {
     Ok(db_buckets::delete_bucket(&state.pool(), id).await?)
 }
 
 #[tauri::command]
-pub async fn bucket_balance(
-    state: State<'_, DbState>,
-    id: i64,
-) -> Result<i64, CommandError> {
+pub async fn bucket_balance(state: State<'_, DbState>, id: i64) -> Result<i64, CommandError> {
     Ok(db_buckets::bucket_balance(&state.pool(), id).await?)
 }
 
@@ -93,7 +92,9 @@ pub async fn list_bucket_progress(
 
 fn validate_date_opt(field: &str, value: Option<&str>) -> Result<(), CommandError> {
     let Some(s) = value else { return Ok(()) };
-    if s.is_empty() { return Ok(()) }
+    if s.is_empty() {
+        return Ok(());
+    }
     if s.len() != 10 || &s[4..5] != "-" || &s[7..8] != "-" {
         return Err(CommandError {
             message: format!("{field} must be YYYY-MM-DD, got {s:?}"),
@@ -112,8 +113,13 @@ mod tests {
         let pool = connect_memory().await.unwrap();
         // State<'_> cannot be easily instantiated in cargo-test; use db_buckets directly instead.
         let p = NewBucketPayload {
-            name: "x".into(), icon: None, color: None, note: None,
-            target_cents: None, start_date: None, target_date: None,
+            name: "x".into(),
+            icon: None,
+            color: None,
+            note: None,
+            target_cents: None,
+            start_date: None,
+            target_date: None,
         };
         let b = db_buckets::create_bucket(&pool, p).await.unwrap();
         assert_eq!(b.name, "x");

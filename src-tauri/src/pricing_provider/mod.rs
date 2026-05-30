@@ -33,23 +33,33 @@ pub struct PricePoint {
 
 /// Abstracts the price source (Yahoo, Mock, ...).
 pub trait PriceProvider: Send + Sync {
-    fn fetch_quote<'a>(&'a self, symbol: &'a str)
-        -> std::pin::Pin<Box<dyn std::future::Future<Output = ProviderResult<Quote>> + Send + 'a>>;
+    fn fetch_quote<'a>(
+        &'a self,
+        symbol: &'a str,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = ProviderResult<Quote>> + Send + 'a>>;
 
     fn fetch_history<'a>(
         &'a self,
         symbol: &'a str,
         from: NaiveDate,
         to: NaiveDate,
-    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = ProviderResult<Vec<PricePoint>>> + Send + 'a>>;
+    ) -> std::pin::Pin<
+        Box<dyn std::future::Future<Output = ProviderResult<Vec<PricePoint>>> + Send + 'a>,
+    >;
 
-    fn resolve_symbol<'a>(&'a self, isin: &'a str)
-        -> std::pin::Pin<Box<dyn std::future::Future<Output = ProviderResult<Option<String>>> + Send + 'a>>;
+    fn resolve_symbol<'a>(
+        &'a self,
+        isin: &'a str,
+    ) -> std::pin::Pin<
+        Box<dyn std::future::Future<Output = ProviderResult<Option<String>>> + Send + 'a>,
+    >;
 }
 
 pub trait FxProvider: Send + Sync {
-    fn fetch_eur_rate<'a>(&'a self, foreign_currency: &'a str)
-        -> std::pin::Pin<Box<dyn std::future::Future<Output = ProviderResult<i64>> + Send + 'a>>;
+    fn fetch_eur_rate<'a>(
+        &'a self,
+        foreign_currency: &'a str,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = ProviderResult<i64>> + Send + 'a>>;
 }
 
 /// Convenience combined trait for state storage as `Box<dyn CombinedProvider>`.

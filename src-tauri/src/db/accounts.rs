@@ -16,9 +16,9 @@ pub async fn list_accounts_by_institution(
     institution_id: Option<i64>,
 ) -> DbResult<Vec<Account>> {
     let sql = match institution_id {
-        Some(_) => format!(
-            "SELECT {ACCOUNT_COLUMNS} FROM accounts WHERE institution_id = ?1 ORDER BY id"
-        ),
+        Some(_) => {
+            format!("SELECT {ACCOUNT_COLUMNS} FROM accounts WHERE institution_id = ?1 ORDER BY id")
+        }
         None => format!(
             "SELECT {ACCOUNT_COLUMNS} FROM accounts WHERE institution_id IS NULL ORDER BY id"
         ),
@@ -254,12 +254,11 @@ pub async fn validate_no_cycle(
         if steps > 10_000 {
             return Err(DbError::Decode("cycle: ancestor traversal too deep".into()));
         }
-        let row: Option<(Option<i64>,)> = sqlx::query_as(
-            "SELECT parent_id FROM accounts WHERE id = ?1",
-        )
-        .bind(cur)
-        .fetch_optional(pool)
-        .await?;
+        let row: Option<(Option<i64>,)> =
+            sqlx::query_as("SELECT parent_id FROM accounts WHERE id = ?1")
+                .bind(cur)
+                .fetch_optional(pool)
+                .await?;
         current = row.and_then(|(p,)| p);
     }
     Ok(())
@@ -271,9 +270,12 @@ mod tests {
     use crate::db::connect_memory;
 
     async fn seed_inst(pool: &SqlitePool, name: &str) -> i64 {
-        let (id,): (i64,) = sqlx::query_as(
-            "INSERT INTO institutions (name) VALUES (?1) RETURNING id"
-        ).bind(name).fetch_one(pool).await.unwrap();
+        let (id,): (i64,) =
+            sqlx::query_as("INSERT INTO institutions (name) VALUES (?1) RETURNING id")
+                .bind(name)
+                .fetch_one(pool)
+                .await
+                .unwrap();
         id
     }
 
@@ -281,28 +283,73 @@ mod tests {
     async fn resolve_cash_settlement_routes_broker_to_sole_sibling_cash_account() {
         let pool = connect_memory().await.unwrap();
         let inst = seed_inst(&pool, "Flatex").await;
-        let cash = create_account(&pool, "Flatex Cash", "savings", "EUR", None, None, Some(inst))
-            .await.unwrap();
-        let broker = create_account(&pool, "Flatex Depot", "broker", "EUR", None, None, Some(inst))
-            .await.unwrap();
+        let cash = create_account(
+            &pool,
+            "Flatex Cash",
+            "savings",
+            "EUR",
+            None,
+            None,
+            Some(inst),
+        )
+        .await
+        .unwrap();
+        let broker = create_account(
+            &pool,
+            "Flatex Depot",
+            "broker",
+            "EUR",
+            None,
+            None,
+            Some(inst),
+        )
+        .await
+        .unwrap();
 
-        let resolved = resolve_cash_settlement_account(&pool, broker.id).await.unwrap();
-        assert_eq!(resolved, Some(cash.id),
-            "Broker in institution with exactly one cash account must be re-routed");
+        let resolved = resolve_cash_settlement_account(&pool, broker.id)
+            .await
+            .unwrap();
+        assert_eq!(
+            resolved,
+            Some(cash.id),
+            "Broker in institution with exactly one cash account must be re-routed"
+        );
     }
 
     #[tokio::test]
     async fn resolve_cash_settlement_returns_none_when_called_on_cash_account() {
         let pool = connect_memory().await.unwrap();
         let inst = seed_inst(&pool, "Flatex").await;
-        let cash = create_account(&pool, "Flatex Cash", "savings", "EUR", None, None, Some(inst))
-            .await.unwrap();
-        let _broker = create_account(&pool, "Flatex Depot", "broker", "EUR", None, None, Some(inst))
-            .await.unwrap();
+        let cash = create_account(
+            &pool,
+            "Flatex Cash",
+            "savings",
+            "EUR",
+            None,
+            None,
+            Some(inst),
+        )
+        .await
+        .unwrap();
+        let _broker = create_account(
+            &pool,
+            "Flatex Depot",
+            "broker",
+            "EUR",
+            None,
+            None,
+            Some(inst),
+        )
+        .await
+        .unwrap();
 
-        let resolved = resolve_cash_settlement_account(&pool, cash.id).await.unwrap();
-        assert!(resolved.is_none(),
-            "Cash account needs no re-route — user already chose correctly");
+        let resolved = resolve_cash_settlement_account(&pool, cash.id)
+            .await
+            .unwrap();
+        assert!(
+            resolved.is_none(),
+            "Cash account needs no re-route — user already chose correctly"
+        );
     }
 
     #[tokio::test]
@@ -310,8 +357,11 @@ mod tests {
         let pool = connect_memory().await.unwrap();
         // Broker without institution_id — no sibling lookup possible
         let broker = create_account(&pool, "Standalone-Depot", "broker", "EUR", None, None, None)
-            .await.unwrap();
-        let resolved = resolve_cash_settlement_account(&pool, broker.id).await.unwrap();
+            .await
+            .unwrap();
+        let resolved = resolve_cash_settlement_account(&pool, broker.id)
+            .await
+            .unwrap();
         assert!(resolved.is_none());
     }
 
@@ -321,32 +371,63 @@ mod tests {
         let inst = seed_inst(&pool, "MultiCash").await;
         // 2 non-broker accounts → ambiguous → no auto-routing
         let _cash1 = create_account(&pool, "Giro", "bank", "EUR", None, None, Some(inst))
-            .await.unwrap();
+            .await
+            .unwrap();
         let _cash2 = create_account(&pool, "Sparkonto", "savings", "EUR", None, None, Some(inst))
-            .await.unwrap();
+            .await
+            .unwrap();
         let broker = create_account(&pool, "Depot", "broker", "EUR", None, None, Some(inst))
-            .await.unwrap();
-        let resolved = resolve_cash_settlement_account(&pool, broker.id).await.unwrap();
-        assert!(resolved.is_none(),
-            "Ambiguous (>1 cash accounts) — user must decide");
+            .await
+            .unwrap();
+        let resolved = resolve_cash_settlement_account(&pool, broker.id)
+            .await
+            .unwrap();
+        assert!(
+            resolved.is_none(),
+            "Ambiguous (>1 cash accounts) — user must decide"
+        );
     }
 
     #[tokio::test]
     async fn resolve_cash_settlement_ignores_archived_cash_accounts() {
         let pool = connect_memory().await.unwrap();
         let inst = seed_inst(&pool, "Flatex").await;
-        let mut old_cash = create_account(&pool, "Alte Verrechnung", "savings", "EUR", None, None, Some(inst))
-            .await.unwrap();
+        let mut old_cash = create_account(
+            &pool,
+            "Alte Verrechnung",
+            "savings",
+            "EUR",
+            None,
+            None,
+            Some(inst),
+        )
+        .await
+        .unwrap();
         old_cash.archived = true;
         update_account(&pool, &old_cash).await.unwrap();
-        let new_cash = create_account(&pool, "Neue Verrechnung", "savings", "EUR", None, None, Some(inst))
-            .await.unwrap();
+        let new_cash = create_account(
+            &pool,
+            "Neue Verrechnung",
+            "savings",
+            "EUR",
+            None,
+            None,
+            Some(inst),
+        )
+        .await
+        .unwrap();
         let broker = create_account(&pool, "Depot", "broker", "EUR", None, None, Some(inst))
-            .await.unwrap();
+            .await
+            .unwrap();
 
-        let resolved = resolve_cash_settlement_account(&pool, broker.id).await.unwrap();
-        assert_eq!(resolved, Some(new_cash.id),
-            "Archived cash accounts must not be counted");
+        let resolved = resolve_cash_settlement_account(&pool, broker.id)
+            .await
+            .unwrap();
+        assert_eq!(
+            resolved,
+            Some(new_cash.id),
+            "Archived cash accounts must not be counted"
+        );
     }
 
     #[tokio::test]
@@ -370,7 +451,9 @@ mod tests {
     #[tokio::test]
     async fn get_account_returns_inserted_account() {
         let pool = connect_memory().await.unwrap();
-        let inserted = create_account(&pool, "TR", "bank", "EUR", None, None, None).await.unwrap();
+        let inserted = create_account(&pool, "TR", "bank", "EUR", None, None, None)
+            .await
+            .unwrap();
         let fetched = get_account(&pool, inserted.id).await.unwrap();
         assert_eq!(fetched.id, inserted.id);
         assert_eq!(fetched.name, "TR");
@@ -387,7 +470,9 @@ mod tests {
     #[tokio::test]
     async fn update_account_round_trip_all_fields() {
         let pool = connect_memory().await.unwrap();
-        let mut acc = create_account(&pool, "TR", "bank", "EUR", None, None, None).await.unwrap();
+        let mut acc = create_account(&pool, "TR", "bank", "EUR", None, None, None)
+            .await
+            .unwrap();
         acc.name = "TR Hauptkonto".into();
         acc.kind = "savings".into();
         acc.icon = Some("piggy".into());
@@ -413,20 +498,30 @@ mod tests {
     #[tokio::test]
     async fn update_account_last4_invalid_rejected_by_check() {
         let pool = connect_memory().await.unwrap();
-        let mut acc = create_account(&pool, "TR", "bank", "EUR", None, None, None).await.unwrap();
+        let mut acc = create_account(&pool, "TR", "bank", "EUR", None, None, None)
+            .await
+            .unwrap();
         acc.last4 = Some("12a4".into());
         let err = update_account(&pool, &acc).await.unwrap_err();
-        assert!(err.to_string().to_lowercase().contains("check"), "got: {err}");
+        assert!(
+            err.to_string().to_lowercase().contains("check"),
+            "got: {err}"
+        );
 
         acc.last4 = Some("12345".into());
         let err = update_account(&pool, &acc).await.unwrap_err();
-        assert!(err.to_string().to_lowercase().contains("check"), "got: {err}");
+        assert!(
+            err.to_string().to_lowercase().contains("check"),
+            "got: {err}"
+        );
     }
 
     #[tokio::test]
     async fn update_account_last4_none_accepted() {
         let pool = connect_memory().await.unwrap();
-        let mut acc = create_account(&pool, "TR", "bank", "EUR", None, None, None).await.unwrap();
+        let mut acc = create_account(&pool, "TR", "bank", "EUR", None, None, None)
+            .await
+            .unwrap();
         acc.last4 = Some("0000".into());
         update_account(&pool, &acc).await.unwrap();
         acc.last4 = None;
@@ -438,8 +533,12 @@ mod tests {
     #[tokio::test]
     async fn account_balance_rollup_two_levels() {
         let pool = connect_memory().await.unwrap();
-        let parent = create_account(&pool, "p", "bank", "EUR", None, None, None).await.unwrap();
-        let child = create_account(&pool, "c", "cash", "EUR", Some(parent.id), None, None).await.unwrap();
+        let parent = create_account(&pool, "p", "bank", "EUR", None, None, None)
+            .await
+            .unwrap();
+        let child = create_account(&pool, "c", "cash", "EUR", Some(parent.id), None, None)
+            .await
+            .unwrap();
 
         sqlx::query(
             "INSERT INTO transactions
@@ -461,9 +560,15 @@ mod tests {
     #[tokio::test]
     async fn account_balance_rollup_three_levels() {
         let pool = connect_memory().await.unwrap();
-        let a = create_account(&pool, "a", "bank", "EUR", None, None, None).await.unwrap();
-        let b = create_account(&pool, "b", "bank", "EUR", Some(a.id), None, None).await.unwrap();
-        let c = create_account(&pool, "c", "cash", "EUR", Some(b.id), None, None).await.unwrap();
+        let a = create_account(&pool, "a", "bank", "EUR", None, None, None)
+            .await
+            .unwrap();
+        let b = create_account(&pool, "b", "bank", "EUR", Some(a.id), None, None)
+            .await
+            .unwrap();
+        let c = create_account(&pool, "c", "cash", "EUR", Some(b.id), None, None)
+            .await
+            .unwrap();
 
         sqlx::query(
             "INSERT INTO transactions
@@ -473,8 +578,12 @@ mod tests {
                 (?2, '2026-05-01',  20, 'EUR', 'x', 'manual'),
                 (?3, '2026-05-01',   3, 'EUR', 'x', 'manual')",
         )
-        .bind(a.id).bind(b.id).bind(c.id)
-        .execute(&pool).await.unwrap();
+        .bind(a.id)
+        .bind(b.id)
+        .bind(c.id)
+        .execute(&pool)
+        .await
+        .unwrap();
 
         assert_eq!(account_balance(&pool, a.id).await.unwrap(), 123);
         assert_eq!(account_balance(&pool, b.id).await.unwrap(), 23);
@@ -484,8 +593,12 @@ mod tests {
     #[tokio::test]
     async fn account_balance_includes_archived_subaccount() {
         let pool = connect_memory().await.unwrap();
-        let parent = create_account(&pool, "p", "bank", "EUR", None, None, None).await.unwrap();
-        let mut child = create_account(&pool, "c", "cash", "EUR", Some(parent.id), None, None).await.unwrap();
+        let parent = create_account(&pool, "p", "bank", "EUR", None, None, None)
+            .await
+            .unwrap();
+        let mut child = create_account(&pool, "c", "cash", "EUR", Some(parent.id), None, None)
+            .await
+            .unwrap();
         child.archived = true;
         update_account(&pool, &child).await.unwrap();
 
@@ -495,7 +608,10 @@ mod tests {
              VALUES
                 (?1, '2026-05-01', 1_000, 'EUR', 'a', 'manual')",
         )
-        .bind(child.id).execute(&pool).await.unwrap();
+        .bind(child.id)
+        .execute(&pool)
+        .await
+        .unwrap();
 
         assert_eq!(account_balance(&pool, parent.id).await.unwrap(), 1_000);
     }
@@ -503,8 +619,12 @@ mod tests {
     #[tokio::test]
     async fn account_balance_sums_only_target_account() {
         let pool = connect_memory().await.unwrap();
-        let a = create_account(&pool, "A", "bank", "EUR", None, None, None).await.unwrap();
-        let b = create_account(&pool, "B", "bank", "EUR", None, None, None).await.unwrap();
+        let a = create_account(&pool, "A", "bank", "EUR", None, None, None)
+            .await
+            .unwrap();
+        let b = create_account(&pool, "B", "bank", "EUR", None, None, None)
+            .await
+            .unwrap();
 
         sqlx::query(
             "INSERT INTO transactions
@@ -527,7 +647,9 @@ mod tests {
     #[tokio::test]
     async fn account_balance_empty_is_zero() {
         let pool = connect_memory().await.unwrap();
-        let acc = create_account(&pool, "A", "bank", "EUR", None, None, None).await.unwrap();
+        let acc = create_account(&pool, "A", "bank", "EUR", None, None, None)
+            .await
+            .unwrap();
         assert_eq!(account_balance(&pool, acc.id).await.unwrap(), 0);
     }
 
@@ -541,27 +663,45 @@ mod tests {
     #[tokio::test]
     async fn validate_no_cycle_rejects_self_parent() {
         let pool = connect_memory().await.unwrap();
-        let a = create_account(&pool, "a", "bank", "EUR", None, None, None).await.unwrap();
+        let a = create_account(&pool, "a", "bank", "EUR", None, None, None)
+            .await
+            .unwrap();
         let err = validate_no_cycle(&pool, a.id, a.id).await.unwrap_err();
-        assert!(err.to_string().to_lowercase().contains("cycle"), "got: {err}");
+        assert!(
+            err.to_string().to_lowercase().contains("cycle"),
+            "got: {err}"
+        );
     }
 
     #[tokio::test]
     async fn validate_no_cycle_rejects_indirect_cycle() {
         // A -> B -> C. Attempt: A.parent = C → would create cycle A->B->C->A.
         let pool = connect_memory().await.unwrap();
-        let a = create_account(&pool, "a", "bank", "EUR", None, None, None).await.unwrap();
-        let b = create_account(&pool, "b", "bank", "EUR", Some(a.id), None, None).await.unwrap();
-        let c = create_account(&pool, "c", "bank", "EUR", Some(b.id), None, None).await.unwrap();
+        let a = create_account(&pool, "a", "bank", "EUR", None, None, None)
+            .await
+            .unwrap();
+        let b = create_account(&pool, "b", "bank", "EUR", Some(a.id), None, None)
+            .await
+            .unwrap();
+        let c = create_account(&pool, "c", "bank", "EUR", Some(b.id), None, None)
+            .await
+            .unwrap();
         let err = validate_no_cycle(&pool, a.id, c.id).await.unwrap_err();
-        assert!(err.to_string().to_lowercase().contains("cycle"), "got: {err}");
+        assert!(
+            err.to_string().to_lowercase().contains("cycle"),
+            "got: {err}"
+        );
     }
 
     #[tokio::test]
     async fn validate_no_cycle_accepts_valid_move() {
         let pool = connect_memory().await.unwrap();
-        let a = create_account(&pool, "a", "bank", "EUR", None, None, None).await.unwrap();
-        let b = create_account(&pool, "b", "bank", "EUR", None, None, None).await.unwrap();
+        let a = create_account(&pool, "a", "bank", "EUR", None, None, None)
+            .await
+            .unwrap();
+        let b = create_account(&pool, "b", "bank", "EUR", None, None, None)
+            .await
+            .unwrap();
         // b.parent = a is fine (no cycle).
         validate_no_cycle(&pool, b.id, a.id).await.unwrap();
     }
@@ -570,17 +710,27 @@ mod tests {
     async fn validate_no_cycle_unknown_parent_is_ok() {
         // Orphan parent (does not exist) → fetch_optional returns None → Ok.
         let pool = connect_memory().await.unwrap();
-        let a = create_account(&pool, "a", "bank", "EUR", None, None, None).await.unwrap();
+        let a = create_account(&pool, "a", "bank", "EUR", None, None, None)
+            .await
+            .unwrap();
         validate_no_cycle(&pool, a.id, 9_999).await.unwrap();
     }
 
     #[tokio::test]
     async fn collect_subtree_returns_root_and_all_descendants() {
         let pool = connect_memory().await.unwrap();
-        let root = create_account(&pool, "root", "bank", "EUR", None, None, None).await.unwrap();
-        let mid = create_account(&pool, "mid", "bank", "EUR", Some(root.id), None, None).await.unwrap();
-        let leaf = create_account(&pool, "leaf", "cash", "EUR", Some(mid.id), None, None).await.unwrap();
-        let sibling = create_account(&pool, "sibling", "bank", "EUR", None, None, None).await.unwrap();
+        let root = create_account(&pool, "root", "bank", "EUR", None, None, None)
+            .await
+            .unwrap();
+        let mid = create_account(&pool, "mid", "bank", "EUR", Some(root.id), None, None)
+            .await
+            .unwrap();
+        let leaf = create_account(&pool, "leaf", "cash", "EUR", Some(mid.id), None, None)
+            .await
+            .unwrap();
+        let sibling = create_account(&pool, "sibling", "bank", "EUR", None, None, None)
+            .await
+            .unwrap();
 
         let mut subtree = collect_subtree(&pool, root.id).await.unwrap();
         subtree.sort();
@@ -596,10 +746,21 @@ mod tests {
     async fn iban_invalid_format_rejected_by_check() {
         let pool = connect_memory().await.unwrap();
         // Lowercase → CHECK fails (GLOB '[A-Z][A-Z][0-9][0-9]*').
-        let err = create_account(&pool, "x", "bank", "EUR", None, Some("de89370400440532013000"), None)
-            .await
-            .unwrap_err();
-        assert!(err.to_string().to_lowercase().contains("check"), "got: {err}");
+        let err = create_account(
+            &pool,
+            "x",
+            "bank",
+            "EUR",
+            None,
+            Some("de89370400440532013000"),
+            None,
+        )
+        .await
+        .unwrap_err();
+        assert!(
+            err.to_string().to_lowercase().contains("check"),
+            "got: {err}"
+        );
     }
 
     #[tokio::test]
@@ -608,36 +769,72 @@ mod tests {
         let err = create_account(&pool, "x", "bank", "EUR", None, Some("DE891234"), None)
             .await
             .unwrap_err();
-        assert!(err.to_string().to_lowercase().contains("check"), "got: {err}");
+        assert!(
+            err.to_string().to_lowercase().contains("check"),
+            "got: {err}"
+        );
     }
 
     #[tokio::test]
     async fn iban_valid_accepted() {
         let pool = connect_memory().await.unwrap();
-        let acc = create_account(&pool, "x", "bank", "EUR", None, Some("DE89370400440532013000"), None)
-            .await
-            .unwrap();
+        let acc = create_account(
+            &pool,
+            "x",
+            "bank",
+            "EUR",
+            None,
+            Some("DE89370400440532013000"),
+            None,
+        )
+        .await
+        .unwrap();
         assert_eq!(acc.iban.as_deref(), Some("DE89370400440532013000"));
     }
 
     #[tokio::test]
     async fn iban_unique_constraint_rejects_duplicate_non_null() {
         let pool = connect_memory().await.unwrap();
-        create_account(&pool, "a", "bank", "EUR", None, Some("DE89370400440532013000"), None)
-            .await
-            .unwrap();
-        let err = create_account(&pool, "b", "bank", "EUR", None, Some("DE89370400440532013000"), None)
-            .await
-            .unwrap_err();
-        assert!(err.to_string().to_lowercase().contains("unique"), "got: {err}");
+        create_account(
+            &pool,
+            "a",
+            "bank",
+            "EUR",
+            None,
+            Some("DE89370400440532013000"),
+            None,
+        )
+        .await
+        .unwrap();
+        let err = create_account(
+            &pool,
+            "b",
+            "bank",
+            "EUR",
+            None,
+            Some("DE89370400440532013000"),
+            None,
+        )
+        .await
+        .unwrap_err();
+        assert!(
+            err.to_string().to_lowercase().contains("unique"),
+            "got: {err}"
+        );
     }
 
     #[tokio::test]
     async fn iban_unique_constraint_allows_multiple_null() {
         let pool = connect_memory().await.unwrap();
-        create_account(&pool, "a", "cash", "EUR", None, None, None).await.unwrap();
-        create_account(&pool, "b", "cash", "EUR", None, None, None).await.unwrap();
-        create_account(&pool, "c", "cash", "EUR", None, None, None).await.unwrap();
+        create_account(&pool, "a", "cash", "EUR", None, None, None)
+            .await
+            .unwrap();
+        create_account(&pool, "b", "cash", "EUR", None, None, None)
+            .await
+            .unwrap();
+        create_account(&pool, "c", "cash", "EUR", None, None, None)
+            .await
+            .unwrap();
         let listed = list_accounts(&pool).await.unwrap();
         assert_eq!(listed.len(), 3);
     }
@@ -645,8 +842,12 @@ mod tests {
     #[tokio::test]
     async fn delete_parent_sets_children_parent_id_to_null() {
         let pool = connect_memory().await.unwrap();
-        let parent = create_account(&pool, "p", "bank", "EUR", None, None, None).await.unwrap();
-        let child = create_account(&pool, "c", "cash", "EUR", Some(parent.id), None, None).await.unwrap();
+        let parent = create_account(&pool, "p", "bank", "EUR", None, None, None)
+            .await
+            .unwrap();
+        let child = create_account(&pool, "c", "cash", "EUR", Some(parent.id), None, None)
+            .await
+            .unwrap();
 
         sqlx::query("DELETE FROM accounts WHERE id = ?1")
             .bind(parent.id)
@@ -663,12 +864,19 @@ mod tests {
         let pool = connect_memory().await.unwrap();
         sqlx::query(
             "INSERT INTO institutions (name, icon, color) VALUES ('TestBank', 'bank', NULL)",
-        ).execute(&pool).await.unwrap();
-        let (inst_id,): (i64,) = sqlx::query_as("SELECT id FROM institutions WHERE name='TestBank'")
-            .fetch_one(&pool).await.unwrap();
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+        let (inst_id,): (i64,) =
+            sqlx::query_as("SELECT id FROM institutions WHERE name='TestBank'")
+                .fetch_one(&pool)
+                .await
+                .unwrap();
 
         let acc = create_account(&pool, "Giro", "bank", "EUR", None, None, Some(inst_id))
-            .await.unwrap();
+            .await
+            .unwrap();
         assert_eq!(acc.institution_id, Some(inst_id));
 
         let reloaded = get_account(&pool, acc.id).await.unwrap();
@@ -679,13 +887,23 @@ mod tests {
     async fn list_accounts_by_institution_filters_correctly() {
         let pool = connect_memory().await.unwrap();
         sqlx::query("INSERT INTO institutions (name) VALUES ('X')")
-            .execute(&pool).await.unwrap();
+            .execute(&pool)
+            .await
+            .unwrap();
         let (inst_id,): (i64,) = sqlx::query_as("SELECT id FROM institutions WHERE name='X'")
-            .fetch_one(&pool).await.unwrap();
-        let a = create_account(&pool, "a", "bank", "EUR", None, None, Some(inst_id)).await.unwrap();
-        let _b = create_account(&pool, "b", "bank", "EUR", None, None, None).await.unwrap();
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+        let a = create_account(&pool, "a", "bank", "EUR", None, None, Some(inst_id))
+            .await
+            .unwrap();
+        let _b = create_account(&pool, "b", "bank", "EUR", None, None, None)
+            .await
+            .unwrap();
 
-        let listed = list_accounts_by_institution(&pool, Some(inst_id)).await.unwrap();
+        let listed = list_accounts_by_institution(&pool, Some(inst_id))
+            .await
+            .unwrap();
         assert_eq!(listed.len(), 1);
         assert_eq!(listed[0].id, a.id);
     }
@@ -694,60 +912,150 @@ mod tests {
     async fn find_broker_account_returns_unique_broker() {
         let pool = connect_memory().await.unwrap();
         sqlx::query("INSERT INTO institutions (name) VALUES ('TR')")
-            .execute(&pool).await.unwrap();
+            .execute(&pool)
+            .await
+            .unwrap();
         let (inst_id,): (i64,) = sqlx::query_as("SELECT id FROM institutions WHERE name='TR'")
-            .fetch_one(&pool).await.unwrap();
-        let _verrechnung = create_account(&pool, "Verrechnung", "bank", "EUR", None, None, Some(inst_id)).await.unwrap();
-        let depot = create_account(&pool, "Depot", "broker", "EUR", None, None, Some(inst_id)).await.unwrap();
-        assert_eq!(find_broker_account_for_institution(&pool, inst_id).await.unwrap(), Some(depot.id));
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+        let _verrechnung = create_account(
+            &pool,
+            "Verrechnung",
+            "bank",
+            "EUR",
+            None,
+            None,
+            Some(inst_id),
+        )
+        .await
+        .unwrap();
+        let depot = create_account(&pool, "Depot", "broker", "EUR", None, None, Some(inst_id))
+            .await
+            .unwrap();
+        assert_eq!(
+            find_broker_account_for_institution(&pool, inst_id)
+                .await
+                .unwrap(),
+            Some(depot.id)
+        );
     }
 
     #[tokio::test]
     async fn find_broker_account_returns_none_when_no_broker() {
         let pool = connect_memory().await.unwrap();
         sqlx::query("INSERT INTO institutions (name) VALUES ('TR')")
-            .execute(&pool).await.unwrap();
+            .execute(&pool)
+            .await
+            .unwrap();
         let (inst_id,): (i64,) = sqlx::query_as("SELECT id FROM institutions WHERE name='TR'")
-            .fetch_one(&pool).await.unwrap();
-        let _verrechnung = create_account(&pool, "Verrechnung", "bank", "EUR", None, None, Some(inst_id)).await.unwrap();
-        assert_eq!(find_broker_account_for_institution(&pool, inst_id).await.unwrap(), None);
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+        let _verrechnung = create_account(
+            &pool,
+            "Verrechnung",
+            "bank",
+            "EUR",
+            None,
+            None,
+            Some(inst_id),
+        )
+        .await
+        .unwrap();
+        assert_eq!(
+            find_broker_account_for_institution(&pool, inst_id)
+                .await
+                .unwrap(),
+            None
+        );
     }
 
     #[tokio::test]
     async fn find_broker_account_returns_none_when_multiple_brokers() {
         let pool = connect_memory().await.unwrap();
         sqlx::query("INSERT INTO institutions (name) VALUES ('TR')")
-            .execute(&pool).await.unwrap();
+            .execute(&pool)
+            .await
+            .unwrap();
         let (inst_id,): (i64,) = sqlx::query_as("SELECT id FROM institutions WHERE name='TR'")
-            .fetch_one(&pool).await.unwrap();
-        let _d1 = create_account(&pool, "Depot1", "broker", "EUR", None, None, Some(inst_id)).await.unwrap();
-        let _d2 = create_account(&pool, "Depot2", "broker", "EUR", None, None, Some(inst_id)).await.unwrap();
-        assert_eq!(find_broker_account_for_institution(&pool, inst_id).await.unwrap(), None);
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+        let _d1 = create_account(&pool, "Depot1", "broker", "EUR", None, None, Some(inst_id))
+            .await
+            .unwrap();
+        let _d2 = create_account(&pool, "Depot2", "broker", "EUR", None, None, Some(inst_id))
+            .await
+            .unwrap();
+        assert_eq!(
+            find_broker_account_for_institution(&pool, inst_id)
+                .await
+                .unwrap(),
+            None
+        );
     }
 
     #[tokio::test]
     async fn find_broker_account_ignores_archived_brokers() {
         let pool = connect_memory().await.unwrap();
         sqlx::query("INSERT INTO institutions (name) VALUES ('TR')")
-            .execute(&pool).await.unwrap();
+            .execute(&pool)
+            .await
+            .unwrap();
         let (inst_id,): (i64,) = sqlx::query_as("SELECT id FROM institutions WHERE name='TR'")
-            .fetch_one(&pool).await.unwrap();
-        let mut archived = create_account(&pool, "ArchivedDepot", "broker", "EUR", None, None, Some(inst_id)).await.unwrap();
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+        let mut archived = create_account(
+            &pool,
+            "ArchivedDepot",
+            "broker",
+            "EUR",
+            None,
+            None,
+            Some(inst_id),
+        )
+        .await
+        .unwrap();
         archived.archived = true;
         update_account(&pool, &archived).await.unwrap();
-        let active = create_account(&pool, "ActiveDepot", "broker", "EUR", None, None, Some(inst_id)).await.unwrap();
-        assert_eq!(find_broker_account_for_institution(&pool, inst_id).await.unwrap(), Some(active.id));
+        let active = create_account(
+            &pool,
+            "ActiveDepot",
+            "broker",
+            "EUR",
+            None,
+            None,
+            Some(inst_id),
+        )
+        .await
+        .unwrap();
+        assert_eq!(
+            find_broker_account_for_institution(&pool, inst_id)
+                .await
+                .unwrap(),
+            Some(active.id)
+        );
     }
 
     #[tokio::test]
     async fn list_accounts_by_institution_none_returns_unassigned() {
         let pool = connect_memory().await.unwrap();
         sqlx::query("INSERT INTO institutions (name) VALUES ('X')")
-            .execute(&pool).await.unwrap();
+            .execute(&pool)
+            .await
+            .unwrap();
         let (inst_id,): (i64,) = sqlx::query_as("SELECT id FROM institutions WHERE name='X'")
-            .fetch_one(&pool).await.unwrap();
-        let _a = create_account(&pool, "a", "bank", "EUR", None, None, Some(inst_id)).await.unwrap();
-        let b = create_account(&pool, "b", "bank", "EUR", None, None, None).await.unwrap();
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+        let _a = create_account(&pool, "a", "bank", "EUR", None, None, Some(inst_id))
+            .await
+            .unwrap();
+        let b = create_account(&pool, "b", "bank", "EUR", None, None, None)
+            .await
+            .unwrap();
 
         let listed = list_accounts_by_institution(&pool, None).await.unwrap();
         assert_eq!(listed.len(), 1);

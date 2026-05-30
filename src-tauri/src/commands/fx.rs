@@ -44,18 +44,21 @@ pub(crate) async fn list_currencies_impl(pool: &SqlitePool) -> DbResult<Vec<Curr
          FROM all_codes a
          LEFT JOIN latest l ON l.currency = a.code
          LEFT JOIN fx_rates fx ON fx.currency = a.code AND fx.date = l.max_date
-         ORDER BY a.code"
+         ORDER BY a.code",
     )
     .fetch_all(pool)
     .await?;
 
-    Ok(rows.into_iter().map(|(code, rate, date, source, in_use)| CurrencyStatus {
-        code,
-        rate_micro: rate,
-        date,
-        source,
-        in_use: in_use == 1,
-    }).collect())
+    Ok(rows
+        .into_iter()
+        .map(|(code, rate, date, source, in_use)| CurrencyStatus {
+            code,
+            rate_micro: rate,
+            date,
+            source,
+            in_use: in_use == 1,
+        })
+        .collect())
 }
 
 /// Validates a currency code as 3 uppercase letters (ISO 4217 form).
@@ -80,11 +83,16 @@ pub(crate) async fn update_currency_rate_impl(
             message: "rate_micro must be > 0".into(),
         });
     }
-    let today = chrono::Utc::now().date_naive().format("%Y-%m-%d").to_string();
+    let today = chrono::Utc::now()
+        .date_naive()
+        .format("%Y-%m-%d")
+        .to_string();
     db_fx::upsert_rate(pool, &upper, &today, rate_micro, "manual")
         .await
         .map_err(CommandError::from)?;
-    let all = list_currencies_impl(pool).await.map_err(CommandError::from)?;
+    let all = list_currencies_impl(pool)
+        .await
+        .map_err(CommandError::from)?;
     all.into_iter()
         .find(|c| c.code == upper)
         .ok_or_else(|| CommandError {
@@ -107,14 +115,22 @@ pub(crate) async fn refresh_currency_rate_impl<P: FxProvider + ?Sized>(
     code: &str,
 ) -> Result<CurrencyStatus, CommandError> {
     let upper = validate_code(code)?;
-    let rate = provider.fetch_eur_rate(&upper).await.map_err(|e| CommandError {
-        message: format!("yahoo fx fetch failed for {upper}: {e}"),
-    })?;
-    let today = chrono::Utc::now().date_naive().format("%Y-%m-%d").to_string();
+    let rate = provider
+        .fetch_eur_rate(&upper)
+        .await
+        .map_err(|e| CommandError {
+            message: format!("yahoo fx fetch failed for {upper}: {e}"),
+        })?;
+    let today = chrono::Utc::now()
+        .date_naive()
+        .format("%Y-%m-%d")
+        .to_string();
     db_fx::upsert_rate(pool, &upper, &today, rate, "yahoo")
         .await
         .map_err(CommandError::from)?;
-    let all = list_currencies_impl(pool).await.map_err(CommandError::from)?;
+    let all = list_currencies_impl(pool)
+        .await
+        .map_err(CommandError::from)?;
     all.into_iter()
         .find(|c| c.code == upper)
         .ok_or_else(|| CommandError {
@@ -149,9 +165,14 @@ mod tests {
         sqlx::query(
             "INSERT INTO securities (isin, name, currency, asset_type)
              VALUES ('XX0000000001', 'A', 'HKD', 'stock'),
-                    ('XX0000000002', 'B', 'USD', 'stock')"
-        ).execute(&pool).await.unwrap();
-        db_fx::upsert_rate(&pool, "HKD", "2026-05-23", 110_009, "yahoo").await.unwrap();
+                    ('XX0000000002', 'B', 'USD', 'stock')",
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+        db_fx::upsert_rate(&pool, "HKD", "2026-05-23", 110_009, "yahoo")
+            .await
+            .unwrap();
 
         let result = list_currencies_impl(&pool).await.unwrap();
         assert_eq!(result.len(), 2);
@@ -170,7 +191,9 @@ mod tests {
     #[tokio::test]
     async fn list_currencies_includes_orphan_rate_marked_not_in_use() {
         let pool = connect_memory().await.unwrap();
-        db_fx::upsert_rate(&pool, "JPY", "2026-05-22", 6_100, "manual").await.unwrap();
+        db_fx::upsert_rate(&pool, "JPY", "2026-05-22", 6_100, "manual")
+            .await
+            .unwrap();
 
         let result = list_currencies_impl(&pool).await.unwrap();
         let jpy = result.iter().find(|c| c.code == "JPY").unwrap();
@@ -183,8 +206,11 @@ mod tests {
         let pool = connect_memory().await.unwrap();
         sqlx::query(
             "INSERT INTO securities (isin, name, currency, asset_type)
-             VALUES ('XX0000000003', 'EUR-Asset', 'EUR', 'etf_equity')"
-        ).execute(&pool).await.unwrap();
+             VALUES ('XX0000000003', 'EUR-Asset', 'EUR', 'etf_equity')",
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
         let result = list_currencies_impl(&pool).await.unwrap();
         assert!(!result.iter().any(|c| c.code == "EUR"));
     }
@@ -192,13 +218,17 @@ mod tests {
     #[tokio::test]
     async fn update_currency_rate_inserts_manual_today() {
         let pool = connect_memory().await.unwrap();
-        let result = update_currency_rate_impl(&pool, "HKD", 111_000).await.unwrap();
+        let result = update_currency_rate_impl(&pool, "HKD", 111_000)
+            .await
+            .unwrap();
         assert_eq!(result.code, "HKD");
         assert_eq!(result.rate_micro, Some(111_000));
         assert_eq!(result.source.as_deref(), Some("manual"));
         let date = result.date.expect("date set");
-        assert!(date.len() == 10 && date.chars().nth(4) == Some('-'),
-            "expected YYYY-MM-DD, got {date}");
+        assert!(
+            date.len() == 10 && date.chars().nth(4) == Some('-'),
+            "expected YYYY-MM-DD, got {date}"
+        );
     }
 
     #[tokio::test]
@@ -228,7 +258,9 @@ mod tests {
     #[tokio::test]
     async fn update_currency_rate_normalizes_lowercase() {
         let pool = connect_memory().await.unwrap();
-        let result = update_currency_rate_impl(&pool, "hkd", 100_000).await.unwrap();
+        let result = update_currency_rate_impl(&pool, "hkd", 100_000)
+            .await
+            .unwrap();
         assert_eq!(result.code, "HKD", "code should be uppercase-normalized");
     }
 
@@ -238,7 +270,9 @@ mod tests {
         let pool = connect_memory().await.unwrap();
         let mock = MockProvider::new().with_fx("HKD", 110_009);
 
-        let result = refresh_currency_rate_impl(&pool, &mock, "HKD").await.unwrap();
+        let result = refresh_currency_rate_impl(&pool, &mock, "HKD")
+            .await
+            .unwrap();
         assert_eq!(result.code, "HKD");
         assert_eq!(result.rate_micro, Some(110_009));
         assert_eq!(result.source.as_deref(), Some("yahoo"));
@@ -253,7 +287,9 @@ mod tests {
         let before = list_currencies_impl(&pool).await.unwrap();
         assert!(!before.iter().any(|c| c.code == "JPY"));
 
-        let result = refresh_currency_rate_impl(&pool, &mock, "JPY").await.unwrap();
+        let result = refresh_currency_rate_impl(&pool, &mock, "JPY")
+            .await
+            .unwrap();
         assert_eq!(result.code, "JPY");
         assert_eq!(result.rate_micro, Some(6_100));
     }

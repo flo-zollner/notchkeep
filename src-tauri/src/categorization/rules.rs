@@ -18,7 +18,10 @@ pub enum MatchOp {
     EndsWith(String),
     Regex(String),
     /// Amounts in cents, inclusive on both sides.
-    Range { min_cents: i64, max_cents: i64 },
+    Range {
+        min_cents: i64,
+        max_cents: i64,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -81,7 +84,9 @@ pub fn match_rule(rule: &Rule, ctx: &MatchContext) -> bool {
 
 fn match_condition(cond: &RuleCondition, ctx: &MatchContext) -> bool {
     match cond.field {
-        MatchField::Counterparty => match_string(&cond.op, ctx.tx.counterparty.as_deref().unwrap_or("")),
+        MatchField::Counterparty => {
+            match_string(&cond.op, ctx.tx.counterparty.as_deref().unwrap_or(""))
+        }
         MatchField::Description => match_string(&cond.op, ctx.tx.purpose.as_deref().unwrap_or("")),
         MatchField::Amount => match_amount(&cond.op, ctx.tx.amount_cents),
         MatchField::Account => match_account(&cond.op, ctx.account_id),
@@ -93,18 +98,10 @@ fn match_string(op: &MatchOp, haystack: &str) -> bool {
     // for bank counterparties (e.g. "Spar Dankt" vs "SPAR DANKT").
     // Regex remains case-sensitive; the user can prepend `(?i)` themselves.
     match op {
-        MatchOp::Contains(needle) => {
-            haystack.to_lowercase().contains(&needle.to_lowercase())
-        }
-        MatchOp::Equals(value) => {
-            haystack.to_lowercase() == value.to_lowercase()
-        }
-        MatchOp::StartsWith(prefix) => {
-            haystack.to_lowercase().starts_with(&prefix.to_lowercase())
-        }
-        MatchOp::EndsWith(suffix) => {
-            haystack.to_lowercase().ends_with(&suffix.to_lowercase())
-        }
+        MatchOp::Contains(needle) => haystack.to_lowercase().contains(&needle.to_lowercase()),
+        MatchOp::Equals(value) => haystack.to_lowercase() == value.to_lowercase(),
+        MatchOp::StartsWith(prefix) => haystack.to_lowercase().starts_with(&prefix.to_lowercase()),
+        MatchOp::EndsWith(suffix) => haystack.to_lowercase().ends_with(&suffix.to_lowercase()),
         MatchOp::Regex(pattern) => Regex::new(pattern)
             .map(|re| re.is_match(haystack))
             .unwrap_or(false),
@@ -114,9 +111,10 @@ fn match_string(op: &MatchOp, haystack: &str) -> bool {
 
 fn match_amount(op: &MatchOp, amount_cents: i64) -> bool {
     match op {
-        MatchOp::Range { min_cents, max_cents } => {
-            amount_cents >= *min_cents && amount_cents <= *max_cents
-        }
+        MatchOp::Range {
+            min_cents,
+            max_cents,
+        } => amount_cents >= *min_cents && amount_cents <= *max_cents,
         MatchOp::Equals(v) => v.parse::<i64>().map(|n| n == amount_cents).unwrap_or(false),
         _ => false,
     }
@@ -135,7 +133,11 @@ mod tests {
     use super::*;
     use chrono::NaiveDate;
 
-    fn tx_with(counterparty: Option<&str>, purpose: Option<&str>, amount_cents: i64) -> RawTransaction {
+    fn tx_with(
+        counterparty: Option<&str>,
+        purpose: Option<&str>,
+        amount_cents: i64,
+    ) -> RawTransaction {
         RawTransaction {
             booking_date: NaiveDate::from_ymd_opt(2026, 5, 10).unwrap(),
             amount_cents,
@@ -174,7 +176,10 @@ mod tests {
 
     #[test]
     fn equals_on_description_requires_exact_match() {
-        let rule = rule_single(MatchField::Description, MatchOp::Equals("Gehalt Mai".into()));
+        let rule = rule_single(
+            MatchField::Description,
+            MatchOp::Equals("Gehalt Mai".into()),
+        );
         let yes = tx_with(None, Some("Gehalt Mai"), 150_000);
         let no = tx_with(None, Some("Gehalt April"), 150_000);
         assert!(match_rule(&rule, &ctx_with(&yes, None)));
@@ -183,7 +188,10 @@ mod tests {
 
     #[test]
     fn starts_and_ends_with_on_description() {
-        let starts = rule_single(MatchField::Description, MatchOp::StartsWith("Gehalt".into()));
+        let starts = rule_single(
+            MatchField::Description,
+            MatchOp::StartsWith("Gehalt".into()),
+        );
         let ends = rule_single(MatchField::Description, MatchOp::EndsWith("Mai".into()));
         let tx = tx_with(None, Some("Gehalt Mai"), 150_000);
         assert!(match_rule(&starts, &ctx_with(&tx, None)));
@@ -192,7 +200,10 @@ mod tests {
 
     #[test]
     fn regex_on_counterparty_matches_pattern() {
-        let rule = rule_single(MatchField::Counterparty, MatchOp::Regex(r"(?i)^rewe\b.*".into()));
+        let rule = rule_single(
+            MatchField::Counterparty,
+            MatchOp::Regex(r"(?i)^rewe\b.*".into()),
+        );
         let yes = tx_with(Some("REWE Markt"), None, -1299);
         let no = tx_with(Some("Edeka"), None, -1299);
         assert!(match_rule(&rule, &ctx_with(&yes, None)));
@@ -203,13 +214,22 @@ mod tests {
     fn range_on_amount_is_inclusive() {
         let rule = rule_single(
             MatchField::Amount,
-            MatchOp::Range { min_cents: -2000, max_cents: -1000 },
+            MatchOp::Range {
+                min_cents: -2000,
+                max_cents: -1000,
+            },
         );
         for amt in [-2000, -1299, -1000] {
-            assert!(match_rule(&rule, &ctx_with(&tx_with(None, None, amt), None)));
+            assert!(match_rule(
+                &rule,
+                &ctx_with(&tx_with(None, None, amt), None)
+            ));
         }
         for amt in [-999, -2001] {
-            assert!(!match_rule(&rule, &ctx_with(&tx_with(None, None, amt), None)));
+            assert!(!match_rule(
+                &rule,
+                &ctx_with(&tx_with(None, None, amt), None)
+            ));
         }
     }
 
@@ -236,7 +256,10 @@ mod tests {
                 },
                 RuleCondition {
                     field: MatchField::Amount,
-                    op: MatchOp::Range { min_cents: -5000, max_cents: -2000 },
+                    op: MatchOp::Range {
+                        min_cents: -5000,
+                        max_cents: -2000,
+                    },
                 },
             ],
             target_category_id: 1,
@@ -270,9 +293,18 @@ mod tests {
             target_category_id: 1,
             enabled: true,
         };
-        assert!(match_rule(&rule, &ctx_with(&tx_with(Some("REWE Markt"), None, -1), None)));
-        assert!(match_rule(&rule, &ctx_with(&tx_with(Some("EDEKA City"), None, -1), None)));
-        assert!(!match_rule(&rule, &ctx_with(&tx_with(Some("LIDL"), None, -1), None)));
+        assert!(match_rule(
+            &rule,
+            &ctx_with(&tx_with(Some("REWE Markt"), None, -1), None)
+        ));
+        assert!(match_rule(
+            &rule,
+            &ctx_with(&tx_with(Some("EDEKA City"), None, -1), None)
+        ));
+        assert!(!match_rule(
+            &rule,
+            &ctx_with(&tx_with(Some("LIDL"), None, -1), None)
+        ));
     }
 
     #[test]
@@ -296,8 +328,10 @@ mod tests {
         let mut generic = rule_single(MatchField::Counterparty, MatchOp::Contains("REWE".into()));
         generic.priority = 100;
         generic.name = "generic".into();
-        let mut specific =
-            rule_single(MatchField::Counterparty, MatchOp::Contains("REWE Markt".into()));
+        let mut specific = rule_single(
+            MatchField::Counterparty,
+            MatchOp::Contains("REWE Markt".into()),
+        );
         specific.priority = 10;
         specific.name = "specific".into();
         let rules = vec![generic, specific];
@@ -308,13 +342,11 @@ mod tests {
     #[test]
     fn first_matching_rule_skips_disabled_rules() {
         let tx = tx_with(Some("REWE Markt"), None, -1299);
-        let mut disabled =
-            rule_single(MatchField::Counterparty, MatchOp::Contains("REWE".into()));
+        let mut disabled = rule_single(MatchField::Counterparty, MatchOp::Contains("REWE".into()));
         disabled.enabled = false;
         disabled.priority = 1;
         disabled.name = "disabled".into();
-        let mut active =
-            rule_single(MatchField::Counterparty, MatchOp::Contains("REWE".into()));
+        let mut active = rule_single(MatchField::Counterparty, MatchOp::Contains("REWE".into()));
         active.priority = 100;
         active.name = "active".into();
         let rules = vec![disabled, active];
@@ -342,7 +374,10 @@ mod tests {
 
     #[test]
     fn equals_is_case_insensitive() {
-        let rule = rule_single(MatchField::Description, MatchOp::Equals("Gehalt Mai".into()));
+        let rule = rule_single(
+            MatchField::Description,
+            MatchOp::Equals("Gehalt Mai".into()),
+        );
         let upper = tx_with(None, Some("GEHALT MAI"), 150_000);
         let lower = tx_with(None, Some("gehalt mai"), 150_000);
         assert!(match_rule(&rule, &ctx_with(&upper, None)));
@@ -351,7 +386,10 @@ mod tests {
 
     #[test]
     fn starts_with_is_case_insensitive() {
-        let rule = rule_single(MatchField::Counterparty, MatchOp::StartsWith("Inter".into()));
+        let rule = rule_single(
+            MatchField::Counterparty,
+            MatchOp::StartsWith("Inter".into()),
+        );
         let upper = tx_with(Some("INTERSPAR DANKT 8440"), None, -2500);
         assert!(match_rule(&rule, &ctx_with(&upper, None)));
     }

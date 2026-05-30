@@ -1,23 +1,35 @@
 use tauri::State;
 
 use crate::commands::accounts::{CommandError, DbState};
-use crate::db::securities::{
-    self as db_securities, NewSecurityPayload, UpdateSecurityPayload,
-};
+use crate::db::securities::{self as db_securities, NewSecurityPayload, UpdateSecurityPayload};
 use crate::model::Security;
 
 const ALLOWED_ASSET_TYPES: &[&str] = &[
-    "stock", "etf_equity", "etf_bond", "etf_reit", "bond", "crypto", "other",
+    "stock",
+    "etf_equity",
+    "etf_bond",
+    "etf_reit",
+    "bond",
+    "crypto",
+    "other",
 ];
 
 fn normalize_isin(input: &str) -> Result<String, CommandError> {
-    let cleaned: String = input.chars().filter(|c| !c.is_whitespace()).collect::<String>().to_uppercase();
+    let cleaned: String = input
+        .chars()
+        .filter(|c| !c.is_whitespace())
+        .collect::<String>()
+        .to_uppercase();
     if cleaned.len() != 12 {
-        return Err(CommandError { message: format!("isin must be 12 chars, got {}", cleaned.len()) });
+        return Err(CommandError {
+            message: format!("isin must be 12 chars, got {}", cleaned.len()),
+        });
     }
     let bytes = cleaned.as_bytes();
     let country_ok = bytes[0].is_ascii_uppercase() && bytes[1].is_ascii_uppercase();
-    let body_ok = bytes[2..11].iter().all(|c| c.is_ascii_alphanumeric() && !c.is_ascii_lowercase());
+    let body_ok = bytes[2..11]
+        .iter()
+        .all(|c| c.is_ascii_alphanumeric() && !c.is_ascii_lowercase());
     let check_ok = bytes[11].is_ascii_digit();
     if !(country_ok && body_ok && check_ok) {
         return Err(CommandError {
@@ -46,10 +58,7 @@ pub async fn list_securities(
 }
 
 #[tauri::command]
-pub async fn get_security(
-    state: State<'_, DbState>,
-    id: i64,
-) -> Result<Security, CommandError> {
+pub async fn get_security(state: State<'_, DbState>, id: i64) -> Result<Security, CommandError> {
     Ok(db_securities::get_security(&state.pool(), id).await?)
 }
 
@@ -59,7 +68,9 @@ pub async fn create_security(
     payload: NewSecurityPayload,
 ) -> Result<Security, CommandError> {
     if payload.name.trim().is_empty() {
-        return Err(CommandError { message: "name must not be empty".into() });
+        return Err(CommandError {
+            message: "name must not be empty".into(),
+        });
     }
     let isin = normalize_isin(&payload.isin)?;
     validate_asset_type(&payload.asset_type)?;
@@ -86,7 +97,9 @@ pub async fn update_security(
 ) -> Result<Security, CommandError> {
     if let Some(n) = &payload.name {
         if n.trim().is_empty() {
-            return Err(CommandError { message: "name must not be empty".into() });
+            return Err(CommandError {
+                message: "name must not be empty".into(),
+            });
         }
     }
     let isin = match &payload.isin {
@@ -101,10 +114,7 @@ pub async fn update_security(
 }
 
 #[tauri::command]
-pub async fn delete_security(
-    state: State<'_, DbState>,
-    id: i64,
-) -> Result<bool, CommandError> {
+pub async fn delete_security(state: State<'_, DbState>, id: i64) -> Result<bool, CommandError> {
     Ok(db_securities::delete_security(&state.pool(), id).await?)
 }
 
@@ -125,8 +135,8 @@ mod tests {
 
     #[test]
     fn normalize_isin_rejects_bad_country_or_check() {
-        assert!(normalize_isin("123456789012").is_err());      // no country letters
-        assert!(normalize_isin("DE000716460X").is_err());      // check digit not numeric
+        assert!(normalize_isin("123456789012").is_err()); // no country letters
+        assert!(normalize_isin("DE000716460X").is_err()); // check digit not numeric
     }
 
     #[test]

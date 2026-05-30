@@ -116,10 +116,11 @@ pub async fn ready_to_assign(pool: &SqlitePool) -> DbResult<i64> {
         sqlx::query_as("SELECT COALESCE(SUM(amount_cents),0) FROM bucket_allocations")
             .fetch_one(pool)
             .await?;
-    let (assigned,): (i64,) =
-        sqlx::query_as("SELECT COALESCE(SUM(amount_cents),0) FROM transactions WHERE bucket_id IS NOT NULL")
-            .fetch_one(pool)
-            .await?;
+    let (assigned,): (i64,) = sqlx::query_as(
+        "SELECT COALESCE(SUM(amount_cents),0) FROM transactions WHERE bucket_id IS NOT NULL",
+    )
+    .fetch_one(pool)
+    .await?;
     Ok(cash - (alloc + assigned))
 }
 
@@ -343,7 +344,9 @@ mod tests {
         .await
         .unwrap();
 
-        move_between_buckets(&pool, a, b, 20000, None).await.unwrap();
+        move_between_buckets(&pool, a, b, 20000, None)
+            .await
+            .unwrap();
 
         assert_eq!(bucket_cash_balance(&pool, a).await.unwrap(), 30000);
         assert_eq!(bucket_cash_balance(&pool, b).await.unwrap(), 20000);

@@ -40,13 +40,19 @@ impl super::Importer for TradeRepublicCsv {
 /// Validates an ISIN against the format `[A-Z]{2}[A-Z0-9]{9}[0-9]`.
 /// Mirrors the CHECK constraint in the database.
 fn is_valid_isin(s: &str) -> bool {
-    if s.len() != 12 { return false; }
+    if s.len() != 12 {
+        return false;
+    }
     let mut chars = s.chars();
     let c1 = chars.next().unwrap();
     let c2 = chars.next().unwrap();
-    if !c1.is_ascii_uppercase() || !c2.is_ascii_uppercase() { return false; }
+    if !c1.is_ascii_uppercase() || !c2.is_ascii_uppercase() {
+        return false;
+    }
     let mut middle = chars.by_ref().take(9);
-    if !middle.all(|c| c.is_ascii_uppercase() || c.is_ascii_digit()) { return false; }
+    if !middle.all(|c| c.is_ascii_uppercase() || c.is_ascii_digit()) {
+        return false;
+    }
     let last = chars.next();
     matches!(last, Some(c) if c.is_ascii_digit())
 }
@@ -57,9 +63,7 @@ fn is_valid_isin(s: &str) -> bool {
 fn extract_isin_from_text(text: &str) -> Option<String> {
     // Split on whitespace with comma/dot trimming; test each token against is_valid_isin.
     for raw in text.split_whitespace() {
-        let token: String = raw.chars()
-            .filter(|c| c.is_ascii_alphanumeric())
-            .collect();
+        let token: String = raw.chars().filter(|c| c.is_ascii_alphanumeric()).collect();
         // Slide window of length 12 over the token (in case ISIN sits inside a longer string)
         if token.len() >= 12 {
             for start in 0..=token.len() - 12 {
@@ -179,19 +183,22 @@ fn parse_trade_fields(
         Some(convert_fx_rate(fx_rate_csv)?)
     };
 
-    Ok((Some(side.to_string()), Some(RawTradeFields {
-        isin,
-        asset_class_raw: asset_class.to_string(),
-        name: name.to_string(),
-        side: side.to_string(),
-        shares_micro,
-        unit_price_micro,
-        fee_cents,
-        kest_cents: tax_cents,              // TR provides a single tax total → AT capital gains tax
-        withholding_tax_cents: 0,
-        fx_rate_micro,
-        fusion_group: None,
-    })))
+    Ok((
+        Some(side.to_string()),
+        Some(RawTradeFields {
+            isin,
+            asset_class_raw: asset_class.to_string(),
+            name: name.to_string(),
+            side: side.to_string(),
+            shares_micro,
+            unit_price_micro,
+            fee_cents,
+            kest_cents: tax_cents, // TR provides a single tax total → AT capital gains tax
+            withholding_tax_cents: 0,
+            fx_rate_micro,
+            fusion_group: None,
+        }),
+    ))
 }
 
 /// Parses a decimal string into micro-units (×1e6). Truncates to 6 digits
@@ -207,16 +214,16 @@ fn parse_micro(s: &str) -> ImportResult<i64> {
     let int_part = parts.next().unwrap_or("0");
     let frac_part = parts.next().unwrap_or("");
 
-    let int_val: i64 = int_part
-        .parse()
-        .map_err(|e: std::num::ParseIntError| ImportError::Parse(format!("micro int '{int_part}': {e}")))?;
+    let int_val: i64 = int_part.parse().map_err(|e: std::num::ParseIntError| {
+        ImportError::Parse(format!("micro int '{int_part}': {e}"))
+    })?;
     let frac_val: i64 = if frac_part.is_empty() {
         0
     } else {
         let padded = format!("{:0<6}", frac_part);
-        padded[..6]
-            .parse()
-            .map_err(|e: std::num::ParseIntError| ImportError::Parse(format!("micro frac '{frac_part}': {e}")))?
+        padded[..6].parse().map_err(|e: std::num::ParseIntError| {
+            ImportError::Parse(format!("micro frac '{frac_part}': {e}"))
+        })?
     };
     let micro = int_val
         .checked_mul(1_000_000)
@@ -236,11 +243,10 @@ fn convert_fx_rate(csv: &str) -> ImportResult<i64> {
     Ok(1_000_000_000_000_i64 / micro_per_eur)
 }
 
-
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::Importer as _;
+    use super::*;
     use chrono::NaiveDate;
 
     const HEADER: &str = "\"datetime\",\"date\",\"account_type\",\"category\",\"type\",\"asset_class\",\"name\",\"symbol\",\"shares\",\"price\",\"amount\",\"fee\",\"tax\",\"currency\",\"original_amount\",\"original_currency\",\"fx_rate\",\"description\",\"transaction_id\",\"counterparty_name\",\"counterparty_iban\",\"payment_reference\",\"mcc_code\"";
@@ -252,12 +258,18 @@ mod tests {
         let txs = TradeRepublicCsv.parse(csv.as_bytes()).unwrap().raws;
         assert_eq!(txs.len(), 1);
         let t = &txs[0];
-        assert_eq!(t.booking_date, NaiveDate::from_ymd_opt(2025, 5, 13).unwrap());
+        assert_eq!(
+            t.booking_date,
+            NaiveDate::from_ymd_opt(2025, 5, 13).unwrap()
+        );
         assert_eq!(t.amount_cents, -630);
         assert_eq!(t.currency, "EUR");
         assert_eq!(t.counterparty.as_deref(), Some("Acme Store 42"));
         assert_eq!(t.purpose, None);
-        assert_eq!(t.raw_ref.as_deref(), Some("00000000-0000-0000-0000-000000000001"));
+        assert_eq!(
+            t.raw_ref.as_deref(),
+            Some("00000000-0000-0000-0000-000000000001")
+        );
     }
 
     #[test]
@@ -268,7 +280,10 @@ mod tests {
         let txs = TradeRepublicCsv.parse(csv.as_bytes()).unwrap().raws;
         let t = &txs[0];
         assert_eq!(t.amount_cents, 10_000);
-        assert_eq!(t.counterparty.as_deref(), Some("Incoming transfer from Alice Example"));
+        assert_eq!(
+            t.counterparty.as_deref(),
+            Some("Incoming transfer from Alice Example")
+        );
     }
 
     #[test]
@@ -294,8 +309,10 @@ mod tests {
         assert!(!txs.is_empty(), "no rows parsed");
         eprintln!("→ {} rows", txs.len());
         for t in txs.iter().take(3) {
-            eprintln!("  {} | {:>8}¢ | {} | cp={:?} purp={:?}",
-                t.booking_date, t.amount_cents, t.currency, t.counterparty, t.purpose);
+            eprintln!(
+                "  {} | {:>8}¢ | {} | cp={:?} purp={:?}",
+                t.booking_date, t.amount_cents, t.currency, t.counterparty, t.purpose
+            );
         }
     }
 
@@ -347,10 +364,14 @@ mod tests {
 
         // 6d: count trade rows + sample validation
         let trades: Vec<_> = txs.iter().filter(|t| t.trade.is_some()).collect();
-        assert!(!trades.is_empty(), "expected at least 1 trade in real fixture");
+        assert!(
+            !trades.is_empty(),
+            "expected at least 1 trade in real fixture"
+        );
         eprintln!("→ {} trade rows", trades.len());
 
-        let buy_count = trades.iter()
+        let buy_count = trades
+            .iter()
             .filter(|t| t.kind.as_deref() == Some("buy"))
             .count();
         assert!(buy_count > 0, "expected at least 1 buy");
@@ -359,9 +380,14 @@ mod tests {
         let first = trades.first().unwrap();
         let t_fields = first.trade.as_ref().unwrap();
         assert_eq!(t_fields.isin.len(), 12, "ISIN should be 12 chars");
-        assert!(t_fields.isin.chars().all(|c| c.is_ascii_alphanumeric()), "ISIN alphanumeric");
+        assert!(
+            t_fields.isin.chars().all(|c| c.is_ascii_alphanumeric()),
+            "ISIN alphanumeric"
+        );
 
-        eprintln!("✓ 328 rows, sum=469_939¢ (4699,39 €), unique ids, all EUR, all with counterparty");
+        eprintln!(
+            "✓ 328 rows, sum=469_939¢ (4699,39 €), unique ids, all EUR, all with counterparty"
+        );
     }
 
     #[test]
@@ -451,9 +477,9 @@ mod tests {
 
     #[test]
     fn is_valid_isin_accepts_typical_isins() {
-        assert!(is_valid_isin("LU0290358497"));  // XEON
-        assert!(is_valid_isin("IE00BK5BQT80"));  // VWCE
-        assert!(is_valid_isin("XF000BTC0017"));  // TR crypto ISIN for Bitcoin
+        assert!(is_valid_isin("LU0290358497")); // XEON
+        assert!(is_valid_isin("IE00BK5BQT80")); // VWCE
+        assert!(is_valid_isin("XF000BTC0017")); // TR crypto ISIN for Bitcoin
         assert!(!is_valid_isin("DE000A1B2C3D")); // last char must be a digit — invalid
     }
 
@@ -461,16 +487,19 @@ mod tests {
     fn is_valid_isin_rejects_short_or_malformed() {
         assert!(!is_valid_isin("BTC"));
         assert!(!is_valid_isin(""));
-        assert!(!is_valid_isin("LU029035849"));    // 11 characters
-        assert!(!is_valid_isin("LU02903584977"));  // 13 characters
-        assert!(!is_valid_isin("lu0290358497"));   // lowercase
-        assert!(!is_valid_isin("LU029035849X"));   // last char not a digit
+        assert!(!is_valid_isin("LU029035849")); // 11 characters
+        assert!(!is_valid_isin("LU02903584977")); // 13 characters
+        assert!(!is_valid_isin("lu0290358497")); // lowercase
+        assert!(!is_valid_isin("LU029035849X")); // last char not a digit
     }
 
     #[test]
     fn extract_isin_from_text_finds_crypto_isin() {
         let desc = "Buy trade XF000BTC0017 Bitcoin, quantity: 0.004154";
-        assert_eq!(extract_isin_from_text(desc), Some("XF000BTC0017".to_string()));
+        assert_eq!(
+            extract_isin_from_text(desc),
+            Some("XF000BTC0017".to_string())
+        );
     }
 
     #[test]
@@ -483,7 +512,10 @@ mod tests {
     fn extract_isin_from_text_handles_punctuation() {
         // ISIN at word-end followed by comma
         let desc = "Sell XF000BTC0017, see notes";
-        assert_eq!(extract_isin_from_text(desc), Some("XF000BTC0017".to_string()));
+        assert_eq!(
+            extract_isin_from_text(desc),
+            Some("XF000BTC0017".to_string())
+        );
     }
 
     #[test]
@@ -499,7 +531,7 @@ mod tests {
         let trade = t.trade.as_ref().expect("trade fields set");
         assert_eq!(trade.isin, "XF000BTC0017");
         assert_eq!(trade.asset_class_raw, "CRYPTO");
-        assert_eq!(trade.shares_micro, 4154);   // 0.0041540000 × 1_000_000 ≈ 4154
+        assert_eq!(trade.shares_micro, 4154); // 0.0041540000 × 1_000_000 ≈ 4154
     }
 
     #[test]
@@ -510,8 +542,14 @@ mod tests {
         let txs = TradeRepublicCsv.parse(csv.as_bytes()).expect("parse").raws;
         assert_eq!(txs.len(), 1);
         let t = &txs[0];
-        assert!(t.kind.is_none(), "kind should be None when no valid ISIN found");
-        assert!(t.trade.is_none(), "trade should be None when no valid ISIN found");
+        assert!(
+            t.kind.is_none(),
+            "kind should be None when no valid ISIN found"
+        );
+        assert!(
+            t.trade.is_none(),
+            "trade should be None when no valid ISIN found"
+        );
     }
 
     #[test]

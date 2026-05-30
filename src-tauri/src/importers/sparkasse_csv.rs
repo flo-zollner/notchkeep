@@ -1,6 +1,4 @@
-use super::csv_bank_statement::{
-    parse_csv_bank_statement, CsvBankStatementConfig, CsvEncoding,
-};
+use super::csv_bank_statement::{parse_csv_bank_statement, CsvBankStatementConfig, CsvEncoding};
 use super::{ImportResult, Importer, ParseResult};
 
 /// Reshape preprocessor for non-RFC-compliant Sparkasse George CSV.
@@ -21,23 +19,36 @@ fn reshape_sparkasse_rows(text: &str) -> String {
     let mut lines = text.split_inclusive('\n');
 
     // Parse header
-    let Some(header_line) = lines.next() else { return text.to_string(); };
-    let (header_content, header_terminator) = match header_line.find(|c: char| c == '\n' || c == '\r') {
-        Some(i) => (&header_line[..i], &header_line[i..]),
-        None => (header_line, ""),
+    let Some(header_line) = lines.next() else {
+        return text.to_string();
     };
+    let (header_content, header_terminator) =
+        match header_line.find(|c: char| c == '\n' || c == '\r') {
+            Some(i) => (&header_line[..i], &header_line[i..]),
+            None => (header_line, ""),
+        };
     let header_parts: Vec<&str> = header_content.split(',').collect();
 
     let normalize = |s: &str| s.trim().to_lowercase();
     let find_col = |name: &str| -> Option<usize> {
-        header_parts.iter().position(|h| normalize(h) == normalize(name))
+        header_parts
+            .iter()
+            .position(|h| normalize(h) == normalize(name))
     };
 
     // Locate required columns by name — if any are missing, pass through unchanged
-    let Some(partner_name_idx) = find_col("Partner Name") else { return text.to_string(); };
-    let Some(amount_idx) = find_col("Amount") else { return text.to_string(); };
-    let Some(currency_idx_in_header) = find_col("Currency") else { return text.to_string(); };
-    let Some(booking_idx_in_header) = find_col("Booking details") else { return text.to_string(); };
+    let Some(partner_name_idx) = find_col("Partner Name") else {
+        return text.to_string();
+    };
+    let Some(amount_idx) = find_col("Amount") else {
+        return text.to_string();
+    };
+    let Some(currency_idx_in_header) = find_col("Currency") else {
+        return text.to_string();
+    };
+    let Some(booking_idx_in_header) = find_col("Booking details") else {
+        return text.to_string();
+    };
 
     // Sanity: exactly 4 simple columns between Partner Name and Amount
     // (Partner IBAN, BIC/SWIFT, Partner Account Number, Bank code)
@@ -84,22 +95,27 @@ fn reshape_sparkasse_rows(text: &str) -> String {
         }
 
         // 1. Currency anchor: first 3-letter ASCII-alpha field at or after amount_idx
-        let currency_idx_found = (amount_idx..n).find(|&i| {
-            parts[i].len() == 3 && parts[i].chars().all(|c| c.is_ascii_alphabetic())
-        });
+        let currency_idx_found = (amount_idx..n)
+            .find(|&i| parts[i].len() == 3 && parts[i].chars().all(|c| c.is_ascii_alphabetic()));
         let Some(currency_idx_found) = currency_idx_found else {
-            out.push_str(content); out.push_str(terminator); continue;
+            out.push_str(content);
+            out.push_str(terminator);
+            continue;
         };
         if currency_idx_found == amount_idx {
             // Amount column empty → bail
-            out.push_str(content); out.push_str(terminator); continue;
+            out.push_str(content);
+            out.push_str(terminator);
+            continue;
         }
 
         // 2. Amount greedy backward: longest merge of parts[k..currency_idx_found]
         // that satisfies is_valid_amount. k=1..=4 (max 4 parts for X,YYY,YYY,YYY.YY).
         let mut amount_start_idx: Option<usize> = None;
         for k in (1..=4usize).rev() {
-            if currency_idx_found < k { continue; }
+            if currency_idx_found < k {
+                continue;
+            }
             let candidate_start = currency_idx_found - k;
             let candidate = parts[candidate_start..currency_idx_found].join(",");
             if is_valid_amount(&candidate) {
@@ -108,13 +124,17 @@ fn reshape_sparkasse_rows(text: &str) -> String {
             }
         }
         let Some(amount_start_idx) = amount_start_idx else {
-            out.push_str(content); out.push_str(terminator); continue;
+            out.push_str(content);
+            out.push_str(terminator);
+            continue;
         };
 
         // 3. Head via back-anchor: 4 simple fields directly before amount_start_idx
         // (Partner IBAN, BIC/SWIFT, Partner Account Number, Bank code)
         if amount_start_idx < partner_name_idx + 4 {
-            out.push_str(content); out.push_str(terminator); continue;
+            out.push_str(content);
+            out.push_str(terminator);
+            continue;
         }
         let partner_iban_data_idx = amount_start_idx - 4;
 
@@ -132,7 +152,9 @@ fn reshape_sparkasse_rows(text: &str) -> String {
         // 4. Tail: simple_tail_count simple fields at the end; Booking details absorbs the rest
         if n < simple_tail_count + currency_idx_found + 2 {
             // Not enough fields for the tail — bail
-            out.push_str(content); out.push_str(terminator); continue;
+            out.push_str(content);
+            out.push_str(terminator);
+            continue;
         }
         let booking_end = n - simple_tail_count;
         let booking_details = parts[currency_idx_found + 1..booking_end].join(",");
@@ -155,7 +177,11 @@ fn reshape_sparkasse_rows(text: &str) -> String {
             out_fields.push(t.to_string());
         }
 
-        let row_out = out_fields.iter().map(|f| quote_csv_field(f)).collect::<Vec<_>>().join(",");
+        let row_out = out_fields
+            .iter()
+            .map(|f| quote_csv_field(f))
+            .collect::<Vec<_>>()
+            .join(",");
         out.push_str(&row_out);
         out.push_str(terminator);
     }
@@ -164,18 +190,32 @@ fn reshape_sparkasse_rows(text: &str) -> String {
 
 fn is_valid_amount(s: &str) -> bool {
     let body = s.strip_prefix('-').unwrap_or(s);
-    let Some(dot_idx) = body.find('.') else { return false; };
+    let Some(dot_idx) = body.find('.') else {
+        return false;
+    };
     let int_part = &body[..dot_idx];
     let frac_part = &body[dot_idx + 1..];
-    if int_part.is_empty() || frac_part.is_empty() { return false; }
-    if !frac_part.chars().all(|c| c.is_ascii_digit()) { return false; }
+    if int_part.is_empty() || frac_part.is_empty() {
+        return false;
+    }
+    if !frac_part.chars().all(|c| c.is_ascii_digit()) {
+        return false;
+    }
     // int_part: pure digits, OR thousand-sep groups (first 1-3 digits, rest exactly 3)
-    if int_part.chars().all(|c| c.is_ascii_digit()) { return true; }
+    if int_part.chars().all(|c| c.is_ascii_digit()) {
+        return true;
+    }
     let groups: Vec<&str> = int_part.split(',').collect();
-    if groups.len() < 2 { return false; }
-    if groups[0].is_empty() || groups[0].len() > 3
-        || !groups[0].chars().all(|c| c.is_ascii_digit()) { return false; }
-    groups[1..].iter().all(|g| g.len() == 3 && g.chars().all(|c| c.is_ascii_digit()))
+    if groups.len() < 2 {
+        return false;
+    }
+    if groups[0].is_empty() || groups[0].len() > 3 || !groups[0].chars().all(|c| c.is_ascii_digit())
+    {
+        return false;
+    }
+    groups[1..]
+        .iter()
+        .all(|g| g.len() == 3 && g.chars().all(|c| c.is_ascii_digit()))
 }
 
 fn quote_csv_field(s: &str) -> String {
@@ -232,7 +272,11 @@ mod tests {
         let input = format!("{}{}", header, row);
         let out = reshape_sparkasse_rows(&input);
         // Amount should appear as quoted "2,000.00" in the output
-        assert!(out.contains(r#""2,000.00""#), "expected quoted amount, got: {}", out);
+        assert!(
+            out.contains(r#""2,000.00""#),
+            "expected quoted amount, got: {}",
+            out
+        );
     }
 
     #[test]
@@ -242,7 +286,11 @@ mod tests {
         let input = format!("{}{}", header, row);
         let out = reshape_sparkasse_rows(&input);
         // booking details "544323411 BU 19,54" should be quoted
-        assert!(out.contains(r#""544323411 BU 19,54""#), "expected quoted booking details, got: {}", out);
+        assert!(
+            out.contains(r#""544323411 BU 19,54""#),
+            "expected quoted booking details, got: {}",
+            out
+        );
     }
 
     #[test]
@@ -270,12 +318,12 @@ mod tests {
     fn is_valid_amount_rejects_malformed() {
         assert!(!is_valid_amount(""));
         assert!(!is_valid_amount("abc"));
-        assert!(!is_valid_amount("12"));            // no decimal
-        assert!(!is_valid_amount("12."));           // no frac
-        assert!(!is_valid_amount(".12"));           // no int
-        assert!(!is_valid_amount("1,23.45"));       // wrong group size
-        assert!(!is_valid_amount("12,345.6.7"));    // multiple dots
-        assert!(!is_valid_amount("38000-102.42"));  // the actual bug pattern
+        assert!(!is_valid_amount("12")); // no decimal
+        assert!(!is_valid_amount("12.")); // no frac
+        assert!(!is_valid_amount(".12")); // no int
+        assert!(!is_valid_amount("1,23.45")); // wrong group size
+        assert!(!is_valid_amount("12,345.6.7")); // multiple dots
+        assert!(!is_valid_amount("38000-102.42")); // the actual bug pattern
     }
 
     #[test]
@@ -286,20 +334,32 @@ mod tests {
         let input = format!("{}{}", header, row);
         let out = reshape_sparkasse_rows(&input);
         // Partner Name should be re-joined as one quoted field
-        assert!(out.contains(r#""Versicherung AG, Musterstr. 1, 1010 Wien""#),
-            "expected quoted partner name, got: {}", out);
+        assert!(
+            out.contains(r#""Versicherung AG, Musterstr. 1, 1010 Wien""#),
+            "expected quoted partner name, got: {}",
+            out
+        );
         // Amount should be -102.42 (unquoted, no commas)
-        assert!(out.contains(",-102.42,"), "expected raw amount -102.42, got: {}", out);
+        assert!(
+            out.contains(",-102.42,"),
+            "expected raw amount -102.42, got: {}",
+            out
+        );
         // Verify it parses end-to-end correctly (encode the raw input, not the reshaped
         // output — parse_csv_bank_statement calls reshape internally via preprocess hook)
-        let parsed = parse_csv_bank_statement(
-            &encode_to_utf16_le_with_bom(&input),
-            &SPARKASSE_CONFIG,
-        ).expect("parse must succeed");
+        let parsed =
+            parse_csv_bank_statement(&encode_to_utf16_le_with_bom(&input), &SPARKASSE_CONFIG)
+                .expect("parse must succeed");
         assert_eq!(parsed.raws.len(), 1);
         assert_eq!(parsed.raws[0].amount_cents, -10242);
-        assert_eq!(parsed.raws[0].counterparty.as_deref(), Some("Versicherung AG, Musterstr. 1, 1010 Wien"));
-        assert_eq!(parsed.raws[0].counterparty_iban.as_deref(), Some("AT010000000000000000"));
+        assert_eq!(
+            parsed.raws[0].counterparty.as_deref(),
+            Some("Versicherung AG, Musterstr. 1, 1010 Wien")
+        );
+        assert_eq!(
+            parsed.raws[0].counterparty_iban.as_deref(),
+            Some("AT010000000000000000")
+        );
     }
 
     #[test]
@@ -309,7 +369,11 @@ mod tests {
         let row = "AT000000000000000001,09.02.2026,Gesundheitskasse AG,AT020000000000000000,BICTESTZ,,60000,119.92,EUR,1234567890 WAH RB 160,00 Info 37,84 1234567890 WAZ RB 490,00 Info,\n";
         let input = format!("{}{}", header, row);
         let out = reshape_sparkasse_rows(&input);
-        assert!(out.contains(",119.92,"), "amount should pass through cleanly: {}", out);
+        assert!(
+            out.contains(",119.92,"),
+            "amount should pass through cleanly: {}",
+            out
+        );
         assert!(out.contains("Gesundheitskasse AG"));
         // Booking details should be quoted as one field
         assert!(out.contains(r#""1234567890 WAH RB 160,00 Info"#));
@@ -326,9 +390,18 @@ mod tests {
         let header_commas = header.trim().matches(',').count();
         for line in out.lines().skip(1) {
             // crude check: csv-parse each line and count fields
-            let mut rdr = csv::ReaderBuilder::new().has_headers(false).from_reader(line.as_bytes());
+            let mut rdr = csv::ReaderBuilder::new()
+                .has_headers(false)
+                .from_reader(line.as_bytes());
             if let Some(Ok(rec)) = rdr.records().next() {
-                assert_eq!(rec.len(), header_commas + 1, "row '{}' has {} fields, expected {}", line, rec.len(), header_commas + 1);
+                assert_eq!(
+                    rec.len(),
+                    header_commas + 1,
+                    "row '{}' has {} fields, expected {}",
+                    line,
+                    rec.len(),
+                    header_commas + 1
+                );
             }
         }
     }
@@ -341,8 +414,13 @@ mod tests {
         let input = format!("{}{}", header, row);
         let out = reshape_sparkasse_rows(&input);
         // Booking details should be reassembled and quoted
-        assert!(out.contains(r#""Smart Sparen Aktion ab 14.05.25 bis 13.05.26 Habenzinsen 1,00000% ab 14.05.25""#),
-            "expected quoted booking details, got: {}", out);
+        assert!(
+            out.contains(
+                r#""Smart Sparen Aktion ab 14.05.25 bis 13.05.26 Habenzinsen 1,00000% ab 14.05.25""#
+            ),
+            "expected quoted booking details, got: {}",
+            out
+        );
     }
 
     #[test]
@@ -355,7 +433,10 @@ mod tests {
         // The zero-amount row gets skipped (skip_zero_amounts=true), leaving 1
         assert_eq!(parsed.raws.len(), 1);
         assert_eq!(parsed.raws[0].amount_cents, 22000);
-        assert_eq!(parsed.raws[0].counterparty.as_deref(), Some("Max Mustermann"));
+        assert_eq!(
+            parsed.raws[0].counterparty.as_deref(),
+            Some("Max Mustermann")
+        );
     }
 
     #[test]
@@ -365,7 +446,10 @@ mod tests {
         let row = "a,b,c\n";
         let input = format!("{}{}", bad_header, row);
         let out = reshape_sparkasse_rows(&input);
-        assert_eq!(out, input, "unknown header should be passed through unchanged");
+        assert_eq!(
+            out, input,
+            "unknown header should be passed through unchanged"
+        );
     }
 
     fn encode_to_utf16_le_with_bom(s: &str) -> Vec<u8> {

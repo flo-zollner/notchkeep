@@ -28,7 +28,11 @@ pub async fn insert_raw_transaction(
     category_id: Option<i64>,
 ) -> DbResult<InsertOutcome> {
     let kind = raw.kind.as_deref().map(String::from).unwrap_or_else(|| {
-        if raw.amount_cents > 0 { "income".to_string() } else { "expense".to_string() }
+        if raw.amount_cents > 0 {
+            "income".to_string()
+        } else {
+            "expense".to_string()
+        }
     });
 
     let row: Option<(i64,)> = sqlx::query_as(
@@ -71,8 +75,15 @@ pub async fn insert_raw_transactions(
 ) -> DbResult<InsertCounts> {
     let mut counts = InsertCounts::default();
     for (raw, category_id) in raws {
-        match insert_raw_transaction(pool, account_id, source, source_file_hash, raw, *category_id)
-            .await?
+        match insert_raw_transaction(
+            pool,
+            account_id,
+            source,
+            source_file_hash,
+            raw,
+            *category_id,
+        )
+        .await?
         {
             InsertOutcome::Inserted(_) => counts.inserted += 1,
             InsertOutcome::Skipped => counts.skipped += 1,
@@ -235,14 +246,12 @@ mod tests {
         let account_id = seed_account(&pool, "TR").await;
         let tx = sample_tx();
 
-        let first =
-            insert_raw_transaction(&pool, account_id, "tr_csv", Some("h"), &tx, None)
-                .await
-                .unwrap();
-        let second =
-            insert_raw_transaction(&pool, account_id, "tr_csv", Some("h"), &tx, None)
-                .await
-                .unwrap();
+        let first = insert_raw_transaction(&pool, account_id, "tr_csv", Some("h"), &tx, None)
+            .await
+            .unwrap();
+        let second = insert_raw_transaction(&pool, account_id, "tr_csv", Some("h"), &tx, None)
+            .await
+            .unwrap();
 
         assert!(matches!(first, InsertOutcome::Inserted(_)));
         assert_eq!(second, InsertOutcome::Skipped);
@@ -263,10 +272,9 @@ mod tests {
         insert_raw_transaction(&pool, account_id, "tr_csv", Some("hash-1"), &tx, None)
             .await
             .unwrap();
-        let second =
-            insert_raw_transaction(&pool, account_id, "tr_csv", Some("hash-2"), &tx, None)
-                .await
-                .unwrap();
+        let second = insert_raw_transaction(&pool, account_id, "tr_csv", Some("hash-2"), &tx, None)
+            .await
+            .unwrap();
 
         assert!(matches!(second, InsertOutcome::Inserted(_)));
         let (count,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM transactions")
@@ -305,10 +313,9 @@ mod tests {
         let tx3 = sample_tx();
 
         let batch = vec![(tx1, None), (tx2, None), (tx3, None)];
-        let counts =
-            insert_raw_transactions(&pool, account_id, "tr_csv", Some("h"), &batch)
-                .await
-                .unwrap();
+        let counts = insert_raw_transactions(&pool, account_id, "tr_csv", Some("h"), &batch)
+            .await
+            .unwrap();
 
         assert_eq!(counts.inserted, 2);
         assert_eq!(counts.skipped, 1);
@@ -316,8 +323,8 @@ mod tests {
 
     #[tokio::test]
     async fn insert_raw_transaction_uses_kind_override() {
-        use chrono::NaiveDate;
         use crate::importers::RawTransaction;
+        use chrono::NaiveDate;
         let pool = connect_memory().await.unwrap();
         let (acc_id,): (i64,) = sqlx::query_as(
             "INSERT INTO accounts (name, kind, currency) VALUES ('Broker','broker','EUR') RETURNING id"
@@ -335,25 +342,32 @@ mod tests {
             counterparty_iban: None,
         };
         let out = insert_raw_transaction(&pool, acc_id, "tr_csv", None, &raw, None)
-            .await.unwrap();
+            .await
+            .unwrap();
         let tx_id = match out {
             InsertOutcome::Inserted(id) => id,
             _ => panic!("expected Inserted"),
         };
 
         let (kind,): (String,) = sqlx::query_as("SELECT kind FROM transactions WHERE id = ?")
-            .bind(tx_id).fetch_one(&pool).await.unwrap();
+            .bind(tx_id)
+            .fetch_one(&pool)
+            .await
+            .unwrap();
         assert_eq!(kind, "buy");
     }
 
     #[tokio::test]
     async fn insert_raw_transaction_defaults_kind_from_amount_sign() {
-        use chrono::NaiveDate;
         use crate::importers::RawTransaction;
+        use chrono::NaiveDate;
         let pool = connect_memory().await.unwrap();
         let (acc_id,): (i64,) = sqlx::query_as(
-            "INSERT INTO accounts (name, kind, currency) VALUES ('Cash','bank','EUR') RETURNING id"
-        ).fetch_one(&pool).await.unwrap();
+            "INSERT INTO accounts (name, kind, currency) VALUES ('Cash','bank','EUR') RETURNING id",
+        )
+        .fetch_one(&pool)
+        .await
+        .unwrap();
 
         let make_raw = |amount: i64, raw_ref: &str| RawTransaction {
             booking_date: NaiveDate::from_ymd_opt(2026, 5, 13).unwrap(),
@@ -369,18 +383,34 @@ mod tests {
 
         // positive amount → income
         let r1 = make_raw(5_000, "default-1");
-        let out1 = insert_raw_transaction(&pool, acc_id, "tr_csv", None, &r1, None).await.unwrap();
-        let tx1 = match out1 { InsertOutcome::Inserted(id) => id, _ => panic!() };
+        let out1 = insert_raw_transaction(&pool, acc_id, "tr_csv", None, &r1, None)
+            .await
+            .unwrap();
+        let tx1 = match out1 {
+            InsertOutcome::Inserted(id) => id,
+            _ => panic!(),
+        };
         let (kind1,): (String,) = sqlx::query_as("SELECT kind FROM transactions WHERE id = ?")
-            .bind(tx1).fetch_one(&pool).await.unwrap();
+            .bind(tx1)
+            .fetch_one(&pool)
+            .await
+            .unwrap();
         assert_eq!(kind1, "income");
 
         // negative amount → expense
         let r2 = make_raw(-5_000, "default-2");
-        let out2 = insert_raw_transaction(&pool, acc_id, "tr_csv", None, &r2, None).await.unwrap();
-        let tx2 = match out2 { InsertOutcome::Inserted(id) => id, _ => panic!() };
+        let out2 = insert_raw_transaction(&pool, acc_id, "tr_csv", None, &r2, None)
+            .await
+            .unwrap();
+        let tx2 = match out2 {
+            InsertOutcome::Inserted(id) => id,
+            _ => panic!(),
+        };
         let (kind2,): (String,) = sqlx::query_as("SELECT kind FROM transactions WHERE id = ?")
-            .bind(tx2).fetch_one(&pool).await.unwrap();
+            .bind(tx2)
+            .fetch_one(&pool)
+            .await
+            .unwrap();
         assert_eq!(kind2, "expense");
     }
 
@@ -388,12 +418,11 @@ mod tests {
     async fn category_id_is_persisted() {
         let pool = connect_memory().await.unwrap();
         let account_id = seed_account(&pool, "TR").await;
-        let (cat_id,): (i64,) = sqlx::query_as(
-            "INSERT INTO categories (name) VALUES ('Lebensmittel') RETURNING id",
-        )
-        .fetch_one(&pool)
-        .await
-        .unwrap();
+        let (cat_id,): (i64,) =
+            sqlx::query_as("INSERT INTO categories (name) VALUES ('Lebensmittel') RETURNING id")
+                .fetch_one(&pool)
+                .await
+                .unwrap();
 
         insert_raw_transaction(
             &pool,

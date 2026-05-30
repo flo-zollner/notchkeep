@@ -36,8 +36,10 @@ pub async fn import_raw_transactions(
     // default "Investitionen" category as a fallback when neither a rule nor
     // fuzzy matching fires.
     let invest_cat_id: Option<i64> = sqlx::query_scalar(
-        "SELECT id FROM categories WHERE parent_id IS NULL AND name = 'Investitionen' LIMIT 1"
-    ).fetch_optional(pool).await?;
+        "SELECT id FROM categories WHERE parent_id IS NULL AND name = 'Investitionen' LIMIT 1",
+    )
+    .fetch_optional(pool)
+    .await?;
 
     let mut report = ImportReport {
         parsed: raws.len(),
@@ -53,7 +55,11 @@ pub async fn import_raw_transactions(
             CategorizationOutcome::None => {
                 let is_invest = raw.trade.is_some()
                     || matches!(raw.kind.as_deref(), Some("buy") | Some("sell"));
-                if is_invest { invest_cat_id } else { None }
+                if is_invest {
+                    invest_cat_id
+                } else {
+                    None
+                }
             }
         };
         match insert_raw_transaction(pool, account_id, source, source_file_hash, raw, category_id)
@@ -70,24 +76,37 @@ pub async fn import_raw_transactions(
                 // 6d: append trade row when the row is a securities transaction.
                 if let Some(trade) = &raw.trade {
                     let sec_id = crate::db::securities::resolve_or_create_security(
-                        pool, &trade.isin, &trade.name, &trade.asset_class_raw,
-                    ).await?;
+                        pool,
+                        &trade.isin,
+                        &trade.name,
+                        &trade.asset_class_raw,
+                    )
+                    .await?;
 
                     // Variant B: assign the trade detail to the institution's depot account
                     // when the Tx currently belongs to the settlement/overnight account AND
                     // exactly one non-archived broker account exists in the same institution.
-                    let target_account_id = crate::db::accounts::resolve_trade_account(pool, account_id).await.ok().flatten();
+                    let target_account_id =
+                        crate::db::accounts::resolve_trade_account(pool, account_id)
+                            .await
+                            .ok()
+                            .flatten();
 
                     crate::db::trades::insert_trade_row(
-                        pool, tx_id, sec_id, &trade.side,
-                        trade.shares_micro, trade.unit_price_micro,
+                        pool,
+                        tx_id,
+                        sec_id,
+                        &trade.side,
+                        trade.shares_micro,
+                        trade.unit_price_micro,
                         trade.fee_cents,
                         trade.kest_cents,
                         trade.withholding_tax_cents,
                         trade.fx_rate_micro,
                         target_account_id,
                         trade.fusion_group.as_deref(),
-                    ).await?;
+                    )
+                    .await?;
                 }
             }
             InsertOutcome::Skipped => report.skipped += 1,
@@ -109,14 +128,21 @@ pub async fn apply_rules_to_uncategorized(pool: &SqlitePool) -> DbResult<usize> 
     }
 
     use crate::categorization::rules::{first_matching_rule, MatchContext};
-    let rows: Vec<(i64, i64, String, i64, Option<String>, Option<String>, Option<String>)> =
-        sqlx::query_as(
-            "SELECT id, account_id, booking_date, amount_cents, counterparty, purpose, manual_note
+    let rows: Vec<(
+        i64,
+        i64,
+        String,
+        i64,
+        Option<String>,
+        Option<String>,
+        Option<String>,
+    )> = sqlx::query_as(
+        "SELECT id, account_id, booking_date, amount_cents, counterparty, purpose, manual_note
              FROM transactions
              WHERE category_id IS NULL",
-        )
-        .fetch_all(pool)
-        .await?;
+    )
+    .fetch_all(pool)
+    .await?;
 
     let mut updated = 0usize;
     for (id, account_id, date_str, amount_cents, counterparty, purpose, manual_note) in rows {
@@ -158,10 +184,7 @@ pub async fn apply_rules_to_uncategorized(pool: &SqlitePool) -> DbResult<usize> 
 ///
 /// Description matching uses `manual_note ?? purpose` so that manually entered
 /// entries with a note remain reachable.
-pub async fn bulk_assign_category_by_rule(
-    pool: &SqlitePool,
-    rule_id: i64,
-) -> DbResult<usize> {
+pub async fn bulk_assign_category_by_rule(pool: &SqlitePool, rule_id: i64) -> DbResult<usize> {
     let rule = list_rules(pool)
         .await?
         .into_iter()
@@ -173,10 +196,12 @@ pub async fn bulk_assign_category_by_rule(
         return Ok(0);
     }
 
-    let placeholders = matching_ids.iter().map(|_| "?").collect::<Vec<_>>().join(",");
-    let sql = format!(
-        "UPDATE transactions SET category_id = ? WHERE id IN ({placeholders})"
-    );
+    let placeholders = matching_ids
+        .iter()
+        .map(|_| "?")
+        .collect::<Vec<_>>()
+        .join(",");
+    let sql = format!("UPDATE transactions SET category_id = ? WHERE id IN ({placeholders})");
     let mut q = sqlx::query(&sql).bind(rule.target_category_id);
     for id in &matching_ids {
         q = q.bind(*id);
@@ -187,44 +212,47 @@ pub async fn bulk_assign_category_by_rule(
 
 /// Counts how many existing transactions a (possibly not yet saved) rule would
 /// match. Used by the UI editor as a live-preview counter.
-pub async fn count_matching_transactions(
-    pool: &SqlitePool,
-    rule: &Rule,
-) -> DbResult<usize> {
+pub async fn count_matching_transactions(pool: &SqlitePool, rule: &Rule) -> DbResult<usize> {
     Ok(matching_transaction_ids(pool, rule).await?.len())
 }
 
-async fn matching_transaction_ids(
-    pool: &SqlitePool,
-    rule: &Rule,
-) -> DbResult<Vec<i64>> {
-    let rows: Vec<(i64, i64, String, i64, Option<String>, Option<String>, Option<String>)> =
-        sqlx::query_as(
-            "SELECT id, account_id, booking_date, amount_cents, counterparty, purpose, manual_note
+async fn matching_transaction_ids(pool: &SqlitePool, rule: &Rule) -> DbResult<Vec<i64>> {
+    let rows: Vec<(
+        i64,
+        i64,
+        String,
+        i64,
+        Option<String>,
+        Option<String>,
+        Option<String>,
+    )> = sqlx::query_as(
+        "SELECT id, account_id, booking_date, amount_cents, counterparty, purpose, manual_note
              FROM transactions",
-        )
-        .fetch_all(pool)
-        .await?;
+    )
+    .fetch_all(pool)
+    .await?;
 
     Ok(rows
         .into_iter()
-        .filter_map(|(id, account_id, date_str, amount_cents, counterparty, purpose, manual_note)| {
-            let booking_date = NaiveDate::parse_from_str(&date_str, "%Y-%m-%d").ok()?;
-            let description = manual_note.or(purpose);
-            let raw = RawTransaction {
-                booking_date,
-                amount_cents,
-                currency: String::new(),
-                counterparty,
-                purpose: description,
-                raw_ref: None,
-                kind: None,
-                trade: None,
-                counterparty_iban: None,
-            };
-            let ctx = MatchContext::new(&raw, Some(account_id));
-            match_rule(rule, &ctx).then_some(id)
-        })
+        .filter_map(
+            |(id, account_id, date_str, amount_cents, counterparty, purpose, manual_note)| {
+                let booking_date = NaiveDate::parse_from_str(&date_str, "%Y-%m-%d").ok()?;
+                let description = manual_note.or(purpose);
+                let raw = RawTransaction {
+                    booking_date,
+                    amount_cents,
+                    currency: String::new(),
+                    counterparty,
+                    purpose: description,
+                    raw_ref: None,
+                    kind: None,
+                    trade: None,
+                    counterparty_iban: None,
+                };
+                let ctx = MatchContext::new(&raw, Some(account_id));
+                match_rule(rule, &ctx).then_some(id)
+            },
+        )
         .collect())
 }
 
@@ -246,7 +274,10 @@ async fn load_history(pool: &SqlitePool) -> DbResult<Vec<HistoryEntry>> {
     .await?;
     Ok(rows
         .into_iter()
-        .map(|(counterparty, category_id)| HistoryEntry { counterparty, category_id })
+        .map(|(counterparty, category_id)| HistoryEntry {
+            counterparty,
+            category_id,
+        })
         .collect())
 }
 
@@ -268,7 +299,15 @@ async fn load_history(pool: &SqlitePool) -> DbResult<Vec<HistoryEntry>> {
 pub async fn detect_inter_account_transfers(pool: &SqlitePool) -> DbResult<usize> {
     // Candidates: paired_tx_id IS NULL + counterparty_iban set + IBAN match.
     // kind NOT IN trade-sides (transfer is NO LONGER excluded).
-    let candidates: Vec<(i64, i64, String, i64, String, Option<String>, Option<String>)> = sqlx::query_as(
+    let candidates: Vec<(
+        i64,
+        i64,
+        String,
+        i64,
+        String,
+        Option<String>,
+        Option<String>,
+    )> = sqlx::query_as(
         "SELECT t.id, t.account_id, t.booking_date, t.amount_cents, t.currency,
                 t.counterparty_iban, t.purpose
            FROM transactions t
@@ -277,23 +316,29 @@ pub async fn detect_inter_account_transfers(pool: &SqlitePool) -> DbResult<usize
             AND t.kind NOT IN ('buy', 'sell', 'dividend', 'corporate_action', 'tax', 'fee')
             AND UPPER(REPLACE(t.counterparty_iban, ' ', '')) IN (
                 SELECT UPPER(REPLACE(iban, ' ', '')) FROM accounts WHERE iban IS NOT NULL
-            )"
+            )",
     )
     .fetch_all(pool)
     .await?;
 
     let mut paired = 0usize;
-    for (orig_id, orig_account_id, booking_date, amount_cents, currency,
-         counterparty_iban, purpose) in candidates {
-
+    for (
+        orig_id,
+        orig_account_id,
+        booking_date,
+        amount_cents,
+        currency,
+        counterparty_iban,
+        purpose,
+    ) in candidates
+    {
         // Re-check: if this Tx was already paired by an earlier iteration
         // (e.g. because both sides appeared as candidates in the Vec), skip it.
-        let (already_paired,): (bool,) = sqlx::query_as(
-            "SELECT paired_tx_id IS NOT NULL FROM transactions WHERE id = ?1"
-        )
-        .bind(orig_id)
-        .fetch_one(pool)
-        .await?;
+        let (already_paired,): (bool,) =
+            sqlx::query_as("SELECT paired_tx_id IS NOT NULL FROM transactions WHERE id = ?1")
+                .bind(orig_id)
+                .fetch_one(pool)
+                .await?;
         if already_paired {
             continue;
         }
@@ -303,7 +348,7 @@ pub async fn detect_inter_account_transfers(pool: &SqlitePool) -> DbResult<usize
             "SELECT id, name, iban FROM accounts
               WHERE iban IS NOT NULL
                 AND UPPER(REPLACE(iban, ' ', '')) = UPPER(REPLACE(?1, ' ', ''))
-              LIMIT 1"
+              LIMIT 1",
         )
         .bind(counterparty_iban.as_deref().unwrap_or(""))
         .fetch_optional(pool)
@@ -332,7 +377,7 @@ pub async fn detect_inter_account_transfers(pool: &SqlitePool) -> DbResult<usize
                     AND paired_tx_id IS NULL
                     AND id != ?5
                   ORDER BY ABS(julianday(booking_date) - julianday(?2)), id
-                  LIMIT 1"
+                  LIMIT 1",
             )
             .bind(orig_account_id)
             .bind(&booking_date)
@@ -360,12 +405,11 @@ pub async fn detect_inter_account_transfers(pool: &SqlitePool) -> DbResult<usize
         }
 
         // Source account info
-        let source: Option<(String, Option<String>)> = sqlx::query_as(
-            "SELECT name, iban FROM accounts WHERE id = ?1"
-        )
-        .bind(orig_account_id)
-        .fetch_optional(pool)
-        .await?;
+        let source: Option<(String, Option<String>)> =
+            sqlx::query_as("SELECT name, iban FROM accounts WHERE id = ?1")
+                .bind(orig_account_id)
+                .fetch_optional(pool)
+                .await?;
         let Some((source_name, source_iban)) = source else {
             continue;
         };
@@ -389,7 +433,7 @@ pub async fn detect_inter_account_transfers(pool: &SqlitePool) -> DbResult<usize
                 AND paired_tx_id IS NULL
                 AND id != ?5
               ORDER BY ABS(julianday(booking_date) - julianday(?2)), id
-              LIMIT 1"
+              LIMIT 1",
         )
         .bind(target_account_id)
         .bind(&booking_date)
@@ -420,7 +464,7 @@ pub async fn detect_inter_account_transfers(pool: &SqlitePool) -> DbResult<usize
                      source_file_hash, kind, counterparty_iban, paired_tx_id)
                  VALUES (?1, ?2, ?3, ?4, ?5, ?6, NULL, NULL, 'auto_pair',
                          NULL, 'transfer', ?7, ?8)
-                 RETURNING id"
+                 RETURNING id",
             )
             .bind(target_account_id)
             .bind(&booking_date)
@@ -434,7 +478,7 @@ pub async fn detect_inter_account_transfers(pool: &SqlitePool) -> DbResult<usize
             .await?;
 
             let Some((mirror_id,)) = mirror else {
-                continue;  // dedup conflict with another entry — rare
+                continue; // dedup conflict with another entry — rare
             };
             sqlx::query("UPDATE transactions SET paired_tx_id=?1 WHERE id=?2")
                 .bind(mirror_id)
@@ -693,19 +737,17 @@ mod tests {
         .await
         .unwrap();
 
-        let count =
-            crate::import_flow::bulk_assign_category_by_rule(&pool, rule_id)
-                .await
-                .unwrap();
+        let count = crate::import_flow::bulk_assign_category_by_rule(&pool, rule_id)
+            .await
+            .unwrap();
 
         assert_eq!(count, 2);
-        let (categorized,): (i64,) = sqlx::query_as(
-            "SELECT COUNT(*) FROM transactions WHERE category_id = ?",
-        )
-        .bind(cat)
-        .fetch_one(&pool)
-        .await
-        .unwrap();
+        let (categorized,): (i64,) =
+            sqlx::query_as("SELECT COUNT(*) FROM transactions WHERE category_id = ?")
+                .bind(cat)
+                .fetch_one(&pool)
+                .await
+                .unwrap();
         assert_eq!(categorized, 2);
     }
 
@@ -743,10 +785,9 @@ mod tests {
         .await
         .unwrap();
 
-        let count =
-            crate::import_flow::bulk_assign_category_by_rule(&pool, rule_id)
-                .await
-                .unwrap();
+        let count = crate::import_flow::bulk_assign_category_by_rule(&pool, rule_id)
+            .await
+            .unwrap();
         assert_eq!(count, 1);
     }
 
@@ -794,26 +835,23 @@ mod tests {
         .await
         .unwrap();
 
-        let count =
-            crate::import_flow::bulk_assign_category_by_rule(&pool, rule_id)
-                .await
-                .unwrap();
+        let count = crate::import_flow::bulk_assign_category_by_rule(&pool, rule_id)
+            .await
+            .unwrap();
         assert_eq!(count, 1);
 
-        let cat_on_a: (Option<i64>,) = sqlx::query_as(
-            "SELECT category_id FROM transactions WHERE account_id = ?",
-        )
-        .bind(acc_a)
-        .fetch_one(&pool)
-        .await
-        .unwrap();
-        let cat_on_b: (Option<i64>,) = sqlx::query_as(
-            "SELECT category_id FROM transactions WHERE account_id = ?",
-        )
-        .bind(acc_b)
-        .fetch_one(&pool)
-        .await
-        .unwrap();
+        let cat_on_a: (Option<i64>,) =
+            sqlx::query_as("SELECT category_id FROM transactions WHERE account_id = ?")
+                .bind(acc_a)
+                .fetch_one(&pool)
+                .await
+                .unwrap();
+        let cat_on_b: (Option<i64>,) =
+            sqlx::query_as("SELECT category_id FROM transactions WHERE account_id = ?")
+                .bind(acc_b)
+                .fetch_one(&pool)
+                .await
+                .unwrap();
         assert_eq!(cat_on_a.0, Some(cat));
         assert_eq!(cat_on_b.0, None);
     }
@@ -851,24 +889,22 @@ mod tests {
         .await
         .unwrap();
 
-        let count =
-            crate::import_flow::bulk_assign_category_by_rule(&pool, rule_id)
-                .await
-                .unwrap();
+        let count = crate::import_flow::bulk_assign_category_by_rule(&pool, rule_id)
+            .await
+            .unwrap();
         assert_eq!(count, 0);
     }
 
     #[tokio::test]
     async fn bulk_assign_errors_for_missing_rule() {
         let pool = connect_memory().await.unwrap();
-        let result =
-            crate::import_flow::bulk_assign_category_by_rule(&pool, 9999).await;
+        let result = crate::import_flow::bulk_assign_category_by_rule(&pool, 9999).await;
         assert!(result.is_err(), "expected error for missing rule id");
     }
 
     #[tokio::test]
     async fn import_buy_row_creates_trade_and_security() {
-        use crate::importers::{RawTransaction, RawTradeFields};
+        use crate::importers::{RawTradeFields, RawTransaction};
         let pool = connect_memory().await.unwrap();
         let (acc_id,): (i64,) = sqlx::query_as(
             "INSERT INTO accounts (name, kind, currency) VALUES ('Broker','broker','EUR') RETURNING id"
@@ -898,29 +934,36 @@ mod tests {
             counterparty_iban: None,
         };
 
-        let report = import_raw_transactions(&pool, acc_id, "tr_csv", Some("hashX"), vec![raw], 0.85)
-            .await.unwrap();
+        let report =
+            import_raw_transactions(&pool, acc_id, "tr_csv", Some("hashX"), vec![raw], 0.85)
+                .await
+                .unwrap();
         assert_eq!(report.inserted, 1);
 
-        let (sec_count,): (i64,) = sqlx::query_as(
-            "SELECT COUNT(*) FROM securities WHERE isin = 'LU0290358497'"
-        ).fetch_one(&pool).await.unwrap();
+        let (sec_count,): (i64,) =
+            sqlx::query_as("SELECT COUNT(*) FROM securities WHERE isin = 'LU0290358497'")
+                .fetch_one(&pool)
+                .await
+                .unwrap();
         assert_eq!(sec_count, 1);
 
-        let (trade_count,): (i64,) = sqlx::query_as(
-            "SELECT COUNT(*) FROM securities_trades"
-        ).fetch_one(&pool).await.unwrap();
+        let (trade_count,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM securities_trades")
+            .fetch_one(&pool)
+            .await
+            .unwrap();
         assert_eq!(trade_count, 1);
 
-        let (kind,): (String,) = sqlx::query_as(
-            "SELECT kind FROM transactions WHERE raw_ref = 'buy-e2e-1'"
-        ).fetch_one(&pool).await.unwrap();
+        let (kind,): (String,) =
+            sqlx::query_as("SELECT kind FROM transactions WHERE raw_ref = 'buy-e2e-1'")
+                .fetch_one(&pool)
+                .await
+                .unwrap();
         assert_eq!(kind, "buy");
     }
 
     #[tokio::test]
     async fn reimport_buy_row_is_idempotent() {
-        use crate::importers::{RawTransaction, RawTradeFields};
+        use crate::importers::{RawTradeFields, RawTransaction};
         let pool = connect_memory().await.unwrap();
         let (acc_id,): (i64,) = sqlx::query_as(
             "INSERT INTO accounts (name, kind, currency) VALUES ('Broker','broker','EUR') RETURNING id"
@@ -941,15 +984,28 @@ mod tests {
                 side: "buy".into(),
                 shares_micro: 80_000_000,
                 unit_price_micro: Some(149_000_000),
-                fee_cents: 0, kest_cents: 0, withholding_tax_cents: 0, fx_rate_micro: None, fusion_group: None,
+                fee_cents: 0,
+                kest_cents: 0,
+                withholding_tax_cents: 0,
+                fx_rate_micro: None,
+                fusion_group: None,
             }),
             counterparty_iban: None,
         };
 
-        let r1 = import_raw_transactions(&pool, acc_id, "tr_csv", Some("hashX"), vec![raw.clone()], 0.85)
-            .await.unwrap();
+        let r1 = import_raw_transactions(
+            &pool,
+            acc_id,
+            "tr_csv",
+            Some("hashX"),
+            vec![raw.clone()],
+            0.85,
+        )
+        .await
+        .unwrap();
         let r2 = import_raw_transactions(&pool, acc_id, "tr_csv", Some("hashX"), vec![raw], 0.85)
-            .await.unwrap();
+            .await
+            .unwrap();
 
         assert_eq!(r1.inserted, 1);
         assert_eq!(r2.inserted, 0);
@@ -957,7 +1013,9 @@ mod tests {
 
         // exactly 1 trade row despite double import
         let (count,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM securities_trades")
-            .fetch_one(&pool).await.unwrap();
+            .fetch_one(&pool)
+            .await
+            .unwrap();
         assert_eq!(count, 1);
     }
 
@@ -1002,9 +1060,12 @@ mod tests {
         let pool = connect_memory().await.unwrap();
         let acc_a = seed_account(&pool, "Giro").await;
         seed_account_with_iban(&pool, "Savings", "DE89370400440532013000").await;
-        let tx_id = insert_tx_with_iban(&pool, acc_a, Some("DE89370400440532013000"), "expense").await;
+        let tx_id =
+            insert_tx_with_iban(&pool, acc_a, Some("DE89370400440532013000"), "expense").await;
 
-        let updated = crate::import_flow::detect_inter_account_transfers(&pool).await.unwrap();
+        let updated = crate::import_flow::detect_inter_account_transfers(&pool)
+            .await
+            .unwrap();
         assert_eq!(updated, 1);
 
         let (kind,): (String,) = sqlx::query_as("SELECT kind FROM transactions WHERE id = ?")
@@ -1020,9 +1081,12 @@ mod tests {
         let pool = connect_memory().await.unwrap();
         let acc = seed_account(&pool, "Giro").await;
         seed_account_with_iban(&pool, "Savings", "DE89370400440532013000").await;
-        let tx_id = insert_tx_with_iban(&pool, acc, Some("DE00000000000000000000"), "expense").await;
+        let tx_id =
+            insert_tx_with_iban(&pool, acc, Some("DE00000000000000000000"), "expense").await;
 
-        let updated = crate::import_flow::detect_inter_account_transfers(&pool).await.unwrap();
+        let updated = crate::import_flow::detect_inter_account_transfers(&pool)
+            .await
+            .unwrap();
         assert_eq!(updated, 0);
 
         let (kind,): (String,) = sqlx::query_as("SELECT kind FROM transactions WHERE id = ?")
@@ -1045,7 +1109,9 @@ mod tests {
             insert_tx_with_iban(&pool, acc, Some("DE89370400440532013000"), kind).await;
         }
 
-        let updated = crate::import_flow::detect_inter_account_transfers(&pool).await.unwrap();
+        let updated = crate::import_flow::detect_inter_account_transfers(&pool)
+            .await
+            .unwrap();
         assert_eq!(updated, 0, "trade kinds should not be re-tagged");
     }
 
@@ -1080,13 +1146,21 @@ mod tests {
         .await
         .unwrap();
 
-        let updated = crate::import_flow::detect_inter_account_transfers(&pool).await.unwrap();
+        let updated = crate::import_flow::detect_inter_account_transfers(&pool)
+            .await
+            .unwrap();
         assert_eq!(updated, 2);
 
         let (k1,): (String,) = sqlx::query_as("SELECT kind FROM transactions WHERE id = ?")
-            .bind(id1).fetch_one(&pool).await.unwrap();
+            .bind(id1)
+            .fetch_one(&pool)
+            .await
+            .unwrap();
         let (k2,): (String,) = sqlx::query_as("SELECT kind FROM transactions WHERE id = ?")
-            .bind(id2).fetch_one(&pool).await.unwrap();
+            .bind(id2)
+            .fetch_one(&pool)
+            .await
+            .unwrap();
         assert_eq!(k1, "transfer");
         assert_eq!(k2, "transfer");
     }
@@ -1113,11 +1187,16 @@ mod tests {
         .await
         .unwrap();
 
-        let updated = crate::import_flow::detect_inter_account_transfers(&pool).await.unwrap();
+        let updated = crate::import_flow::detect_inter_account_transfers(&pool)
+            .await
+            .unwrap();
         assert_eq!(updated, 1);
 
         let (kind,): (String,) = sqlx::query_as("SELECT kind FROM transactions WHERE id = ?")
-            .bind(tx_id).fetch_one(&pool).await.unwrap();
+            .bind(tx_id)
+            .fetch_one(&pool)
+            .await
+            .unwrap();
         assert_eq!(kind, "transfer");
     }
 
@@ -1139,11 +1218,16 @@ mod tests {
         .await
         .unwrap();
 
-        let updated = crate::import_flow::detect_inter_account_transfers(&pool).await.unwrap();
+        let updated = crate::import_flow::detect_inter_account_transfers(&pool)
+            .await
+            .unwrap();
         assert_eq!(updated, 0);
 
         let (kind,): (String,) = sqlx::query_as("SELECT kind FROM transactions WHERE id = ?")
-            .bind(tx_id).fetch_one(&pool).await.unwrap();
+            .bind(tx_id)
+            .fetch_one(&pool)
+            .await
+            .unwrap();
         assert_eq!(kind, "expense");
     }
 
@@ -1151,7 +1235,7 @@ mod tests {
     async fn detect_ignores_accounts_with_null_iban() {
         let pool = connect_memory().await.unwrap();
         let acc = seed_account(&pool, "Giro").await; // no IBAN on this account
-        // A second account also without IBAN
+                                                     // A second account also without IBAN
         seed_account(&pool, "Savings").await;
 
         // tx with a counterparty_iban that doesn't match any account iban (all NULL)
@@ -1166,11 +1250,16 @@ mod tests {
         .await
         .unwrap();
 
-        let updated = crate::import_flow::detect_inter_account_transfers(&pool).await.unwrap();
+        let updated = crate::import_flow::detect_inter_account_transfers(&pool)
+            .await
+            .unwrap();
         assert_eq!(updated, 0, "no account has an IBAN, nothing should match");
 
         let (kind,): (String,) = sqlx::query_as("SELECT kind FROM transactions WHERE id = ?")
-            .bind(tx_id).fetch_one(&pool).await.unwrap();
+            .bind(tx_id)
+            .fetch_one(&pool)
+            .await
+            .unwrap();
         assert_eq!(kind, "expense");
     }
 
@@ -1188,8 +1277,12 @@ mod tests {
                      source, kind, counterparty_iban)
                  VALUES (?1, ?2, -1000, 'EUR', ?3, 'tr_csv', 'expense', 'DE89370400440532013000')",
             )
-            .bind(acc).bind(day).bind(cp)
-            .execute(&pool).await.unwrap();
+            .bind(acc)
+            .bind(day)
+            .bind(cp)
+            .execute(&pool)
+            .await
+            .unwrap();
         }
         // 1 non-matching tx (different IBAN)
         sqlx::query(
@@ -1200,7 +1293,9 @@ mod tests {
         )
         .bind(acc).execute(&pool).await.unwrap();
 
-        let updated = crate::import_flow::detect_inter_account_transfers(&pool).await.unwrap();
+        let updated = crate::import_flow::detect_inter_account_transfers(&pool)
+            .await
+            .unwrap();
         assert_eq!(updated, 2, "only the 2 matching rows should be counted");
     }
 
@@ -1210,11 +1305,35 @@ mod tests {
         // Importing a trade row into the settlement account → securities_trades.account_id = depot.
         let pool = connect_memory().await.unwrap();
         sqlx::query("INSERT INTO institutions (name) VALUES ('TR')")
-            .execute(&pool).await.unwrap();
+            .execute(&pool)
+            .await
+            .unwrap();
         let (inst_id,): (i64,) = sqlx::query_as("SELECT id FROM institutions WHERE name='TR'")
-            .fetch_one(&pool).await.unwrap();
-        let verrechnung = crate::db::accounts::create_account(&pool, "V", "bank", "EUR", None, None, Some(inst_id)).await.unwrap();
-        let depot = crate::db::accounts::create_account(&pool, "D", "broker", "EUR", None, None, Some(inst_id)).await.unwrap();
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+        let verrechnung = crate::db::accounts::create_account(
+            &pool,
+            "V",
+            "bank",
+            "EUR",
+            None,
+            None,
+            Some(inst_id),
+        )
+        .await
+        .unwrap();
+        let depot = crate::db::accounts::create_account(
+            &pool,
+            "D",
+            "broker",
+            "EUR",
+            None,
+            None,
+            Some(inst_id),
+        )
+        .await
+        .unwrap();
 
         use crate::importers::{RawTradeFields, RawTransaction};
         use chrono::NaiveDate;
@@ -1242,15 +1361,23 @@ mod tests {
             counterparty_iban: None,
         };
 
-        let report = import_raw_transactions(&pool, verrechnung.id, "tr_csv", Some("h1"), vec![raw], 0.85)
-            .await.unwrap();
+        let report =
+            import_raw_transactions(&pool, verrechnung.id, "tr_csv", Some("h1"), vec![raw], 0.85)
+                .await
+                .unwrap();
         assert_eq!(report.inserted, 1);
 
         // securities_trades.account_id should point to the depot
-        let (st_acc,): (Option<i64>,) = sqlx::query_as(
-            "SELECT account_id FROM securities_trades LIMIT 1"
-        ).fetch_one(&pool).await.unwrap();
-        assert_eq!(st_acc, Some(depot.id), "trade should be routed to the depot");
+        let (st_acc,): (Option<i64>,) =
+            sqlx::query_as("SELECT account_id FROM securities_trades LIMIT 1")
+                .fetch_one(&pool)
+                .await
+                .unwrap();
+        assert_eq!(
+            st_acc,
+            Some(depot.id),
+            "trade should be routed to the depot"
+        );
     }
 
     #[tokio::test]
@@ -1258,10 +1385,25 @@ mod tests {
         // Institution has only a bank account, no broker → no routing, account_id NULL.
         let pool = connect_memory().await.unwrap();
         sqlx::query("INSERT INTO institutions (name) VALUES ('BankOnly')")
-            .execute(&pool).await.unwrap();
-        let (inst_id,): (i64,) = sqlx::query_as("SELECT id FROM institutions WHERE name='BankOnly'")
-            .fetch_one(&pool).await.unwrap();
-        let bank = crate::db::accounts::create_account(&pool, "Bank", "bank", "EUR", None, None, Some(inst_id)).await.unwrap();
+            .execute(&pool)
+            .await
+            .unwrap();
+        let (inst_id,): (i64,) =
+            sqlx::query_as("SELECT id FROM institutions WHERE name='BankOnly'")
+                .fetch_one(&pool)
+                .await
+                .unwrap();
+        let bank = crate::db::accounts::create_account(
+            &pool,
+            "Bank",
+            "bank",
+            "EUR",
+            None,
+            None,
+            Some(inst_id),
+        )
+        .await
+        .unwrap();
 
         use crate::importers::{RawTradeFields, RawTransaction};
         use chrono::NaiveDate;
@@ -1290,12 +1432,18 @@ mod tests {
         };
 
         import_raw_transactions(&pool, bank.id, "tr_csv", Some("h2"), vec![raw], 0.85)
-            .await.unwrap();
+            .await
+            .unwrap();
 
-        let (st_acc,): (Option<i64>,) = sqlx::query_as(
-            "SELECT account_id FROM securities_trades LIMIT 1"
-        ).fetch_one(&pool).await.unwrap();
-        assert_eq!(st_acc, None, "no broker in institution: account_id stays NULL");
+        let (st_acc,): (Option<i64>,) =
+            sqlx::query_as("SELECT account_id FROM securities_trades LIMIT 1")
+                .fetch_one(&pool)
+                .await
+                .unwrap();
+        assert_eq!(
+            st_acc, None,
+            "no broker in institution: account_id stays NULL"
+        );
     }
 
     #[tokio::test]
@@ -1303,31 +1451,60 @@ mod tests {
         // Tx already at broker → securities_trades.account_id NULL (falls back to tx.account_id).
         let pool = connect_memory().await.unwrap();
         sqlx::query("INSERT INTO institutions (name) VALUES ('TR')")
-            .execute(&pool).await.unwrap();
+            .execute(&pool)
+            .await
+            .unwrap();
         let (inst_id,): (i64,) = sqlx::query_as("SELECT id FROM institutions WHERE name='TR'")
-            .fetch_one(&pool).await.unwrap();
-        let depot = crate::db::accounts::create_account(&pool, "D", "broker", "EUR", None, None, Some(inst_id)).await.unwrap();
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+        let depot = crate::db::accounts::create_account(
+            &pool,
+            "D",
+            "broker",
+            "EUR",
+            None,
+            None,
+            Some(inst_id),
+        )
+        .await
+        .unwrap();
 
         use crate::importers::{RawTradeFields, RawTransaction};
         use chrono::NaiveDate;
         let raw = RawTransaction {
             booking_date: NaiveDate::from_ymd_opt(2026, 5, 15).unwrap(),
-            amount_cents: -50_000, currency: "EUR".into(), counterparty: Some("X".into()),
-            purpose: None, raw_ref: Some("tr-buy-3".into()), kind: Some("buy".into()),
+            amount_cents: -50_000,
+            currency: "EUR".into(),
+            counterparty: Some("X".into()),
+            purpose: None,
+            raw_ref: Some("tr-buy-3".into()),
+            kind: Some("buy".into()),
             trade: Some(RawTradeFields {
-                isin: "IE00BK5BQT81".into(), name: "X".into(), asset_class_raw: "ETF".into(),
-                side: "buy".into(), shares_micro: 5_000_000, unit_price_micro: Some(10_000_000),
-                fee_cents: 0, kest_cents: 0, withholding_tax_cents: 0, fx_rate_micro: None, fusion_group: None,
+                isin: "IE00BK5BQT81".into(),
+                name: "X".into(),
+                asset_class_raw: "ETF".into(),
+                side: "buy".into(),
+                shares_micro: 5_000_000,
+                unit_price_micro: Some(10_000_000),
+                fee_cents: 0,
+                kest_cents: 0,
+                withholding_tax_cents: 0,
+                fx_rate_micro: None,
+                fusion_group: None,
             }),
             counterparty_iban: None,
         };
 
         import_raw_transactions(&pool, depot.id, "tr_csv", Some("h3"), vec![raw], 0.85)
-            .await.unwrap();
+            .await
+            .unwrap();
 
-        let (st_acc,): (Option<i64>,) = sqlx::query_as(
-            "SELECT account_id FROM securities_trades LIMIT 1"
-        ).fetch_one(&pool).await.unwrap();
+        let (st_acc,): (Option<i64>,) =
+            sqlx::query_as("SELECT account_id FROM securities_trades LIMIT 1")
+                .fetch_one(&pool)
+                .await
+                .unwrap();
         assert_eq!(st_acc, None, "Tx already at broker: no redundant routing");
     }
 
@@ -1354,9 +1531,12 @@ mod tests {
         assert_eq!(paired, 1);
 
         // Original is now kind='transfer' and has paired_tx_id
-        let (orig_kind, orig_paired): (String, Option<i64>) = sqlx::query_as(
-            "SELECT kind, paired_tx_id FROM transactions WHERE id = ?1"
-        ).bind(orig_id).fetch_one(&pool).await.unwrap();
+        let (orig_kind, orig_paired): (String, Option<i64>) =
+            sqlx::query_as("SELECT kind, paired_tx_id FROM transactions WHERE id = ?1")
+                .bind(orig_id)
+                .fetch_one(&pool)
+                .await
+                .unwrap();
         assert_eq!(orig_kind, "transfer");
         assert!(orig_paired.is_some());
 
@@ -1366,7 +1546,7 @@ mod tests {
             "SELECT account_id, amount_cents, kind, source, paired_tx_id, counterparty FROM transactions WHERE id = ?1"
         ).bind(mirror_id).fetch_one(&pool).await.unwrap();
         assert_eq!(m_acc, tgt);
-        assert_eq!(m_amount, 10000);  // inverted
+        assert_eq!(m_amount, 10000); // inverted
         assert_eq!(m_kind, "transfer");
         assert_eq!(m_source, "auto_pair");
         assert_eq!(m_paired, Some(orig_id));
@@ -1397,7 +1577,9 @@ mod tests {
 
         // Total tx count = 2 (original + mirror), no duplicates
         let (cnt,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM transactions")
-            .fetch_one(&pool).await.unwrap();
+            .fetch_one(&pool)
+            .await
+            .unwrap();
         assert_eq!(cnt, 2);
     }
 
@@ -1417,15 +1599,27 @@ mod tests {
         ).bind(src).fetch_one(&pool).await.unwrap();
 
         let paired = detect_inter_account_transfers(&pool).await.unwrap();
-        assert_eq!(paired, 1, "self-transfer without partner counts as 1 processed");
+        assert_eq!(
+            paired, 1,
+            "self-transfer without partner counts as 1 processed"
+        );
 
         let (kind,): (String,) = sqlx::query_as("SELECT kind FROM transactions WHERE id=?1")
-            .bind(tx_id).fetch_one(&pool).await.unwrap();
-        assert_eq!(kind, "transfer", "self-transfer without partner marked as transfer");
+            .bind(tx_id)
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+        assert_eq!(
+            kind, "transfer",
+            "self-transfer without partner marked as transfer"
+        );
 
         // No mirror should be created
-        let (cnt,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM transactions WHERE source='auto_pair'")
-            .fetch_one(&pool).await.unwrap();
+        let (cnt,): (i64,) =
+            sqlx::query_as("SELECT COUNT(*) FROM transactions WHERE source='auto_pair'")
+                .fetch_one(&pool)
+                .await
+                .unwrap();
         assert_eq!(cnt, 0, "no mirror for self-transfer");
     }
 
@@ -1447,10 +1641,12 @@ mod tests {
 
         detect_inter_account_transfers(&pool).await.unwrap();
 
-        let (mirror_amount,): (i64,) = sqlx::query_as(
-            "SELECT amount_cents FROM transactions WHERE source = 'auto_pair'"
-        ).fetch_one(&pool).await.unwrap();
-        assert_eq!(mirror_amount, -500);  // outgoing on the target side
+        let (mirror_amount,): (i64,) =
+            sqlx::query_as("SELECT amount_cents FROM transactions WHERE source = 'auto_pair'")
+                .fetch_one(&pool)
+                .await
+                .unwrap();
+        assert_eq!(mirror_amount, -500); // outgoing on the target side
     }
 
     #[tokio::test]
@@ -1481,16 +1677,27 @@ mod tests {
 
         // No new Tx (3rd insert) should exist
         let (cnt,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM transactions")
-            .fetch_one(&pool).await.unwrap();
-        assert_eq!(cnt, 2, "no mirror should be auto-created when both sides existed");
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+        assert_eq!(
+            cnt, 2,
+            "no mirror should be auto-created when both sides existed"
+        );
 
         // Both linked
-        let (src_paired, src_kind): (Option<i64>, String) = sqlx::query_as(
-            "SELECT paired_tx_id, kind FROM transactions WHERE id=?1"
-        ).bind(src_id).fetch_one(&pool).await.unwrap();
-        let (tgt_paired, tgt_kind): (Option<i64>, String) = sqlx::query_as(
-            "SELECT paired_tx_id, kind FROM transactions WHERE id=?1"
-        ).bind(tgt_id).fetch_one(&pool).await.unwrap();
+        let (src_paired, src_kind): (Option<i64>, String) =
+            sqlx::query_as("SELECT paired_tx_id, kind FROM transactions WHERE id=?1")
+                .bind(src_id)
+                .fetch_one(&pool)
+                .await
+                .unwrap();
+        let (tgt_paired, tgt_kind): (Option<i64>, String) =
+            sqlx::query_as("SELECT paired_tx_id, kind FROM transactions WHERE id=?1")
+                .bind(tgt_id)
+                .fetch_one(&pool)
+                .await
+                .unwrap();
         assert_eq!(src_paired, Some(tgt_id));
         assert_eq!(tgt_paired, Some(src_id));
         assert_eq!(src_kind, "transfer");
@@ -1518,10 +1725,16 @@ mod tests {
         ).bind(src).execute(&pool).await.unwrap();
 
         let paired = detect_inter_account_transfers(&pool).await.unwrap();
-        assert_eq!(paired, 1, "kind=transfer + paired_tx_id NULL must be processed");
+        assert_eq!(
+            paired, 1,
+            "kind=transfer + paired_tx_id NULL must be processed"
+        );
 
-        let (cnt,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM transactions WHERE source='auto_pair'")
-            .fetch_one(&pool).await.unwrap();
+        let (cnt,): (i64,) =
+            sqlx::query_as("SELECT COUNT(*) FROM transactions WHERE source='auto_pair'")
+                .fetch_one(&pool)
+                .await
+                .unwrap();
         assert_eq!(cnt, 1);
     }
 
@@ -1561,9 +1774,15 @@ mod tests {
         let paired = detect_inter_account_transfers(&pool).await.unwrap();
         assert_eq!(paired, 1);
         // Now 3 Tx on tgt: the already-paired one + new mirror
-        let (auto_count,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM transactions WHERE source='auto_pair'")
-            .fetch_one(&pool).await.unwrap();
-        assert_eq!(auto_count, 1, "new mirror must be created because the existing Tx is already paired");
+        let (auto_count,): (i64,) =
+            sqlx::query_as("SELECT COUNT(*) FROM transactions WHERE source='auto_pair'")
+                .fetch_one(&pool)
+                .await
+                .unwrap();
+        assert_eq!(
+            auto_count, 1,
+            "new mirror must be created because the existing Tx is already paired"
+        );
     }
 
     #[tokio::test]
@@ -1596,17 +1815,24 @@ mod tests {
                 (?1, '2026-05-02', -1000, 'EUR', 'REWE Hamburg', 'manual', 'expense'),
                 (?1, '2026-05-03', -1000, 'EUR', 'EDEKA', 'manual', 'expense')",
         )
-        .bind(acc).execute(&pool).await.unwrap();
-
-        let count = crate::import_flow::apply_rules_to_uncategorized(&pool).await.unwrap();
-        assert_eq!(count, 2, "two REWE tx should be categorized, EDEKA stays uncategorized");
-
-        let rows: Vec<(String, Option<i64>)> = sqlx::query_as(
-            "SELECT counterparty, category_id FROM transactions ORDER BY id",
-        )
-        .fetch_all(&pool)
+        .bind(acc)
+        .execute(&pool)
         .await
         .unwrap();
+
+        let count = crate::import_flow::apply_rules_to_uncategorized(&pool)
+            .await
+            .unwrap();
+        assert_eq!(
+            count, 2,
+            "two REWE tx should be categorized, EDEKA stays uncategorized"
+        );
+
+        let rows: Vec<(String, Option<i64>)> =
+            sqlx::query_as("SELECT counterparty, category_id FROM transactions ORDER BY id")
+                .fetch_all(&pool)
+                .await
+                .unwrap();
         assert_eq!(rows[0], ("REWE Berlin".into(), Some(cat)));
         assert_eq!(rows[1], ("REWE Hamburg".into(), Some(cat)));
         assert_eq!(rows[2], ("EDEKA".into(), None));
@@ -1637,21 +1863,29 @@ mod tests {
         assert_eq!(paired, 1, "self-transfer counted as 1 pair");
 
         // Both are now kind=transfer, linked
-        let (out_kind, out_paired): (String, Option<i64>) = sqlx::query_as(
-            "SELECT kind, paired_tx_id FROM transactions WHERE id=?1"
-        ).bind(out_id).fetch_one(&pool).await.unwrap();
-        let (in_kind, in_paired): (String, Option<i64>) = sqlx::query_as(
-            "SELECT kind, paired_tx_id FROM transactions WHERE id=?1"
-        ).bind(in_id).fetch_one(&pool).await.unwrap();
+        let (out_kind, out_paired): (String, Option<i64>) =
+            sqlx::query_as("SELECT kind, paired_tx_id FROM transactions WHERE id=?1")
+                .bind(out_id)
+                .fetch_one(&pool)
+                .await
+                .unwrap();
+        let (in_kind, in_paired): (String, Option<i64>) =
+            sqlx::query_as("SELECT kind, paired_tx_id FROM transactions WHERE id=?1")
+                .bind(in_id)
+                .fetch_one(&pool)
+                .await
+                .unwrap();
         assert_eq!(out_kind, "transfer");
         assert_eq!(in_kind, "transfer");
         assert_eq!(out_paired, Some(in_id));
         assert_eq!(in_paired, Some(out_id));
 
         // No mirror Tx created
-        let (auto_count,): (i64,) = sqlx::query_as(
-            "SELECT COUNT(*) FROM transactions WHERE source='auto_pair'"
-        ).fetch_one(&pool).await.unwrap();
+        let (auto_count,): (i64,) =
+            sqlx::query_as("SELECT COUNT(*) FROM transactions WHERE source='auto_pair'")
+                .fetch_one(&pool)
+                .await
+                .unwrap();
         assert_eq!(auto_count, 0, "no mirror needed for self-transfer");
     }
 
@@ -1678,15 +1912,26 @@ mod tests {
         ).bind(tgt).fetch_one(&pool).await.unwrap();
 
         let paired = detect_inter_account_transfers(&pool).await.unwrap();
-        assert_eq!(paired, 1, "should link via fuzzy 3-day window, not create duplicate mirror");
+        assert_eq!(
+            paired, 1,
+            "should link via fuzzy 3-day window, not create duplicate mirror"
+        );
         let (cnt,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM transactions")
-            .fetch_one(&pool).await.unwrap();
-        assert_eq!(cnt, 2, "no mirror should be created since fuzzy match found");
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+        assert_eq!(
+            cnt, 2,
+            "no mirror should be created since fuzzy match found"
+        );
 
         // Both linked
-        let (s_paired,): (Option<i64>,) = sqlx::query_as(
-            "SELECT paired_tx_id FROM transactions WHERE id=?1"
-        ).bind(src_id).fetch_one(&pool).await.unwrap();
+        let (s_paired,): (Option<i64>,) =
+            sqlx::query_as("SELECT paired_tx_id FROM transactions WHERE id=?1")
+                .bind(src_id)
+                .fetch_one(&pool)
+                .await
+                .unwrap();
         assert_eq!(s_paired, Some(tgt_id));
     }
 
@@ -1706,7 +1951,13 @@ mod tests {
 
         detect_inter_account_transfers(&pool).await.unwrap();
         let (kind,): (String,) = sqlx::query_as("SELECT kind FROM transactions WHERE id=?1")
-            .bind(id).fetch_one(&pool).await.unwrap();
-        assert_eq!(kind, "transfer", "self-transfer without partner still marked as transfer");
+            .bind(id)
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+        assert_eq!(
+            kind, "transfer",
+            "self-transfer without partner still marked as transfer"
+        );
     }
 }

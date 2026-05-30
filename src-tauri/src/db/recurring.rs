@@ -125,7 +125,9 @@ pub async fn list_recurring(
     include_archived: bool,
 ) -> DbResult<Vec<RecurringPayment>> {
     let sql = if include_archived {
-        format!("SELECT {COLS} FROM recurring_payments ORDER BY archived ASC, name COLLATE NOCASE ASC")
+        format!(
+            "SELECT {COLS} FROM recurring_payments ORDER BY archived ASC, name COLLATE NOCASE ASC"
+        )
     } else {
         format!("SELECT {COLS} FROM recurring_payments WHERE archived = 0 ORDER BY name COLLATE NOCASE ASC")
     };
@@ -323,8 +325,12 @@ pub async fn recurring_overview(
     let today = chrono::Utc::now().date_naive();
     let cutoff = today + chrono::Duration::days((months_ahead as i64) * 30);
 
-    let tx_lower = (today - chrono::Duration::days(10)).format("%Y-%m-%d").to_string();
-    let tx_upper = (cutoff + chrono::Duration::days(10)).format("%Y-%m-%d").to_string();
+    let tx_lower = (today - chrono::Duration::days(10))
+        .format("%Y-%m-%d")
+        .to_string();
+    let tx_upper = (cutoff + chrono::Duration::days(10))
+        .format("%Y-%m-%d")
+        .to_string();
 
     #[derive(sqlx::FromRow)]
     struct TxRow {
@@ -338,7 +344,7 @@ pub async fn recurring_overview(
     let txs: Vec<TxRow> = sqlx::query_as(
         "SELECT id, account_id, booking_date, amount_cents, counterparty
            FROM transactions
-          WHERE booking_date >= ?1 AND booking_date <= ?2"
+          WHERE booking_date >= ?1 AND booking_date <= ?2",
     )
     .bind(&tx_lower)
     .bind(&tx_upper)
@@ -369,8 +375,14 @@ pub async fn recurring_overview(
                 };
                 let tx_cp = tx.counterparty.as_deref().unwrap_or("");
                 let rec_cp = rec.counterparty.as_deref().unwrap_or("");
-                if tx_matches_recurring(tx_cp, tx.amount_cents, tx_date,
-                                         rec_cp, rec.amount_cents, due) {
+                if tx_matches_recurring(
+                    tx_cp,
+                    tx.amount_cents,
+                    tx_date,
+                    rec_cp,
+                    rec.amount_cents,
+                    due,
+                ) {
                     let diff = (tx_date - due).num_days().abs();
                     if best.map(|(_, _, d)| diff < d).unwrap_or(true) {
                         best = Some((tx.id, tx.amount_cents, diff));
@@ -389,15 +401,22 @@ pub async fn recurring_overview(
             });
         }
 
-        out.push(RecurringOverview { recurring: rec, occurrences });
+        out.push(RecurringOverview {
+            recurring: rec,
+            occurrences,
+        });
     }
 
     // Sort: first pending due date ASC, then by name.
     out.sort_by(|a, b| {
-        let a_first_pending = a.occurrences.iter()
+        let a_first_pending = a
+            .occurrences
+            .iter()
             .find(|o| o.status == "pending")
             .map(|o| o.due_date.clone());
-        let b_first_pending = b.occurrences.iter()
+        let b_first_pending = b
+            .occurrences
+            .iter()
             .find(|o| o.status == "pending")
             .map(|o| o.due_date.clone());
         match (a_first_pending, b_first_pending) {
@@ -405,7 +424,8 @@ pub async fn recurring_overview(
             (Some(_), None) => std::cmp::Ordering::Less,
             (None, Some(_)) => std::cmp::Ordering::Greater,
             (None, None) => std::cmp::Ordering::Equal,
-        }.then_with(|| a.recurring.name.cmp(&b.recurring.name))
+        }
+        .then_with(|| a.recurring.name.cmp(&b.recurring.name))
     });
 
     Ok(out)
@@ -428,7 +448,8 @@ pub async fn detect_recurring(pool: &SqlitePool) -> DbResult<Vec<DetectedRecurri
     use std::collections::HashMap;
 
     let cutoff = (chrono::Utc::now().date_naive() - chrono::Duration::days(365))
-        .format("%Y-%m-%d").to_string();
+        .format("%Y-%m-%d")
+        .to_string();
 
     #[derive(sqlx::FromRow)]
     struct Row {
@@ -445,7 +466,7 @@ pub async fn detect_recurring(pool: &SqlitePool) -> DbResult<Vec<DetectedRecurri
             AND counterparty IS NOT NULL
             AND counterparty != ''
             AND amount_cents != 0
-          ORDER BY booking_date ASC"
+          ORDER BY booking_date ASC",
     )
     .bind(&cutoff)
     .fetch_all(pool)
@@ -458,7 +479,10 @@ pub async fn detect_recurring(pool: &SqlitePool) -> DbResult<Vec<DetectedRecurri
         if norm.is_empty() {
             continue;
         }
-        clusters.entry((row.account_id, norm)).or_default().push(row);
+        clusters
+            .entry((row.account_id, norm))
+            .or_default()
+            .push(row);
     }
 
     let existing = list_recurring(pool, true).await?;
@@ -491,9 +515,11 @@ pub async fn detect_recurring(pool: &SqlitePool) -> DbResult<Vec<DetectedRecurri
             sorted[sorted.len() / 2]
         };
         let mean = (deltas.iter().sum::<i64>() as f64) / (deltas.len() as f64);
-        let variance: f64 = deltas.iter()
+        let variance: f64 = deltas
+            .iter()
             .map(|d| (*d as f64 - mean).powi(2))
-            .sum::<f64>() / (deltas.len() as f64);
+            .sum::<f64>()
+            / (deltas.len() as f64);
         let std_dev = variance.sqrt();
         let cv = if mean > 0.0 { std_dev / mean } else { 1.0 };
         if cv > 0.25 {
@@ -501,9 +527,13 @@ pub async fn detect_recurring(pool: &SqlitePool) -> DbResult<Vec<DetectedRecurri
         }
 
         let candidates: [(i64, &str); 4] = [
-            (7, "weekly"), (30, "monthly"), (91, "quarterly"), (365, "yearly")
+            (7, "weekly"),
+            (30, "monthly"),
+            (91, "quarterly"),
+            (365, "yearly"),
         ];
-        let (_, frequency) = candidates.iter()
+        let (_, frequency) = candidates
+            .iter()
             .min_by_key(|(d, _)| (median - d).abs())
             .copied()
             .unwrap();
@@ -518,11 +548,14 @@ pub async fn detect_recurring(pool: &SqlitePool) -> DbResult<Vec<DetectedRecurri
         // Pre-Filter: existing recurring covers this cluster?
         let covered = existing.iter().any(|r| {
             r.account_id == account_id
-                && r.counterparty.as_deref().map(|c| {
-                    let r_norm = normalize_counterparty(c);
-                    let t_norm = normalize_counterparty(&last_counterparty);
-                    !r_norm.is_empty() && (r_norm.contains(&t_norm) || t_norm.contains(&r_norm))
-                }).unwrap_or(false)
+                && r.counterparty
+                    .as_deref()
+                    .map(|c| {
+                        let r_norm = normalize_counterparty(c);
+                        let t_norm = normalize_counterparty(&last_counterparty);
+                        !r_norm.is_empty() && (r_norm.contains(&t_norm) || t_norm.contains(&r_norm))
+                    })
+                    .unwrap_or(false)
                 && (r.amount_cents - median_amount).abs() <= (median_amount.abs() / 10)
         });
         if covered {
@@ -691,7 +724,10 @@ mod tests {
     fn normalize_counterparty_strips_punct_and_lowercases() {
         assert_eq!(normalize_counterparty("Netflix Inc."), "netflix inc");
         assert_eq!(normalize_counterparty("AMAZON.DE"), "amazonde");
-        assert_eq!(normalize_counterparty("  REWE SAGT DANKE!  "), "rewe sagt danke");
+        assert_eq!(
+            normalize_counterparty("  REWE SAGT DANKE!  "),
+            "rewe sagt danke"
+        );
         assert_eq!(normalize_counterparty(""), "");
     }
 
@@ -729,28 +765,80 @@ mod tests {
 
         // Tx: same counterparty, same amount, due date → match
         let tx_date = NaiveDate::parse_from_str("2026-06-01", "%Y-%m-%d").unwrap();
-        assert!(tx_matches_recurring("Vermieter GmbH", -100_000, tx_date, "Vermieter", -100_000, due));
+        assert!(tx_matches_recurring(
+            "Vermieter GmbH",
+            -100_000,
+            tx_date,
+            "Vermieter",
+            -100_000,
+            due
+        ));
 
         // Counterparty case-insensitive contains
-        assert!(tx_matches_recurring("vermieter", -100_000, tx_date, "Vermieter GmbH", -100_000, due));
+        assert!(tx_matches_recurring(
+            "vermieter",
+            -100_000,
+            tx_date,
+            "Vermieter GmbH",
+            -100_000,
+            due
+        ));
 
         // Amount ±10% — 100_000 ± 10_000
-        assert!(tx_matches_recurring("Vermieter", -109_999, tx_date, "Vermieter", -100_000, due));
-        assert!(!tx_matches_recurring("Vermieter", -111_000, tx_date, "Vermieter", -100_000, due));
+        assert!(tx_matches_recurring(
+            "Vermieter",
+            -109_999,
+            tx_date,
+            "Vermieter",
+            -100_000,
+            due
+        ));
+        assert!(!tx_matches_recurring(
+            "Vermieter",
+            -111_000,
+            tx_date,
+            "Vermieter",
+            -100_000,
+            due
+        ));
 
         // Date ±5 days
         let tx_5 = NaiveDate::parse_from_str("2026-06-06", "%Y-%m-%d").unwrap();
-        assert!(tx_matches_recurring("Vermieter", -100_000, tx_5, "Vermieter", -100_000, due));
+        assert!(tx_matches_recurring(
+            "Vermieter",
+            -100_000,
+            tx_5,
+            "Vermieter",
+            -100_000,
+            due
+        ));
         let tx_6 = NaiveDate::parse_from_str("2026-06-07", "%Y-%m-%d").unwrap();
-        assert!(!tx_matches_recurring("Vermieter", -100_000, tx_6, "Vermieter", -100_000, due));
+        assert!(!tx_matches_recurring(
+            "Vermieter",
+            -100_000,
+            tx_6,
+            "Vermieter",
+            -100_000,
+            due
+        ));
 
         // Counterparty mismatch
-        assert!(!tx_matches_recurring("Andere", -100_000, tx_date, "Vermieter", -100_000, due));
+        assert!(!tx_matches_recurring(
+            "Andere",
+            -100_000,
+            tx_date,
+            "Vermieter",
+            -100_000,
+            due
+        ));
     }
 
     async fn seed_tx(
-        pool: &SqlitePool, account_id: i64, date: &str,
-        amount_cents: i64, counterparty: &str,
+        pool: &SqlitePool,
+        account_id: i64,
+        date: &str,
+        amount_cents: i64,
+        counterparty: &str,
     ) -> i64 {
         let (id,): (i64,) = sqlx::query_as(
             "INSERT INTO transactions
@@ -759,8 +847,13 @@ mod tests {
              VALUES (?1, ?2, ?3, 'EUR', ?4, 'manual', 'expense', '2026-05-20T00:00:00Z')
              RETURNING id",
         )
-        .bind(account_id).bind(date).bind(amount_cents).bind(counterparty)
-        .fetch_one(pool).await.unwrap();
+        .bind(account_id)
+        .bind(date)
+        .bind(amount_cents)
+        .bind(counterparty)
+        .fetch_one(pool)
+        .await
+        .unwrap();
         id
     }
 
@@ -776,16 +869,29 @@ mod tests {
         let pool = connect_memory().await.unwrap();
         let acc = seed_account(&pool).await;
         let today = chrono::Utc::now().date_naive();
-        let anchor = (today - chrono::Duration::days(28)).format("%Y-%m-%d").to_string();
+        let anchor = (today - chrono::Duration::days(28))
+            .format("%Y-%m-%d")
+            .to_string();
 
-        create_recurring(&pool, NewRecurringPayload {
-            name: "Miete".into(), account_id: acc, category_id: None,
-            amount_cents: -100_000, frequency: "monthly".into(),
-            anchor_date: anchor.clone(), counterparty: Some("Vermieter".into()),
-            note: None,
-        }).await.unwrap();
+        create_recurring(
+            &pool,
+            NewRecurringPayload {
+                name: "Miete".into(),
+                account_id: acc,
+                category_id: None,
+                amount_cents: -100_000,
+                frequency: "monthly".into(),
+                anchor_date: anchor.clone(),
+                counterparty: Some("Vermieter".into()),
+                note: None,
+            },
+        )
+        .await
+        .unwrap();
 
-        let due = (today + chrono::Duration::days(2)).format("%Y-%m-%d").to_string();
+        let due = (today + chrono::Duration::days(2))
+            .format("%Y-%m-%d")
+            .to_string();
         seed_tx(&pool, acc, &due, -100_000, "Vermieter GmbH").await;
 
         let overview = recurring_overview(&pool, 3).await.unwrap();
@@ -801,16 +907,29 @@ mod tests {
         let pool = connect_memory().await.unwrap();
         let acc = seed_account(&pool).await;
         let today = chrono::Utc::now().date_naive();
-        let anchor = (today - chrono::Duration::days(28)).format("%Y-%m-%d").to_string();
+        let anchor = (today - chrono::Duration::days(28))
+            .format("%Y-%m-%d")
+            .to_string();
 
-        create_recurring(&pool, NewRecurringPayload {
-            name: "Miete".into(), account_id: acc, category_id: None,
-            amount_cents: -100_000, frequency: "monthly".into(),
-            anchor_date: anchor, counterparty: Some("Vermieter".into()),
-            note: None,
-        }).await.unwrap();
+        create_recurring(
+            &pool,
+            NewRecurringPayload {
+                name: "Miete".into(),
+                account_id: acc,
+                category_id: None,
+                amount_cents: -100_000,
+                frequency: "monthly".into(),
+                anchor_date: anchor,
+                counterparty: Some("Vermieter".into()),
+                note: None,
+            },
+        )
+        .await
+        .unwrap();
 
-        let due = (today + chrono::Duration::days(2)).format("%Y-%m-%d").to_string();
+        let due = (today + chrono::Duration::days(2))
+            .format("%Y-%m-%d")
+            .to_string();
         seed_tx(&pool, acc, &due, -100_000, "Supermarkt").await;
 
         let overview = recurring_overview(&pool, 3).await.unwrap();
@@ -842,8 +961,11 @@ mod tests {
         // Use recent dates so cutoff (365 days ago) includes them
         let today = chrono::Utc::now().date_naive();
         let dates: Vec<String> = (0..5)
-            .map(|i| (today - chrono::Duration::days(30 * (4 - i) as i64))
-                .format("%Y-%m-%d").to_string())
+            .map(|i| {
+                (today - chrono::Duration::days(30 * (4 - i) as i64))
+                    .format("%Y-%m-%d")
+                    .to_string()
+            })
             .collect();
         for d in &dates {
             seed_tx(&pool, acc, d, -1_299, "Netflix Inc.").await;
@@ -867,7 +989,9 @@ mod tests {
         let today = chrono::Utc::now().date_naive();
         let day_offsets: Vec<i64> = vec![-300, -250, -50, -10];
         for off in &day_offsets {
-            let d = (today + chrono::Duration::days(*off)).format("%Y-%m-%d").to_string();
+            let d = (today + chrono::Duration::days(*off))
+                .format("%Y-%m-%d")
+                .to_string();
             seed_tx(&pool, acc, &d, -1_000, "Sporadisch").await;
         }
 
@@ -881,20 +1005,35 @@ mod tests {
         let acc = seed_account(&pool).await;
         let today = chrono::Utc::now().date_naive();
 
-        create_recurring(&pool, NewRecurringPayload {
-            name: "Netflix".into(), account_id: acc, category_id: None,
-            amount_cents: -1_299, frequency: "monthly".into(),
-            anchor_date: (today - chrono::Duration::days(30)).format("%Y-%m-%d").to_string(),
-            counterparty: Some("Netflix".into()), note: None,
-        }).await.unwrap();
+        create_recurring(
+            &pool,
+            NewRecurringPayload {
+                name: "Netflix".into(),
+                account_id: acc,
+                category_id: None,
+                amount_cents: -1_299,
+                frequency: "monthly".into(),
+                anchor_date: (today - chrono::Duration::days(30))
+                    .format("%Y-%m-%d")
+                    .to_string(),
+                counterparty: Some("Netflix".into()),
+                note: None,
+            },
+        )
+        .await
+        .unwrap();
 
         for i in 0..3 {
             let d = (today - chrono::Duration::days(30 * (2 - i) as i64))
-                .format("%Y-%m-%d").to_string();
+                .format("%Y-%m-%d")
+                .to_string();
             seed_tx(&pool, acc, &d, -1_299, "Netflix Inc.").await;
         }
 
         let detected = detect_recurring(&pool).await.unwrap();
-        assert!(detected.is_empty(), "cluster covered by existing recurring should be dropped");
+        assert!(
+            detected.is_empty(),
+            "cluster covered by existing recurring should be dropped"
+        );
     }
 }

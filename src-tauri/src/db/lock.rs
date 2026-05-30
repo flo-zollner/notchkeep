@@ -36,11 +36,10 @@ pub async fn acquire(
     hostname: &str,
 ) -> DbResult<AcquireOutcome> {
     let now = Utc::now();
-    let current: Option<(String, String, String)> = sqlx::query_as(
-        "SELECT device_id, hostname, acquired_at FROM sync_lock WHERE id = 1",
-    )
-    .fetch_optional(pool)
-    .await?;
+    let current: Option<(String, String, String)> =
+        sqlx::query_as("SELECT device_id, hostname, acquired_at FROM sync_lock WHERE id = 1")
+            .fetch_optional(pool)
+            .await?;
 
     if let Some((other_device, other_host, acquired_at_str)) = current {
         if other_device != device_id {
@@ -63,11 +62,7 @@ pub async fn acquire(
 
 /// Takes over the lock unconditionally — e.g. after the UI warned the user
 /// and they chose "open anyway".
-pub async fn force_acquire(
-    pool: &SqlitePool,
-    device_id: &str,
-    hostname: &str,
-) -> DbResult<()> {
+pub async fn force_acquire(pool: &SqlitePool, device_id: &str, hostname: &str) -> DbResult<()> {
     upsert_lock(pool, device_id, hostname, Utc::now()).await
 }
 
@@ -82,11 +77,10 @@ pub async fn release(pool: &SqlitePool, device_id: &str) -> DbResult<()> {
 
 /// Reads the current lock holder without modifying anything.
 pub async fn current_holder(pool: &SqlitePool) -> DbResult<Option<LockHolder>> {
-    let row: Option<(String, String, String)> = sqlx::query_as(
-        "SELECT device_id, hostname, acquired_at FROM sync_lock WHERE id = 1",
-    )
-    .fetch_optional(pool)
-    .await?;
+    let row: Option<(String, String, String)> =
+        sqlx::query_as("SELECT device_id, hostname, acquired_at FROM sync_lock WHERE id = 1")
+            .fetch_optional(pool)
+            .await?;
 
     Ok(row.and_then(|(device_id, hostname, acquired_at_str)| {
         DateTime::parse_from_rfc3339(&acquired_at_str)
@@ -163,11 +157,10 @@ mod tests {
         upsert_lock(&pool, "dev-A", "host-A", stale).await.unwrap();
         let r = acquire(&pool, "dev-B", "host-B").await.unwrap();
         assert!(matches!(r, AcquireOutcome::Acquired));
-        let (owner,): (String,) =
-            sqlx::query_as("SELECT device_id FROM sync_lock WHERE id = 1")
-                .fetch_one(&pool)
-                .await
-                .unwrap();
+        let (owner,): (String,) = sqlx::query_as("SELECT device_id FROM sync_lock WHERE id = 1")
+            .fetch_one(&pool)
+            .await
+            .unwrap();
         assert_eq!(owner, "dev-B");
     }
 
@@ -176,19 +169,17 @@ mod tests {
         let pool = connect_memory().await.unwrap();
         acquire(&pool, "dev-A", "host-A").await.unwrap();
         release(&pool, "dev-B").await.unwrap();
-        let row: Option<(String,)> =
-            sqlx::query_as("SELECT device_id FROM sync_lock WHERE id = 1")
-                .fetch_optional(&pool)
-                .await
-                .unwrap();
+        let row: Option<(String,)> = sqlx::query_as("SELECT device_id FROM sync_lock WHERE id = 1")
+            .fetch_optional(&pool)
+            .await
+            .unwrap();
         assert_eq!(row.unwrap().0, "dev-A");
 
         release(&pool, "dev-A").await.unwrap();
-        let row: Option<(String,)> =
-            sqlx::query_as("SELECT device_id FROM sync_lock WHERE id = 1")
-                .fetch_optional(&pool)
-                .await
-                .unwrap();
+        let row: Option<(String,)> = sqlx::query_as("SELECT device_id FROM sync_lock WHERE id = 1")
+            .fetch_optional(&pool)
+            .await
+            .unwrap();
         assert!(row.is_none());
     }
 
@@ -213,11 +204,10 @@ mod tests {
         let pool = connect_memory().await.unwrap();
         acquire(&pool, "dev-A", "host-A").await.unwrap();
         force_acquire(&pool, "dev-B", "host-B").await.unwrap();
-        let (owner,): (String,) =
-            sqlx::query_as("SELECT device_id FROM sync_lock WHERE id = 1")
-                .fetch_one(&pool)
-                .await
-                .unwrap();
+        let (owner,): (String,) = sqlx::query_as("SELECT device_id FROM sync_lock WHERE id = 1")
+            .fetch_one(&pool)
+            .await
+            .unwrap();
         assert_eq!(owner, "dev-B");
     }
 }

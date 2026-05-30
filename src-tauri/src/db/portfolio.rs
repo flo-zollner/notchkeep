@@ -84,7 +84,7 @@ pub struct CostBasisPoint {
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CostBasisPointDaily {
-    pub date: String,             // YYYY-MM-DD
+    pub date: String, // YYYY-MM-DD
     pub cost_basis_cents: i64,
     pub market_value_cents: i64,
 }
@@ -193,8 +193,7 @@ pub fn fifo_apply(
                 }
                 let delta = t.shares_micro;
                 for lot in lots.iter_mut() {
-                    let lot_delta: i64 = (lot.shares_remaining_micro as i128
-                        * delta as i128
+                    let lot_delta: i64 = (lot.shares_remaining_micro as i128 * delta as i128
                         / total_before as i128) as i64;
                     lot.shares_remaining_micro += lot_delta;
                 }
@@ -216,16 +215,11 @@ pub fn fifo_apply(
                 if shares == 0 {
                     continue;
                 }
-                let (cost, acquired_date) = match t.fusion_group
-                    .as_ref()
-                    .and_then(|g| fusion_carry.get(g))
-                {
-                    Some(transfer) => (
-                        transfer.cost_cents,
-                        transfer.acquired_date.clone(),
-                    ),
-                    None => (0, t.booking_date.clone()),
-                };
+                let (cost, acquired_date) =
+                    match t.fusion_group.as_ref().and_then(|g| fusion_carry.get(g)) {
+                        Some(transfer) => (transfer.cost_cents, transfer.acquired_date.clone()),
+                        None => (0, t.booking_date.clone()),
+                    };
                 lots.push(Lot {
                     acquired_date,
                     shares_remaining_micro: shares,
@@ -253,9 +247,7 @@ pub fn fifo_apply(
 ///
 /// Runs over ALL securities, not per security — otherwise `fifo_apply` would
 /// not see the cost basis from the source security at `fusion_in`.
-pub fn collect_fusion_transfers(
-    groups: &[Vec<FifoTradeInput>],
-) -> HashMap<String, FusionTransfer> {
+pub fn collect_fusion_transfers(groups: &[Vec<FifoTradeInput>]) -> HashMap<String, FusionTransfer> {
     let mut out: HashMap<String, FusionTransfer> = HashMap::new();
 
     for trades in groups {
@@ -281,8 +273,7 @@ pub fn collect_fusion_transfers(
                             to_consume -= lot.shares_remaining_micro;
                             lots.remove(0);
                         } else {
-                            let part_cost = (lot.cost_remaining_cents as i128
-                                * to_consume as i128
+                            let part_cost = (lot.cost_remaining_cents as i128 * to_consume as i128
                                 / lot.shares_remaining_micro as i128)
                                 as i64;
                             lot.shares_remaining_micro -= to_consume;
@@ -293,11 +284,12 @@ pub fn collect_fusion_transfers(
                 }
                 "corporate_action" => {
                     let total_before: i64 = lots.iter().map(|l| l.shares_remaining_micro).sum();
-                    if total_before == 0 { continue; }
+                    if total_before == 0 {
+                        continue;
+                    }
                     let delta = t.shares_micro;
                     for lot in lots.iter_mut() {
-                        let lot_delta = (lot.shares_remaining_micro as i128
-                            * delta as i128
+                        let lot_delta = (lot.shares_remaining_micro as i128 * delta as i128
                             / total_before as i128) as i64;
                         lot.shares_remaining_micro += lot_delta;
                     }
@@ -308,11 +300,18 @@ pub fn collect_fusion_transfers(
                         // Earliest acquisition date of the collected lots —
                         // important for German/Austrian tax rules
                         // (FIFO order is preserved).
-                        let acquired_date = lots.iter()
+                        let acquired_date = lots
+                            .iter()
                             .map(|l| l.acquired_date.clone())
                             .min()
                             .unwrap_or_else(|| t.booking_date.clone());
-                        out.insert(group.clone(), FusionTransfer { cost_cents, acquired_date });
+                        out.insert(
+                            group.clone(),
+                            FusionTransfer {
+                                cost_cents,
+                                acquired_date,
+                            },
+                        );
                     }
                     lots.clear();
                 }
@@ -362,20 +361,27 @@ pub async fn current_holdings(pool: &SqlitePool) -> DbResult<Vec<Holding>> {
 
     // 6e: Latest prices per security (Map).
     let prices_vec = crate::db::prices::latest_per_security(pool).await?;
-    let price_map: std::collections::HashMap<i64, (String, i64)> =
-        prices_vec.into_iter().map(|(id, d, c)| (id, (d, c))).collect();
+    let price_map: std::collections::HashMap<i64, (String, i64)> = prices_vec
+        .into_iter()
+        .map(|(id, d, c)| (id, (d, c)))
+        .collect();
 
     // Pass 1: group trades by security and build the fusion cost carry.
-    let groups = group_trades_by_security(&rows.iter().map(|r| TradeRowRef {
-        security_id: r.security_id,
-        booking_date: &r.booking_date,
-        side: &r.side,
-        shares_micro: r.shares_micro,
-        amount_cents: r.amount_cents,
-        fee_cents: r.fee_cents,
-        tax_cents: r.tax_cents,
-        fusion_group: r.fusion_group.as_deref(),
-    }).collect::<Vec<_>>());
+    let groups = group_trades_by_security(
+        &rows
+            .iter()
+            .map(|r| TradeRowRef {
+                security_id: r.security_id,
+                booking_date: &r.booking_date,
+                side: &r.side,
+                shares_micro: r.shares_micro,
+                amount_cents: r.amount_cents,
+                fee_cents: r.fee_cents,
+                tax_cents: r.tax_cents,
+                fusion_group: r.fusion_group.as_deref(),
+            })
+            .collect::<Vec<_>>(),
+    );
     let fusion_carry = collect_fusion_transfers(&groups);
 
     // Parallel metadata list (security headers). `group_trades_by_security`
@@ -449,10 +455,7 @@ pub async fn current_holdings(pool: &SqlitePool) -> DbResult<Vec<Holding>> {
 
 /// Summiert realisierte Gewinne in Cents. `year = None` = all-time.
 /// `year = Some(y)` filtert Sells im Kalenderjahr `y`.
-pub async fn realized_gains_summary(
-    pool: &SqlitePool,
-    year: Option<i32>,
-) -> DbResult<i64> {
+pub async fn realized_gains_summary(pool: &SqlitePool, year: Option<i32>) -> DbResult<i64> {
     #[derive(sqlx::FromRow)]
     struct Row {
         security_id: i64,
@@ -477,16 +480,21 @@ pub async fn realized_gains_summary(
     .fetch_all(pool)
     .await?;
 
-    let groups = group_trades_by_security(&rows.iter().map(|r| TradeRowRef {
-        security_id: r.security_id,
-        booking_date: &r.booking_date,
-        side: &r.side,
-        shares_micro: r.shares_micro,
-        amount_cents: r.amount_cents,
-        fee_cents: r.fee_cents,
-        tax_cents: r.tax_cents,
-        fusion_group: r.fusion_group.as_deref(),
-    }).collect::<Vec<_>>());
+    let groups = group_trades_by_security(
+        &rows
+            .iter()
+            .map(|r| TradeRowRef {
+                security_id: r.security_id,
+                booking_date: &r.booking_date,
+                side: &r.side,
+                shares_micro: r.shares_micro,
+                amount_cents: r.amount_cents,
+                fee_cents: r.fee_cents,
+                tax_cents: r.tax_cents,
+                fusion_group: r.fusion_group.as_deref(),
+            })
+            .collect::<Vec<_>>(),
+    );
     let carry = collect_fusion_transfers(&groups);
 
     let mut sum: i64 = 0;
@@ -606,7 +614,8 @@ pub async fn cost_basis_history(
         let cutoff = format!("{next_y:04}-{next_m:02}-01");
 
         let groups = group_trades_by_security(
-            &rows.iter()
+            &rows
+                .iter()
                 .filter(|r| r.booking_date < cutoff)
                 .map(|r| TradeRowRef {
                     security_id: r.security_id,
@@ -697,7 +706,8 @@ pub async fn cost_basis_history_daily(
             .to_string();
 
         let groups = group_trades_by_security(
-            &rows.iter()
+            &rows
+                .iter()
                 .filter(|r| r.booking_date < cutoff)
                 .map(|r| TradeRowRef {
                     security_id: r.security_id,
@@ -734,10 +744,7 @@ pub async fn cost_basis_history_daily(
 /// Portfolio market value (EUR cents) as of the given date (e.g. last day of month).
 /// Falls back to cost basis when prices are missing. Returns 0 when there are no
 /// positions or all lots are empty.
-pub async fn portfolio_value_on_date(
-    pool: &SqlitePool,
-    on_date: &str,
-) -> DbResult<i64> {
+pub async fn portfolio_value_on_date(pool: &SqlitePool, on_date: &str) -> DbResult<i64> {
     #[derive(sqlx::FromRow)]
     struct Row {
         security_id: i64,
@@ -765,16 +772,21 @@ pub async fn portfolio_value_on_date(
     .fetch_all(pool)
     .await?;
 
-    let groups = group_trades_by_security(&rows.iter().map(|r| TradeRowRef {
-        security_id: r.security_id,
-        booking_date: &r.booking_date,
-        side: &r.side,
-        shares_micro: r.shares_micro,
-        amount_cents: r.amount_cents,
-        fee_cents: r.fee_cents,
-        tax_cents: r.tax_cents,
-        fusion_group: r.fusion_group.as_deref(),
-    }).collect::<Vec<_>>());
+    let groups = group_trades_by_security(
+        &rows
+            .iter()
+            .map(|r| TradeRowRef {
+                security_id: r.security_id,
+                booking_date: &r.booking_date,
+                side: &r.side,
+                shares_micro: r.shares_micro,
+                amount_cents: r.amount_cents,
+                fee_cents: r.fee_cents,
+                tax_cents: r.tax_cents,
+                fusion_group: r.fusion_group.as_deref(),
+            })
+            .collect::<Vec<_>>(),
+    );
     let carry = collect_fusion_transfers(&groups);
 
     // Parallel security headers (sec_id, currency) in the same order as groups.
@@ -803,7 +815,8 @@ pub async fn portfolio_value_on_date(
         let value = match price {
             Some(close_micro) => {
                 let fx = crate::db::fx::rate_on_date(pool, &currency, on_date)
-                    .await?.unwrap_or(1_000_000);
+                    .await?
+                    .unwrap_or(1_000_000);
                 compute_position_value_cents(shares_total, close_micro, fx)
             }
             None => cost_total,
@@ -852,16 +865,21 @@ pub async fn portfolio_value_by_account_on_date(
 
     // Build fusion carry over ALL securities (independent of account bucketing)
     // so fusion_in can find the cost basis from the source security.
-    let groups_for_carry = group_trades_by_security(&rows.iter().map(|r| TradeRowRef {
-        security_id: r.security_id,
-        booking_date: &r.booking_date,
-        side: &r.side,
-        shares_micro: r.shares_micro,
-        amount_cents: r.amount_cents,
-        fee_cents: r.fee_cents,
-        tax_cents: r.tax_cents,
-        fusion_group: r.fusion_group.as_deref(),
-    }).collect::<Vec<_>>());
+    let groups_for_carry = group_trades_by_security(
+        &rows
+            .iter()
+            .map(|r| TradeRowRef {
+                security_id: r.security_id,
+                booking_date: &r.booking_date,
+                side: &r.side,
+                shares_micro: r.shares_micro,
+                amount_cents: r.amount_cents,
+                fee_cents: r.fee_cents,
+                tax_cents: r.tax_cents,
+                fusion_group: r.fusion_group.as_deref(),
+            })
+            .collect::<Vec<_>>(),
+    );
     let carry = collect_fusion_transfers(&groups_for_carry);
 
     let mut totals: std::collections::BTreeMap<i64, i64> = std::collections::BTreeMap::new();
@@ -871,10 +889,7 @@ pub async fn portfolio_value_by_account_on_date(
         let sec_id = rows[i].security_id;
         let currency = rows[i].currency.clone();
         let mut trades: Vec<FifoTradeInput> = Vec::new();
-        while i < rows.len()
-            && rows[i].account_id == acc_id
-            && rows[i].security_id == sec_id
-        {
+        while i < rows.len() && rows[i].account_id == acc_id && rows[i].security_id == sec_id {
             trades.push(FifoTradeInput {
                 booking_date: rows[i].booking_date.clone(),
                 side: rows[i].side.clone(),
@@ -897,7 +912,8 @@ pub async fn portfolio_value_by_account_on_date(
         let value = match price {
             Some(close_micro) => {
                 let fx = crate::db::fx::rate_on_date(pool, &currency, on_date)
-                    .await?.unwrap_or(1_000_000);
+                    .await?
+                    .unwrap_or(1_000_000);
                 compute_position_value_cents(shares_total, close_micro, fx)
             }
             None => cost_total,
@@ -944,10 +960,7 @@ async fn update_currency_if_changed(
     Ok(())
 }
 
-pub async fn refresh_all_prices<P>(
-    pool: &SqlitePool,
-    provider: &P,
-) -> DbResult<RefreshReport>
+pub async fn refresh_all_prices<P>(pool: &SqlitePool, provider: &P) -> DbResult<RefreshReport>
 where
     P: PriceProvider + FxProvider + ?Sized + Send + Sync,
 {
@@ -959,23 +972,31 @@ where
         fx_updated: 0,
         fx_failed: 0,
     };
-    let today = chrono::Utc::now().date_naive().format("%Y-%m-%d").to_string();
+    let today = chrono::Utc::now()
+        .date_naive()
+        .format("%Y-%m-%d")
+        .to_string();
 
     let mut foreign_currencies: std::collections::HashSet<String> =
         std::collections::HashSet::new();
 
     for h in &holdings {
         // Resolve symbol (cached in securities.symbol, otherwise via provider).
-        let (existing,): (Option<String>,) = sqlx::query_as(
-            "SELECT symbol FROM securities WHERE id = ?1"
-        ).bind(h.security_id).fetch_one(pool).await?;
+        let (existing,): (Option<String>,) =
+            sqlx::query_as("SELECT symbol FROM securities WHERE id = ?1")
+                .bind(h.security_id)
+                .fetch_one(pool)
+                .await?;
 
         let symbol: Option<String> = match existing {
             Some(s) if !s.is_empty() => Some(s),
             _ => match provider.resolve_symbol(&h.isin).await {
                 Ok(Some(sym)) => {
                     sqlx::query("UPDATE securities SET symbol = ?1 WHERE id = ?2")
-                        .bind(&sym).bind(h.security_id).execute(pool).await?;
+                        .bind(&sym)
+                        .bind(h.security_id)
+                        .execute(pool)
+                        .await?;
                     Some(sym)
                 }
                 _ => None,
@@ -984,9 +1005,11 @@ where
 
         if let Some(sym) = symbol {
             // Decide: history-fetch (no existing prices) or single-quote (already has prices)
-            let (existing_count,): (i64,) = sqlx::query_as(
-                "SELECT COUNT(*) FROM security_prices WHERE security_id = ?1"
-            ).bind(h.security_id).fetch_one(pool).await?;
+            let (existing_count,): (i64,) =
+                sqlx::query_as("SELECT COUNT(*) FROM security_prices WHERE security_id = ?1")
+                    .bind(h.security_id)
+                    .fetch_one(pool)
+                    .await?;
 
             if existing_count == 0 {
                 // Newly-added security → fetch 5 years of history
@@ -997,8 +1020,13 @@ where
                         for p in &history {
                             let d = p.date.format("%Y-%m-%d").to_string();
                             let _ = crate::db::prices::upsert_price(
-                                pool, h.security_id, &d, p.close_micro, "yahoo"
-                            ).await;
+                                pool,
+                                h.security_id,
+                                &d,
+                                p.close_micro,
+                                "yahoo",
+                            )
+                            .await;
                         }
                         report.prices_updated += history.len();
                     }
@@ -1007,8 +1035,21 @@ where
                         match provider.fetch_quote(&sym).await {
                             Ok(q) => {
                                 let date_str = q.as_of.format("%Y-%m-%d").to_string();
-                                crate::db::prices::upsert_price(pool, h.security_id, &date_str, q.price_micro, "yahoo").await?;
-                                update_currency_if_changed(pool, h.security_id, &h.currency, q.currency.as_deref()).await?;
+                                crate::db::prices::upsert_price(
+                                    pool,
+                                    h.security_id,
+                                    &date_str,
+                                    q.price_micro,
+                                    "yahoo",
+                                )
+                                .await?;
+                                update_currency_if_changed(
+                                    pool,
+                                    h.security_id,
+                                    &h.currency,
+                                    q.currency.as_deref(),
+                                )
+                                .await?;
                                 report.prices_updated += 1;
                             }
                             Err(_) => report.prices_failed += 1,
@@ -1020,9 +1061,21 @@ where
                 match provider.fetch_quote(&sym).await {
                     Ok(q) => {
                         let date_str = q.as_of.format("%Y-%m-%d").to_string();
-                        crate::db::prices::upsert_price(pool, h.security_id, &date_str, q.price_micro, "yahoo")
-                            .await?;
-                        update_currency_if_changed(pool, h.security_id, &h.currency, q.currency.as_deref()).await?;
+                        crate::db::prices::upsert_price(
+                            pool,
+                            h.security_id,
+                            &date_str,
+                            q.price_micro,
+                            "yahoo",
+                        )
+                        .await?;
+                        update_currency_if_changed(
+                            pool,
+                            h.security_id,
+                            &h.currency,
+                            q.currency.as_deref(),
+                        )
+                        .await?;
                         report.prices_updated += 1;
                     }
                     Err(_) => {
@@ -1123,29 +1176,39 @@ pub async fn asset_allocation(
 
         match dimension {
             "asset_type" => {
-                let (asset_type,): (String,) = sqlx::query_as(
-                    "SELECT asset_type FROM securities WHERE id = ?1"
-                ).bind(h.security_id).fetch_one(pool).await?;
+                let (asset_type,): (String,) =
+                    sqlx::query_as("SELECT asset_type FROM securities WHERE id = ?1")
+                        .bind(h.security_id)
+                        .fetch_one(pool)
+                        .await?;
                 *alloc.entry(asset_type).or_insert(0) += h.market_value_cents;
             }
             "country" | "sector" => {
                 let breakdowns: Vec<(String, i64)> = sqlx::query_as(
                     "SELECT key, weight_bps FROM security_breakdowns
-                      WHERE security_id = ?1 AND dimension = ?2"
-                ).bind(h.security_id).bind(dimension).fetch_all(pool).await?;
+                      WHERE security_id = ?1 AND dimension = ?2",
+                )
+                .bind(h.security_id)
+                .bind(dimension)
+                .fetch_all(pool)
+                .await?;
 
                 if !breakdowns.is_empty() {
                     for (key, weight_bps) in breakdowns {
-                        let weighted = (h.market_value_cents as i128
-                            * weight_bps as i128 / 10_000_i128) as i64;
+                        let weighted = (h.market_value_cents as i128 * weight_bps as i128
+                            / 10_000_i128) as i64;
                         *alloc.entry(key).or_insert(0) += weighted;
                     }
                 } else {
                     let column = dimension;
                     let sql = format!("SELECT {column} FROM securities WHERE id = ?1");
                     let (raw,): (Option<String>,) = sqlx::query_as(&sql)
-                        .bind(h.security_id).fetch_one(pool).await?;
-                    let key = raw.filter(|s| !s.is_empty()).unwrap_or_else(|| "Unbekannt".to_string());
+                        .bind(h.security_id)
+                        .fetch_one(pool)
+                        .await?;
+                    let key = raw
+                        .filter(|s| !s.is_empty())
+                        .unwrap_or_else(|| "Unbekannt".to_string());
                     *alloc.entry(key).or_insert(0) += h.market_value_cents;
                 }
             }
@@ -1153,7 +1216,8 @@ pub async fn asset_allocation(
         }
     }
 
-    let mut slices: Vec<AllocationSlice> = alloc.into_iter()
+    let mut slices: Vec<AllocationSlice> = alloc
+        .into_iter()
         .map(|(key, value_cents)| AllocationSlice { key, value_cents })
         .collect();
     slices.sort_by(|a, b| b.value_cents.cmp(&a.value_cents));
@@ -1201,9 +1265,9 @@ pub async fn set_allocations_for_security(
                 "shares_micro must be > 0 (got {shares})"
             )));
         }
-        sum = sum.checked_add(shares).ok_or_else(|| {
-            DbError::Decode("shares_micro overflow".into())
-        })?;
+        sum = sum
+            .checked_add(shares)
+            .ok_or_else(|| DbError::Decode("shares_micro overflow".into()))?;
     }
     if sum > held {
         return Err(DbError::Decode(format!(
@@ -1317,15 +1381,23 @@ mod tests {
     fn fifo_full_sell_realizes_gain() {
         let trades = vec![
             FifoTradeInput {
-                booking_date: "2026-01-15".into(), side: "buy".into(),
-                shares_micro: 10_000_000, amount_cents: -100_000, fee_cents: 0, tax_cents: 0,
-        fusion_group: None,
-        },
+                booking_date: "2026-01-15".into(),
+                side: "buy".into(),
+                shares_micro: 10_000_000,
+                amount_cents: -100_000,
+                fee_cents: 0,
+                tax_cents: 0,
+                fusion_group: None,
+            },
             FifoTradeInput {
-                booking_date: "2026-03-10".into(), side: "sell".into(),
-                shares_micro: 10_000_000, amount_cents: 120_000, fee_cents: 0, tax_cents: 0,
-        fusion_group: None,
-        },
+                booking_date: "2026-03-10".into(),
+                side: "sell".into(),
+                shares_micro: 10_000_000,
+                amount_cents: 120_000,
+                fee_cents: 0,
+                tax_cents: 0,
+                fusion_group: None,
+            },
         ];
         let (lots, realized) = fifo_apply(&trades, &std::collections::HashMap::new());
         assert!(lots.is_empty());
@@ -1340,10 +1412,24 @@ mod tests {
     #[test]
     fn fifo_full_sell_realizes_loss() {
         let trades = vec![
-            FifoTradeInput { booking_date: "2026-01-15".into(), side: "buy".into(),
-                shares_micro: 10_000_000, amount_cents: -100_000, fee_cents: 0, tax_cents: 0 , fusion_group: None},
-            FifoTradeInput { booking_date: "2026-03-10".into(), side: "sell".into(),
-                shares_micro: 10_000_000, amount_cents: 80_000, fee_cents: 0, tax_cents: 0 , fusion_group: None},
+            FifoTradeInput {
+                booking_date: "2026-01-15".into(),
+                side: "buy".into(),
+                shares_micro: 10_000_000,
+                amount_cents: -100_000,
+                fee_cents: 0,
+                tax_cents: 0,
+                fusion_group: None,
+            },
+            FifoTradeInput {
+                booking_date: "2026-03-10".into(),
+                side: "sell".into(),
+                shares_micro: 10_000_000,
+                amount_cents: 80_000,
+                fee_cents: 0,
+                tax_cents: 0,
+                fusion_group: None,
+            },
         ];
         let (_, realized) = fifo_apply(&trades, &std::collections::HashMap::new());
         assert_eq!(realized[0].gain_cents, -20_000);
@@ -1352,12 +1438,33 @@ mod tests {
     #[test]
     fn fifo_multi_lot_consumes_oldest_first() {
         let trades = vec![
-            FifoTradeInput { booking_date: "2026-01-01".into(), side: "buy".into(),
-                shares_micro: 10_000_000, amount_cents: -100_000, fee_cents: 0, tax_cents: 0 , fusion_group: None},
-            FifoTradeInput { booking_date: "2026-02-01".into(), side: "buy".into(),
-                shares_micro: 10_000_000, amount_cents: -150_000, fee_cents: 0, tax_cents: 0 , fusion_group: None},
-            FifoTradeInput { booking_date: "2026-03-01".into(), side: "sell".into(),
-                shares_micro: 15_000_000, amount_cents: 270_000, fee_cents: 0, tax_cents: 0 , fusion_group: None},
+            FifoTradeInput {
+                booking_date: "2026-01-01".into(),
+                side: "buy".into(),
+                shares_micro: 10_000_000,
+                amount_cents: -100_000,
+                fee_cents: 0,
+                tax_cents: 0,
+                fusion_group: None,
+            },
+            FifoTradeInput {
+                booking_date: "2026-02-01".into(),
+                side: "buy".into(),
+                shares_micro: 10_000_000,
+                amount_cents: -150_000,
+                fee_cents: 0,
+                tax_cents: 0,
+                fusion_group: None,
+            },
+            FifoTradeInput {
+                booking_date: "2026-03-01".into(),
+                side: "sell".into(),
+                shares_micro: 15_000_000,
+                amount_cents: 270_000,
+                fee_cents: 0,
+                tax_cents: 0,
+                fusion_group: None,
+            },
         ];
         let (lots, realized) = fifo_apply(&trades, &std::collections::HashMap::new());
         assert_eq!(lots.len(), 1);
@@ -1371,10 +1478,24 @@ mod tests {
     #[test]
     fn fifo_stock_split_doubles_shares_keeps_cost() {
         let trades = vec![
-            FifoTradeInput { booking_date: "2026-01-01".into(), side: "buy".into(),
-                shares_micro: 10_000_000, amount_cents: -100_000, fee_cents: 0, tax_cents: 0 , fusion_group: None},
-            FifoTradeInput { booking_date: "2026-02-15".into(), side: "corporate_action".into(),
-                shares_micro: 10_000_000, amount_cents: 0, fee_cents: 0, tax_cents: 0 , fusion_group: None},
+            FifoTradeInput {
+                booking_date: "2026-01-01".into(),
+                side: "buy".into(),
+                shares_micro: 10_000_000,
+                amount_cents: -100_000,
+                fee_cents: 0,
+                tax_cents: 0,
+                fusion_group: None,
+            },
+            FifoTradeInput {
+                booking_date: "2026-02-15".into(),
+                side: "corporate_action".into(),
+                shares_micro: 10_000_000,
+                amount_cents: 0,
+                fee_cents: 0,
+                tax_cents: 0,
+                fusion_group: None,
+            },
         ];
         let (lots, realized) = fifo_apply(&trades, &std::collections::HashMap::new());
         assert!(realized.is_empty());
@@ -1386,10 +1507,24 @@ mod tests {
     #[test]
     fn fifo_reverse_split_halves_shares() {
         let trades = vec![
-            FifoTradeInput { booking_date: "2026-01-01".into(), side: "buy".into(),
-                shares_micro: 20_000_000, amount_cents: -200_000, fee_cents: 0, tax_cents: 0 , fusion_group: None},
-            FifoTradeInput { booking_date: "2026-02-15".into(), side: "corporate_action".into(),
-                shares_micro: -10_000_000, amount_cents: 0, fee_cents: 0, tax_cents: 0 , fusion_group: None},
+            FifoTradeInput {
+                booking_date: "2026-01-01".into(),
+                side: "buy".into(),
+                shares_micro: 20_000_000,
+                amount_cents: -200_000,
+                fee_cents: 0,
+                tax_cents: 0,
+                fusion_group: None,
+            },
+            FifoTradeInput {
+                booking_date: "2026-02-15".into(),
+                side: "corporate_action".into(),
+                shares_micro: -10_000_000,
+                amount_cents: 0,
+                fee_cents: 0,
+                tax_cents: 0,
+                fusion_group: None,
+            },
         ];
         let (lots, _) = fifo_apply(&trades, &std::collections::HashMap::new());
         assert_eq!(lots[0].shares_remaining_micro, 10_000_000);
@@ -1399,12 +1534,33 @@ mod tests {
     #[test]
     fn fifo_split_distributes_across_lots_proportionally() {
         let trades = vec![
-            FifoTradeInput { booking_date: "2026-01-01".into(), side: "buy".into(),
-                shares_micro: 5_000_000, amount_cents: -50_000, fee_cents: 0, tax_cents: 0 , fusion_group: None},
-            FifoTradeInput { booking_date: "2026-02-01".into(), side: "buy".into(),
-                shares_micro: 15_000_000, amount_cents: -300_000, fee_cents: 0, tax_cents: 0 , fusion_group: None},
-            FifoTradeInput { booking_date: "2026-03-01".into(), side: "corporate_action".into(),
-                shares_micro: 20_000_000, amount_cents: 0, fee_cents: 0, tax_cents: 0 , fusion_group: None},
+            FifoTradeInput {
+                booking_date: "2026-01-01".into(),
+                side: "buy".into(),
+                shares_micro: 5_000_000,
+                amount_cents: -50_000,
+                fee_cents: 0,
+                tax_cents: 0,
+                fusion_group: None,
+            },
+            FifoTradeInput {
+                booking_date: "2026-02-01".into(),
+                side: "buy".into(),
+                shares_micro: 15_000_000,
+                amount_cents: -300_000,
+                fee_cents: 0,
+                tax_cents: 0,
+                fusion_group: None,
+            },
+            FifoTradeInput {
+                booking_date: "2026-03-01".into(),
+                side: "corporate_action".into(),
+                shares_micro: 20_000_000,
+                amount_cents: 0,
+                fee_cents: 0,
+                tax_cents: 0,
+                fusion_group: None,
+            },
         ];
         let (lots, _) = fifo_apply(&trades, &std::collections::HashMap::new());
         assert_eq!(lots.len(), 2);
@@ -1417,10 +1573,24 @@ mod tests {
     #[test]
     fn fifo_dividend_does_not_affect_lots() {
         let trades = vec![
-            FifoTradeInput { booking_date: "2026-01-01".into(), side: "buy".into(),
-                shares_micro: 10_000_000, amount_cents: -100_000, fee_cents: 0, tax_cents: 0 , fusion_group: None},
-            FifoTradeInput { booking_date: "2026-03-15".into(), side: "dividend".into(),
-                shares_micro: 0, amount_cents: 5_000, fee_cents: 0, tax_cents: 750 , fusion_group: None},
+            FifoTradeInput {
+                booking_date: "2026-01-01".into(),
+                side: "buy".into(),
+                shares_micro: 10_000_000,
+                amount_cents: -100_000,
+                fee_cents: 0,
+                tax_cents: 0,
+                fusion_group: None,
+            },
+            FifoTradeInput {
+                booking_date: "2026-03-15".into(),
+                side: "dividend".into(),
+                shares_micro: 0,
+                amount_cents: 5_000,
+                fee_cents: 0,
+                tax_cents: 750,
+                fusion_group: None,
+            },
         ];
         let (lots, realized) = fifo_apply(&trades, &std::collections::HashMap::new());
         assert_eq!(lots.len(), 1);
@@ -1437,19 +1607,53 @@ mod tests {
     fn fifo_fusion_out_empties_all_lots_even_when_share_count_diverges() {
         // User holds 192.34 shares (3 buys), fusion reports 212.57 — savings-plan gap.
         let source_trades = vec![
-            FifoTradeInput { booking_date: "2022-06-01".into(), side: "buy".into(),
-                shares_micro: 60_000_000, amount_cents: -60_000, fee_cents: 0, tax_cents: 0, fusion_group: None },
-            FifoTradeInput { booking_date: "2022-07-01".into(), side: "buy".into(),
-                shares_micro: 100_000_000, amount_cents: -100_000, fee_cents: 0, tax_cents: 0, fusion_group: None },
-            FifoTradeInput { booking_date: "2022-08-01".into(), side: "buy".into(),
-                shares_micro: 32_342_348, amount_cents: -32_500, fee_cents: 0, tax_cents: 0, fusion_group: None },
-            FifoTradeInput { booking_date: "2025-02-21".into(), side: "fusion_out".into(),
-                shares_micro: -212_571_745, amount_cents: 0, fee_cents: 0, tax_cents: 0,
-                fusion_group: Some("FUSION-X".into()) },
+            FifoTradeInput {
+                booking_date: "2022-06-01".into(),
+                side: "buy".into(),
+                shares_micro: 60_000_000,
+                amount_cents: -60_000,
+                fee_cents: 0,
+                tax_cents: 0,
+                fusion_group: None,
+            },
+            FifoTradeInput {
+                booking_date: "2022-07-01".into(),
+                side: "buy".into(),
+                shares_micro: 100_000_000,
+                amount_cents: -100_000,
+                fee_cents: 0,
+                tax_cents: 0,
+                fusion_group: None,
+            },
+            FifoTradeInput {
+                booking_date: "2022-08-01".into(),
+                side: "buy".into(),
+                shares_micro: 32_342_348,
+                amount_cents: -32_500,
+                fee_cents: 0,
+                tax_cents: 0,
+                fusion_group: None,
+            },
+            FifoTradeInput {
+                booking_date: "2025-02-21".into(),
+                side: "fusion_out".into(),
+                shares_micro: -212_571_745,
+                amount_cents: 0,
+                fee_cents: 0,
+                tax_cents: 0,
+                fusion_group: Some("FUSION-X".into()),
+            },
         ];
         let (lots, realized) = fifo_apply(&source_trades, &std::collections::HashMap::new());
-        assert!(lots.is_empty(), "fusion_out must clear all lots, had {} remaining", lots.len());
-        assert!(realized.is_empty(), "fusion_out must not produce any realized gain");
+        assert!(
+            lots.is_empty(),
+            "fusion_out must clear all lots, had {} remaining",
+            lots.len()
+        );
+        assert!(
+            realized.is_empty(),
+            "fusion_out must not produce any realized gain"
+        );
     }
 
     /// `collect_fusion_transfers` must collect the cost basis of all lots before
@@ -1457,16 +1661,38 @@ mod tests {
     #[test]
     fn collect_fusion_transfers_captures_total_cost_basis_per_group() {
         let source_trades = vec![
-            FifoTradeInput { booking_date: "2022-06-01".into(), side: "buy".into(),
-                shares_micro: 60_000_000, amount_cents: -60_000, fee_cents: 0, tax_cents: 0, fusion_group: None },
-            FifoTradeInput { booking_date: "2022-07-01".into(), side: "buy".into(),
-                shares_micro: 100_000_000, amount_cents: -100_000, fee_cents: 0, tax_cents: 0, fusion_group: None },
-            FifoTradeInput { booking_date: "2025-02-21".into(), side: "fusion_out".into(),
-                shares_micro: -160_000_000, amount_cents: 0, fee_cents: 0, tax_cents: 0,
-                fusion_group: Some("FUSION-X".into()) },
+            FifoTradeInput {
+                booking_date: "2022-06-01".into(),
+                side: "buy".into(),
+                shares_micro: 60_000_000,
+                amount_cents: -60_000,
+                fee_cents: 0,
+                tax_cents: 0,
+                fusion_group: None,
+            },
+            FifoTradeInput {
+                booking_date: "2022-07-01".into(),
+                side: "buy".into(),
+                shares_micro: 100_000_000,
+                amount_cents: -100_000,
+                fee_cents: 0,
+                tax_cents: 0,
+                fusion_group: None,
+            },
+            FifoTradeInput {
+                booking_date: "2025-02-21".into(),
+                side: "fusion_out".into(),
+                shares_micro: -160_000_000,
+                amount_cents: 0,
+                fee_cents: 0,
+                tax_cents: 0,
+                fusion_group: Some("FUSION-X".into()),
+            },
         ];
         let carry = collect_fusion_transfers(&[source_trades]);
-        let t = carry.get("FUSION-X").expect("fusion_group missing in carry");
+        let t = carry
+            .get("FUSION-X")
+            .expect("fusion_group missing in carry");
         assert_eq!(t.cost_cents, 160_000, "Cost basis = sum of all buy amounts");
         assert_eq!(t.acquired_date, "2022-06-01", "Earliest acquisition date");
     }
@@ -1476,21 +1702,33 @@ mod tests {
     #[test]
     fn fifo_fusion_in_creates_lot_from_carry() {
         let mut carry = std::collections::HashMap::new();
-        carry.insert("FUSION-X".to_string(), FusionTransfer {
-            cost_cents: 160_000,
-            acquired_date: "2022-06-01".into(),
-        });
-        let target_trades = vec![
-            FifoTradeInput { booking_date: "2025-02-21".into(), side: "fusion_in".into(),
-                shares_micro: 30_000_000, amount_cents: 0, fee_cents: 0, tax_cents: 0,
-                fusion_group: Some("FUSION-X".into()) },
-        ];
+        carry.insert(
+            "FUSION-X".to_string(),
+            FusionTransfer {
+                cost_cents: 160_000,
+                acquired_date: "2022-06-01".into(),
+            },
+        );
+        let target_trades = vec![FifoTradeInput {
+            booking_date: "2025-02-21".into(),
+            side: "fusion_in".into(),
+            shares_micro: 30_000_000,
+            amount_cents: 0,
+            fee_cents: 0,
+            tax_cents: 0,
+            fusion_group: Some("FUSION-X".into()),
+        }];
         let (lots, _) = fifo_apply(&target_trades, &carry);
         assert_eq!(lots.len(), 1, "fusion_in must create a new lot");
         assert_eq!(lots[0].shares_remaining_micro, 30_000_000);
-        assert_eq!(lots[0].cost_remaining_cents, 160_000, "Cost basis transferred");
-        assert_eq!(lots[0].acquired_date, "2022-06-01",
-            "Acquisition date from source lot — relevant for FIFO tax logic");
+        assert_eq!(
+            lots[0].cost_remaining_cents, 160_000,
+            "Cost basis transferred"
+        );
+        assert_eq!(
+            lots[0].acquired_date, "2022-06-01",
+            "Acquisition date from source lot — relevant for FIFO tax logic"
+        );
     }
 
     /// Defensive: without a carry entry (e.g. orphaned fusion tx) the lot is
@@ -1498,11 +1736,15 @@ mod tests {
     /// This ensures the new position is at least visible.
     #[test]
     fn fifo_fusion_in_without_carry_creates_zero_cost_lot() {
-        let target_trades = vec![
-            FifoTradeInput { booking_date: "2025-02-21".into(), side: "fusion_in".into(),
-                shares_micro: 30_000_000, amount_cents: 0, fee_cents: 0, tax_cents: 0,
-                fusion_group: Some("FUSION-MISSING".into()) },
-        ];
+        let target_trades = vec![FifoTradeInput {
+            booking_date: "2025-02-21".into(),
+            side: "fusion_in".into(),
+            shares_micro: 30_000_000,
+            amount_cents: 0,
+            fee_cents: 0,
+            tax_cents: 0,
+            fusion_group: Some("FUSION-MISSING".into()),
+        }];
         let (lots, _) = fifo_apply(&target_trades, &std::collections::HashMap::new());
         assert_eq!(lots.len(), 1);
         assert_eq!(lots[0].shares_remaining_micro, 30_000_000);
@@ -1515,17 +1757,32 @@ mod tests {
     #[test]
     fn fifo_sell_after_fusion_in_uses_transferred_cost_basis() {
         let mut carry = std::collections::HashMap::new();
-        carry.insert("FUSION-X".to_string(), FusionTransfer {
-            cost_cents: 100_000,
-            acquired_date: "2022-06-01".into(),
-        });
+        carry.insert(
+            "FUSION-X".to_string(),
+            FusionTransfer {
+                cost_cents: 100_000,
+                acquired_date: "2022-06-01".into(),
+            },
+        );
         let target_trades = vec![
-            FifoTradeInput { booking_date: "2025-02-21".into(), side: "fusion_in".into(),
-                shares_micro: 10_000_000, amount_cents: 0, fee_cents: 0, tax_cents: 0,
-                fusion_group: Some("FUSION-X".into()) },
-            FifoTradeInput { booking_date: "2025-06-01".into(), side: "sell".into(),
-                shares_micro: 10_000_000, amount_cents: 130_000, fee_cents: 0, tax_cents: 0,
-                fusion_group: None },
+            FifoTradeInput {
+                booking_date: "2025-02-21".into(),
+                side: "fusion_in".into(),
+                shares_micro: 10_000_000,
+                amount_cents: 0,
+                fee_cents: 0,
+                tax_cents: 0,
+                fusion_group: Some("FUSION-X".into()),
+            },
+            FifoTradeInput {
+                booking_date: "2025-06-01".into(),
+                side: "sell".into(),
+                shares_micro: 10_000_000,
+                amount_cents: 130_000,
+                fee_cents: 0,
+                tax_cents: 0,
+                fusion_group: None,
+            },
         ];
         let (lots, realized) = fifo_apply(&target_trades, &carry);
         assert!(lots.is_empty(), "All shares sold");
@@ -1542,7 +1799,9 @@ mod tests {
             "INSERT INTO accounts (name, kind, currency)
              VALUES ('Broker', 'broker', 'EUR') RETURNING id",
         )
-        .fetch_one(pool).await.unwrap();
+        .fetch_one(pool)
+        .await
+        .unwrap();
         id
     }
 
@@ -1551,14 +1810,22 @@ mod tests {
             "INSERT INTO securities (isin, name, currency, asset_type)
              VALUES (?1, ?2, 'EUR', 'stock') RETURNING id",
         )
-        .bind(isin).bind(name).fetch_one(pool).await.unwrap();
+        .bind(isin)
+        .bind(name)
+        .fetch_one(pool)
+        .await
+        .unwrap();
         id
     }
 
     async fn seed_trade(
         pool: &sqlx::SqlitePool,
-        acc_id: i64, sec_id: i64, date: &str, side: &str,
-        shares_micro: i64, amount_cents: i64,
+        acc_id: i64,
+        sec_id: i64,
+        date: &str,
+        side: &str,
+        shares_micro: i64,
+        amount_cents: i64,
     ) {
         let (tx_id,): (i64,) = sqlx::query_as(
             "INSERT INTO transactions
@@ -1566,30 +1833,56 @@ mod tests {
              VALUES (?1, ?2, ?3, 'EUR', 'manual', ?4, '2026-05-19T00:00:00Z')
              RETURNING id",
         )
-        .bind(acc_id).bind(date).bind(amount_cents).bind(side)
-        .fetch_one(pool).await.unwrap();
+        .bind(acc_id)
+        .bind(date)
+        .bind(amount_cents)
+        .bind(side)
+        .fetch_one(pool)
+        .await
+        .unwrap();
 
         sqlx::query(
             "INSERT INTO securities_trades
                 (tx_id, security_id, side, shares_micro, unit_price_micro, fee_cents, tax_cents)
              VALUES (?1, ?2, ?3, ?4, NULL, 0, 0)",
         )
-        .bind(tx_id).bind(sec_id).bind(side).bind(shares_micro)
-        .execute(pool).await.unwrap();
+        .bind(tx_id)
+        .bind(sec_id)
+        .bind(side)
+        .bind(shares_micro)
+        .execute(pool)
+        .await
+        .unwrap();
     }
 
     async fn seed_buy(
         pool: &sqlx::SqlitePool,
-        acc_id: i64, sec_id: i64, date: &str,
-        shares_micro: i64, amount_cents: i64,
+        acc_id: i64,
+        sec_id: i64,
+        date: &str,
+        shares_micro: i64,
+        amount_cents: i64,
     ) {
-        seed_trade(pool, acc_id, sec_id, date, "buy", shares_micro, -amount_cents.abs()).await;
+        seed_trade(
+            pool,
+            acc_id,
+            sec_id,
+            date,
+            "buy",
+            shares_micro,
+            -amount_cents.abs(),
+        )
+        .await;
     }
 
     async fn seed_fusion(
         pool: &sqlx::SqlitePool,
-        acc_id: i64, sec_id: i64, date: &str, side: &str,
-        shares_micro: i64, fusion_group: &str,
+        acc_id: i64,
+        sec_id: i64,
+        date: &str,
+        side: &str,
+        shares_micro: i64,
+        fusion_group: &str,
     ) {
         // transactions.kind is constrained by the schema to a fixed list
         // ('fusion_out'/'fusion_in' are not allowed kinds there). The importer
@@ -1605,8 +1898,12 @@ mod tests {
                      '2026-05-19T00:00:00Z')
              RETURNING id",
         )
-        .bind(acc_id).bind(date).bind(format!("Fusion {side}"))
-        .fetch_one(pool).await.unwrap();
+        .bind(acc_id)
+        .bind(date)
+        .bind(format!("Fusion {side}"))
+        .fetch_one(pool)
+        .await
+        .unwrap();
 
         sqlx::query(
             "INSERT INTO securities_trades
@@ -1614,8 +1911,14 @@ mod tests {
                  fee_cents, tax_cents, fusion_group)
              VALUES (?1, ?2, ?3, ?4, NULL, 0, 0, ?5)",
         )
-        .bind(tx_id).bind(sec_id).bind(side).bind(shares_micro).bind(fusion_group)
-        .execute(pool).await.unwrap();
+        .bind(tx_id)
+        .bind(sec_id)
+        .bind(side)
+        .bind(shares_micro)
+        .bind(fusion_group)
+        .execute(pool)
+        .await
+        .unwrap();
     }
 
     // ── current_holdings tests ───────────────────────────────────────────────
@@ -1646,8 +1949,8 @@ mod tests {
         let pool = connect_memory().await.unwrap();
         let acc = seed_account(&pool).await;
         let sec = seed_security(&pool, "US0378331005", "Apple").await;
-        seed_trade(&pool, acc, sec, "2026-01-15", "buy",  10_000_000, -100_000).await;
-        seed_trade(&pool, acc, sec, "2026-03-10", "sell", 10_000_000,  120_000).await;
+        seed_trade(&pool, acc, sec, "2026-01-15", "buy", 10_000_000, -100_000).await;
+        seed_trade(&pool, acc, sec, "2026-03-10", "sell", 10_000_000, 120_000).await;
         let holdings = current_holdings(&pool).await.unwrap();
         assert!(holdings.is_empty(), "fully sold security must not appear");
     }
@@ -1679,20 +1982,45 @@ mod tests {
         let dst = seed_security(&pool, "IE000BI8OT95", "AMUNDI (Ziel)").await;
 
         seed_buy(&pool, acc, src, "2022-06-01", 100_000_000, 160_000).await;
-        seed_fusion(&pool, acc, src, "2025-02-21", "fusion_out",
-                    -100_000_000, "FUSION-1").await;
-        seed_fusion(&pool, acc, dst, "2025-02-21", "fusion_in",
-                    30_000_000, "FUSION-1").await;
+        seed_fusion(
+            &pool,
+            acc,
+            src,
+            "2025-02-21",
+            "fusion_out",
+            -100_000_000,
+            "FUSION-1",
+        )
+        .await;
+        seed_fusion(
+            &pool,
+            acc,
+            dst,
+            "2025-02-21",
+            "fusion_in",
+            30_000_000,
+            "FUSION-1",
+        )
+        .await;
 
         // Archive the source security (position is already 0 after fusion_out).
         sqlx::query("UPDATE securities SET archived = 1 WHERE id = ?1")
-            .bind(src).execute(&pool).await.unwrap();
+            .bind(src)
+            .execute(&pool)
+            .await
+            .unwrap();
 
         let holdings = current_holdings(&pool).await.unwrap();
-        assert_eq!(holdings.len(), 1, "Only the target security (AMUNDI) has a position");
+        assert_eq!(
+            holdings.len(),
+            1,
+            "Only the target security (AMUNDI) has a position"
+        );
         assert_eq!(holdings[0].security_id, dst);
-        assert_eq!(holdings[0].cost_basis_cents, 160_000,
-            "Cost basis must have been transferred from the archived source");
+        assert_eq!(
+            holdings[0].cost_basis_cents, 160_000,
+            "Cost basis must have been transferred from the archived source"
+        );
     }
 
     // ── realized_gains_summary tests ─────────────────────────────────────────
@@ -1711,10 +2039,10 @@ mod tests {
         let pool = connect_memory().await.unwrap();
         let acc = seed_account(&pool).await;
         let sec = seed_security(&pool, "US0378331005", "Apple").await;
-        seed_trade(&pool, acc, sec, "2026-01-15", "buy",  10_000_000, -100_000).await;
-        seed_trade(&pool, acc, sec, "2026-03-10", "sell", 10_000_000,  120_000).await;
-        seed_trade(&pool, acc, sec, "2026-04-01", "buy",  5_000_000,  -75_000).await;
-        seed_trade(&pool, acc, sec, "2026-06-01", "sell", 5_000_000,   60_000).await;
+        seed_trade(&pool, acc, sec, "2026-01-15", "buy", 10_000_000, -100_000).await;
+        seed_trade(&pool, acc, sec, "2026-03-10", "sell", 10_000_000, 120_000).await;
+        seed_trade(&pool, acc, sec, "2026-04-01", "buy", 5_000_000, -75_000).await;
+        seed_trade(&pool, acc, sec, "2026-06-01", "sell", 5_000_000, 60_000).await;
 
         let sum_26 = realized_gains_summary(&pool, Some(2026)).await.unwrap();
         // (+20_000) + (-15_000) = 5_000
@@ -1741,16 +2069,29 @@ mod tests {
             "INSERT INTO transactions
                 (account_id, booking_date, amount_cents, currency, source, kind, imported_at)
              VALUES (?1, '2026-05-01', -16500, 'EUR', 'flatex_pdf', 'tax', '2026-05-19T00:00:00Z')
-             RETURNING id"
-        ).bind(acc).fetch_one(&pool).await.unwrap();
+             RETURNING id",
+        )
+        .bind(acc)
+        .fetch_one(&pool)
+        .await
+        .unwrap();
         sqlx::query(
             "INSERT INTO securities_trades (tx_id, security_id, side, shares_micro,
                 unit_price_micro, fee_cents, tax_cents)
-             VALUES (?1, ?2, 'tax', 0, NULL, 0, 16500)"
-        ).bind(tx_id).bind(sec).execute(&pool).await.unwrap();
+             VALUES (?1, ?2, 'tax', 0, NULL, 0, 16500)",
+        )
+        .bind(tx_id)
+        .bind(sec)
+        .execute(&pool)
+        .await
+        .unwrap();
 
         let entries = dividend_history(&pool).await.unwrap();
-        assert_eq!(entries.len(), 1, "only the genuine dividend, withholding tax tx filtered out");
+        assert_eq!(
+            entries.len(),
+            1,
+            "only the genuine dividend, withholding tax tx filtered out"
+        );
         assert_eq!(entries[0].amount_cents, 5_000);
     }
 
@@ -1797,7 +2138,8 @@ mod tests {
         let sec = seed_security(&pool, "US0378331005", "Apple").await;
         seed_trade(&pool, acc, sec, "2026-01-15", "buy", 10_000_000, -50_000).await;
         crate::db::prices::upsert_price(&pool, sec, "2026-05-19", 70_000_000, "yahoo")
-            .await.unwrap();
+            .await
+            .unwrap();
 
         let h = &current_holdings(&pool).await.unwrap()[0];
         assert_eq!(h.cost_basis_cents, 50_000);
@@ -1841,7 +2183,7 @@ mod tests {
         let acc = seed_account(&pool).await;
         let sec = seed_security(&pool, "US0378331005", "Apple").await;
         seed_trade(&pool, acc, sec, "2026-01-15", "buy", 10_000_000, -100_000).await;
-        seed_trade(&pool, acc, sec, "2026-04-15", "buy", 5_000_000,  -50_000).await;
+        seed_trade(&pool, acc, sec, "2026-04-15", "buy", 5_000_000, -50_000).await;
 
         // 6 months back from 2026-06 = Jan, Feb, Mar, Apr, May, Jun
         let points = cost_basis_history(&pool, 2026, 6, 6).await.unwrap();
@@ -1863,7 +2205,8 @@ mod tests {
         seed_trade(&pool, acc, sec, "2026-01-15", "buy", 10_000_000, -50_000).await;
         // Price €70 at end of February
         crate::db::prices::upsert_price(&pool, sec, "2026-02-28", 70_000_000, "yahoo")
-            .await.unwrap();
+            .await
+            .unwrap();
 
         let points = cost_basis_history(&pool, 2026, 2, 2).await.unwrap();
         assert_eq!(points.len(), 2);
@@ -1898,7 +2241,9 @@ mod tests {
         let s2 = seed_security(&pool, "DE000A0F5UH1", "iShares").await;
         seed_trade(&pool, acc, s1, "2026-01-15", "buy", 10_000_000, -50_000).await;
         seed_trade(&pool, acc, s2, "2026-01-15", "buy", 5_000_000, -100_000).await;
-        crate::db::prices::upsert_price(&pool, s1, "2026-04-30", 70_000_000, "yahoo").await.unwrap();
+        crate::db::prices::upsert_price(&pool, s1, "2026-04-30", 70_000_000, "yahoo")
+            .await
+            .unwrap();
 
         let v = portfolio_value_on_date(&pool, "2026-04-30").await.unwrap();
         // s1: 10 × €70 = 70_000 cents (market)
@@ -1914,7 +2259,9 @@ mod tests {
              VALUES (?1, 'broker', 'EUR') RETURNING id",
         )
         .bind(name)
-        .fetch_one(pool).await.unwrap();
+        .fetch_one(pool)
+        .await
+        .unwrap();
         id
     }
 
@@ -1929,13 +2276,19 @@ mod tests {
         // SC: 5 Aktien
         seed_trade(&pool, acc_b, s, "2026-01-15", "buy", 5_000_000, -25_000).await;
         crate::db::prices::upsert_price(&pool, s, "2026-04-30", 70_000_000, "yahoo")
-            .await.unwrap();
+            .await
+            .unwrap();
 
-        let v = portfolio_value_by_account_on_date(&pool, "2026-04-30").await.unwrap();
-        assert_eq!(v, vec![
-            (acc_a, 70_000), // 10 × €70
-            (acc_b, 35_000), // 5  × €70
-        ]);
+        let v = portfolio_value_by_account_on_date(&pool, "2026-04-30")
+            .await
+            .unwrap();
+        assert_eq!(
+            v,
+            vec![
+                (acc_a, 70_000), // 10 × €70
+                (acc_b, 35_000), // 5  × €70
+            ]
+        );
     }
 
     #[tokio::test]
@@ -1952,13 +2305,19 @@ mod tests {
         // B: 3 sell (proceeds arbitrary)
         seed_trade(&pool, acc_b, s, "2026-02-20", "sell", 3_000_000, 18_000).await;
         crate::db::prices::upsert_price(&pool, s, "2026-04-30", 70_000_000, "yahoo")
-            .await.unwrap();
+            .await
+            .unwrap();
 
-        let v = portfolio_value_by_account_on_date(&pool, "2026-04-30").await.unwrap();
-        assert_eq!(v, vec![
-            (acc_a, 70_000),  // 10 × €70 = €700
-            (acc_b, 14_000),  // (5-3) × €70 = €140
-        ]);
+        let v = portfolio_value_by_account_on_date(&pool, "2026-04-30")
+            .await
+            .unwrap();
+        assert_eq!(
+            v,
+            vec![
+                (acc_a, 70_000), // 10 × €70 = €700
+                (acc_b, 14_000), // (5-3) × €70 = €140
+            ]
+        );
     }
 
     #[tokio::test]
@@ -1972,9 +2331,12 @@ mod tests {
         // B sells everything
         seed_trade(&pool, acc_b, s, "2026-02-20", "sell", 5_000_000, 30_000).await;
         crate::db::prices::upsert_price(&pool, s, "2026-04-30", 70_000_000, "yahoo")
-            .await.unwrap();
+            .await
+            .unwrap();
 
-        let v = portfolio_value_by_account_on_date(&pool, "2026-04-30").await.unwrap();
+        let v = portfolio_value_by_account_on_date(&pool, "2026-04-30")
+            .await
+            .unwrap();
         assert_eq!(v, vec![(acc_a, 70_000)]); // B is omitted
     }
 
@@ -1986,7 +2348,9 @@ mod tests {
         let s = seed_security(&pool, "US0378331005", "Apple").await;
         seed_trade(&pool, acc, s, "2026-01-15", "buy", 10_000_000, -50_000).await;
 
-        let v = portfolio_value_by_account_on_date(&pool, "2026-04-30").await.unwrap();
+        let v = portfolio_value_by_account_on_date(&pool, "2026-04-30")
+            .await
+            .unwrap();
         assert_eq!(v, vec![(acc, 50_000)]);
     }
 
@@ -1996,63 +2360,155 @@ mod tests {
         // Holdings should land on the depot, NOT on the settlement account.
         let pool = connect_memory().await.unwrap();
         sqlx::query("INSERT INTO institutions (name) VALUES ('TR')")
-            .execute(&pool).await.unwrap();
+            .execute(&pool)
+            .await
+            .unwrap();
         let (inst_id,): (i64,) = sqlx::query_as("SELECT id FROM institutions WHERE name='TR'")
-            .fetch_one(&pool).await.unwrap();
-        let verrechnung = crate::db::accounts::create_account(&pool, "V", "bank", "EUR", None, None, Some(inst_id)).await.unwrap();
-        let depot = crate::db::accounts::create_account(&pool, "D", "broker", "EUR", None, None, Some(inst_id)).await.unwrap();
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+        let verrechnung = crate::db::accounts::create_account(
+            &pool,
+            "V",
+            "bank",
+            "EUR",
+            None,
+            None,
+            Some(inst_id),
+        )
+        .await
+        .unwrap();
+        let depot = crate::db::accounts::create_account(
+            &pool,
+            "D",
+            "broker",
+            "EUR",
+            None,
+            None,
+            Some(inst_id),
+        )
+        .await
+        .unwrap();
 
-        let sec = crate::db::securities::create_security(&pool, crate::db::securities::NewSecurityPayload {
-            isin: "LU0000000003".into(), symbol: None, name: "X".into(),
-            currency: None, asset_type: "etf_equity".into(),
-            country: None, sector: None, note: None,
-        }).await.unwrap();
+        let sec = crate::db::securities::create_security(
+            &pool,
+            crate::db::securities::NewSecurityPayload {
+                isin: "LU0000000003".into(),
+                symbol: None,
+                name: "X".into(),
+                currency: None,
+                asset_type: "etf_equity".into(),
+                country: None,
+                sector: None,
+                note: None,
+            },
+        )
+        .await
+        .unwrap();
 
         sqlx::query(
             "INSERT INTO transactions (account_id, booking_date, amount_cents, currency, counterparty, source, kind)
              VALUES (?1, '2026-04-01', -50000, 'EUR', 'X', 'tr_csv', 'buy')"
         ).bind(verrechnung.id).execute(&pool).await.unwrap();
         let (tx_id,): (i64,) = sqlx::query_as("SELECT id FROM transactions WHERE account_id=?1")
-            .bind(verrechnung.id).fetch_one(&pool).await.unwrap();
+            .bind(verrechnung.id)
+            .fetch_one(&pool)
+            .await
+            .unwrap();
 
         // Trade row with account_id = depot (Variant B!)
         crate::db::trades::insert_trade_row(
-            &pool, tx_id, sec.id, "buy", 5_000_000, Some(10_000_000), 0, 0, 0, None, Some(depot.id), None,
-        ).await.unwrap();
+            &pool,
+            tx_id,
+            sec.id,
+            "buy",
+            5_000_000,
+            Some(10_000_000),
+            0,
+            0,
+            0,
+            None,
+            Some(depot.id),
+            None,
+        )
+        .await
+        .unwrap();
 
-        let result = portfolio_value_by_account_on_date(&pool, "2026-04-30").await.unwrap();
+        let result = portfolio_value_by_account_on_date(&pool, "2026-04-30")
+            .await
+            .unwrap();
         // Holdings should appear on the DEPOT, not on the settlement account
         let depot_value = result.iter().find(|(acc_id, _)| *acc_id == depot.id);
         let verrechnung_value = result.iter().find(|(acc_id, _)| *acc_id == verrechnung.id);
-        assert!(depot_value.is_some(), "Holdings should bucket to depot when st.account_id set");
-        assert!(verrechnung_value.is_none(), "Holdings should NOT bucket to verrechnung when st.account_id set");
+        assert!(
+            depot_value.is_some(),
+            "Holdings should bucket to depot when st.account_id set"
+        );
+        assert!(
+            verrechnung_value.is_none(),
+            "Holdings should NOT bucket to verrechnung when st.account_id set"
+        );
     }
 
     #[tokio::test]
     async fn portfolio_value_by_account_falls_back_to_tx_account_when_st_account_null() {
         // When securities_trades.account_id is NULL, it falls back to tx.account_id.
         let pool = connect_memory().await.unwrap();
-        let acc = crate::db::accounts::create_account(&pool, "A", "broker", "EUR", None, None, None).await.unwrap();
-        let sec = crate::db::securities::create_security(&pool, crate::db::securities::NewSecurityPayload {
-            isin: "LU0000000004".into(), symbol: None, name: "Y".into(),
-            currency: None, asset_type: "etf_equity".into(),
-            country: None, sector: None, note: None,
-        }).await.unwrap();
+        let acc =
+            crate::db::accounts::create_account(&pool, "A", "broker", "EUR", None, None, None)
+                .await
+                .unwrap();
+        let sec = crate::db::securities::create_security(
+            &pool,
+            crate::db::securities::NewSecurityPayload {
+                isin: "LU0000000004".into(),
+                symbol: None,
+                name: "Y".into(),
+                currency: None,
+                asset_type: "etf_equity".into(),
+                country: None,
+                sector: None,
+                note: None,
+            },
+        )
+        .await
+        .unwrap();
         sqlx::query(
             "INSERT INTO transactions (account_id, booking_date, amount_cents, currency, counterparty, source, kind)
              VALUES (?1, '2026-04-01', -50000, 'EUR', 'Y', 'tr_csv', 'buy')"
         ).bind(acc.id).execute(&pool).await.unwrap();
         let (tx_id,): (i64,) = sqlx::query_as("SELECT id FROM transactions WHERE account_id=?1")
-            .bind(acc.id).fetch_one(&pool).await.unwrap();
+            .bind(acc.id)
+            .fetch_one(&pool)
+            .await
+            .unwrap();
 
         // st.account_id = None → fallback
         crate::db::trades::insert_trade_row(
-            &pool, tx_id, sec.id, "buy", 5_000_000, Some(10_000_000), 0, 0, 0, None, None, None,
-        ).await.unwrap();
+            &pool,
+            tx_id,
+            sec.id,
+            "buy",
+            5_000_000,
+            Some(10_000_000),
+            0,
+            0,
+            0,
+            None,
+            None,
+            None,
+        )
+        .await
+        .unwrap();
 
-        let result = portfolio_value_by_account_on_date(&pool, "2026-04-30").await.unwrap();
+        let result = portfolio_value_by_account_on_date(&pool, "2026-04-30")
+            .await
+            .unwrap();
         let value = result.iter().find(|(acc_id, _)| *acc_id == acc.id);
-        assert!(value.is_some(), "Holdings should bucket to tx.account_id when st.account_id is NULL");
+        assert!(
+            value.is_some(),
+            "Holdings should bucket to tx.account_id when st.account_id is NULL"
+        );
     }
 
     // ── asset_allocation tests ───────────────────────────────────────────────
@@ -2072,7 +2528,10 @@ mod tests {
         // Apple is 'stock' (default from seed_security helper)
         let s2 = seed_security(&pool, "DE000A0F5UH1", "iShares MSCI World").await;
         sqlx::query("UPDATE securities SET asset_type = 'etf_equity' WHERE id = ?")
-            .bind(s2).execute(&pool).await.unwrap();
+            .bind(s2)
+            .execute(&pool)
+            .await
+            .unwrap();
 
         seed_trade(&pool, acc, s1, "2026-01-15", "buy", 5_000_000, -50_000).await;
         seed_trade(&pool, acc, s2, "2026-01-15", "buy", 10_000_000, -100_000).await;
@@ -2092,7 +2551,10 @@ mod tests {
         let acc = seed_account(&pool).await;
         let s = seed_security(&pool, "US0378331005", "Apple").await;
         sqlx::query("UPDATE securities SET country = 'US' WHERE id = ?")
-            .bind(s).execute(&pool).await.unwrap();
+            .bind(s)
+            .execute(&pool)
+            .await
+            .unwrap();
         seed_trade(&pool, acc, s, "2026-01-15", "buy", 10_000_000, -100_000).await;
 
         let result = asset_allocation(&pool, "country").await.unwrap();
@@ -2107,7 +2569,10 @@ mod tests {
         let acc = seed_account(&pool).await;
         let etf = seed_security(&pool, "IE00BK5BQT80", "VWCE").await;
         sqlx::query("UPDATE securities SET asset_type = 'etf_equity' WHERE id = ?")
-            .bind(etf).execute(&pool).await.unwrap();
+            .bind(etf)
+            .execute(&pool)
+            .await
+            .unwrap();
         sqlx::query("INSERT INTO security_breakdowns (security_id, dimension, key, weight_bps) VALUES (?1, 'country', 'US', 7000)")
             .bind(etf).execute(&pool).await.unwrap();
         sqlx::query("INSERT INTO security_breakdowns (security_id, dimension, key, weight_bps) VALUES (?1, 'country', 'JP', 2000)")
@@ -2132,7 +2597,9 @@ mod tests {
     #[tokio::test]
     async fn cost_basis_history_daily_empty_db_returns_zeros() {
         let pool = connect_memory().await.unwrap();
-        let points = cost_basis_history_daily(&pool, "2026-05-21", 3).await.unwrap();
+        let points = cost_basis_history_daily(&pool, "2026-05-21", 3)
+            .await
+            .unwrap();
         assert_eq!(points.len(), 3);
         for p in &points {
             assert_eq!(p.cost_basis_cents, 0);
@@ -2151,7 +2618,9 @@ mod tests {
         // Buy on 2026-05-20
         seed_buy(&pool, acc, sec, "2026-05-20", 100_000, 10).await;
 
-        let points = cost_basis_history_daily(&pool, "2026-05-21", 3).await.unwrap();
+        let points = cost_basis_history_daily(&pool, "2026-05-21", 3)
+            .await
+            .unwrap();
         // 2026-05-19: nothing yet
         assert_eq!(points[0].cost_basis_cents, 0);
         // 2026-05-20: buy happened, cost should be > 0
@@ -2163,7 +2632,9 @@ mod tests {
     #[tokio::test]
     async fn cost_basis_history_daily_days_zero_returns_empty() {
         let pool = connect_memory().await.unwrap();
-        let points = cost_basis_history_daily(&pool, "2026-05-21", 0).await.unwrap();
+        let points = cost_basis_history_daily(&pool, "2026-05-21", 0)
+            .await
+            .unwrap();
         assert!(points.is_empty());
     }
 
@@ -2179,7 +2650,11 @@ mod tests {
 
         let mock = MockProvider::new()
             .with_symbol("US0378331005", "AAPL")
-            .with_quote("AAPL", 180_500_000, NaiveDate::from_ymd_opt(2026, 5, 19).unwrap());
+            .with_quote(
+                "AAPL",
+                180_500_000,
+                NaiveDate::from_ymd_opt(2026, 5, 19).unwrap(),
+            );
 
         let report = refresh_all_prices(&pool, &mock).await.unwrap();
         assert_eq!(report.securities_total, 1);
@@ -2187,13 +2662,21 @@ mod tests {
         assert_eq!(report.prices_failed, 0);
 
         // Symbol stored
-        let (sym,): (Option<String>,) = sqlx::query_as("SELECT symbol FROM securities WHERE id = ?")
-            .bind(sec).fetch_one(&pool).await.unwrap();
+        let (sym,): (Option<String>,) =
+            sqlx::query_as("SELECT symbol FROM securities WHERE id = ?")
+                .bind(sec)
+                .fetch_one(&pool)
+                .await
+                .unwrap();
         assert_eq!(sym.as_deref(), Some("AAPL"));
 
         // Price in security_prices
-        let (count,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM security_prices WHERE security_id = ?")
-            .bind(sec).fetch_one(&pool).await.unwrap();
+        let (count,): (i64,) =
+            sqlx::query_as("SELECT COUNT(*) FROM security_prices WHERE security_id = ?")
+                .bind(sec)
+                .fetch_one(&pool)
+                .await
+                .unwrap();
         assert_eq!(count, 1);
     }
 
@@ -2210,17 +2693,33 @@ mod tests {
         // No prices in DB yet → refresh should fetch history.
         let provider = MockProvider::new()
             .with_symbol("DE0007236101", "TEST.DE")
-            .with_history("TEST.DE", vec![
-                PricePoint { date: NaiveDate::from_ymd_opt(2026, 5, 18).unwrap(), close_micro: 100_000_000 },
-                PricePoint { date: NaiveDate::from_ymd_opt(2026, 5, 19).unwrap(), close_micro: 101_000_000 },
-                PricePoint { date: NaiveDate::from_ymd_opt(2026, 5, 20).unwrap(), close_micro: 102_000_000 },
-            ]);
+            .with_history(
+                "TEST.DE",
+                vec![
+                    PricePoint {
+                        date: NaiveDate::from_ymd_opt(2026, 5, 18).unwrap(),
+                        close_micro: 100_000_000,
+                    },
+                    PricePoint {
+                        date: NaiveDate::from_ymd_opt(2026, 5, 19).unwrap(),
+                        close_micro: 101_000_000,
+                    },
+                    PricePoint {
+                        date: NaiveDate::from_ymd_opt(2026, 5, 20).unwrap(),
+                        close_micro: 102_000_000,
+                    },
+                ],
+            );
 
         let report = refresh_all_prices(&pool, &provider).await.unwrap();
         assert_eq!(report.prices_updated, 3, "should fetch 3 history points");
 
-        let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM security_prices WHERE security_id = ?")
-            .bind(sec).fetch_one(&pool).await.unwrap();
+        let count: i64 =
+            sqlx::query_scalar("SELECT COUNT(*) FROM security_prices WHERE security_id = ?")
+                .bind(sec)
+                .fetch_one(&pool)
+                .await
+                .unwrap();
         assert_eq!(count, 3);
     }
 
@@ -2235,17 +2734,30 @@ mod tests {
         seed_buy(&pool, acc, sec, "2026-05-15", 100_000, 10).await;
 
         // Pre-seed a price so security counts as "existing".
-        crate::db::prices::upsert_price(&pool, sec, "2026-05-19", 100_000_000, "manual").await.unwrap();
+        crate::db::prices::upsert_price(&pool, sec, "2026-05-19", 100_000_000, "manual")
+            .await
+            .unwrap();
 
         let provider = MockProvider::new()
             .with_symbol("DE0007236101", "TEST.DE")
-            .with_quote("TEST.DE", 103_000_000, NaiveDate::from_ymd_opt(2026, 5, 20).unwrap());
+            .with_quote(
+                "TEST.DE",
+                103_000_000,
+                NaiveDate::from_ymd_opt(2026, 5, 20).unwrap(),
+            );
 
         let report = refresh_all_prices(&pool, &provider).await.unwrap();
-        assert_eq!(report.prices_updated, 1, "should fetch single quote, not history");
+        assert_eq!(
+            report.prices_updated, 1,
+            "should fetch single quote, not history"
+        );
 
-        let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM security_prices WHERE security_id = ?")
-            .bind(sec).fetch_one(&pool).await.unwrap();
+        let count: i64 =
+            sqlx::query_scalar("SELECT COUNT(*) FROM security_prices WHERE security_id = ?")
+                .bind(sec)
+                .fetch_one(&pool)
+                .await
+                .unwrap();
         // 1 pre-seeded + 1 from quote = 2 total
         assert_eq!(count, 2);
     }
@@ -2260,12 +2772,15 @@ mod tests {
         // Security with default currency EUR, but actually USD-denominated
         let sec = seed_security(&pool, "DE0007236101", "USD ETF").await;
         seed_buy(&pool, acc, sec, "2026-05-15", 100_000, 10).await;
-        crate::db::prices::upsert_price(&pool, sec, "2026-05-19", 100_000_000, "manual").await.unwrap();
+        crate::db::prices::upsert_price(&pool, sec, "2026-05-19", 100_000_000, "manual")
+            .await
+            .unwrap();
 
         let provider = MockProvider::new()
             .with_symbol("DE0007236101", "TEST.DE")
             .with_quote_currency(
-                "TEST.DE", 103_000_000,
+                "TEST.DE",
+                103_000_000,
                 NaiveDate::from_ymd_opt(2026, 5, 20).unwrap(),
                 "USD",
             );
@@ -2273,7 +2788,10 @@ mod tests {
         refresh_all_prices(&pool, &provider).await.unwrap();
 
         let cur: String = sqlx::query_scalar("SELECT currency FROM securities WHERE id = ?1")
-            .bind(sec).fetch_one(&pool).await.unwrap();
+            .bind(sec)
+            .fetch_one(&pool)
+            .await
+            .unwrap();
         assert_eq!(cur, "USD");
     }
 
@@ -2287,29 +2805,36 @@ mod tests {
         let acc = seed_account(&pool).await;
         let sec = seed_security(&pool, "DE0007236102", "EUR ETF").await;
         seed_buy(&pool, acc, sec, "2026-05-15", 100_000, 10).await;
-        crate::db::prices::upsert_price(&pool, sec, "2026-05-19", 100_000_000, "manual").await.unwrap();
+        crate::db::prices::upsert_price(&pool, sec, "2026-05-19", 100_000_000, "manual")
+            .await
+            .unwrap();
 
         let provider = MockProvider::new()
             .with_symbol("DE0007236102", "EUR.DE")
             // with_quote without _currency suffix → currency=None
-            .with_quote("EUR.DE", 100_000_000, NaiveDate::from_ymd_opt(2026, 5, 20).unwrap());
+            .with_quote(
+                "EUR.DE",
+                100_000_000,
+                NaiveDate::from_ymd_opt(2026, 5, 20).unwrap(),
+            );
 
         refresh_all_prices(&pool, &provider).await.unwrap();
         let cur: String = sqlx::query_scalar("SELECT currency FROM securities WHERE id = ?1")
-            .bind(sec).fetch_one(&pool).await.unwrap();
+            .bind(sec)
+            .fetch_one(&pool)
+            .await
+            .unwrap();
         assert_eq!(cur, "EUR", "currency must remain unchanged");
     }
 
     // ── seed helpers for bucket tests ────────────────────────────────────────
 
     async fn seed_bucket(pool: &sqlx::SqlitePool, name: &str) -> i64 {
-        let (id,): (i64,) = sqlx::query_as(
-            "INSERT INTO buckets (name) VALUES (?1) RETURNING id",
-        )
-        .bind(name)
-        .fetch_one(pool)
-        .await
-        .unwrap();
+        let (id,): (i64,) = sqlx::query_as("INSERT INTO buckets (name) VALUES (?1) RETURNING id")
+            .bind(name)
+            .fetch_one(pool)
+            .await
+            .unwrap();
         id
     }
 
@@ -2331,8 +2856,20 @@ mod tests {
 
         let rows = list_allocations_for_security(&pool, sec).await.unwrap();
         assert_eq!(rows.len(), 2);
-        assert_eq!(rows.iter().find(|r| r.bucket_id == b1).unwrap().shares_micro, 6_000_000);
-        assert_eq!(rows.iter().find(|r| r.bucket_id == b2).unwrap().shares_micro, 4_000_000);
+        assert_eq!(
+            rows.iter()
+                .find(|r| r.bucket_id == b1)
+                .unwrap()
+                .shares_micro,
+            6_000_000
+        );
+        assert_eq!(
+            rows.iter()
+                .find(|r| r.bucket_id == b2)
+                .unwrap()
+                .shares_micro,
+            4_000_000
+        );
 
         // Second call: replaces completely
         set_allocations_for_security(&pool, sec, &[(b1, 3_000_000)])
@@ -2369,7 +2906,8 @@ mod tests {
         seed_buy(&pool, acc, sec, "2026-01-15", 10_000_000, 100_000).await;
         let b = seed_bucket(&pool, "Test").await;
 
-        let result = set_allocations_for_security(&pool, sec, &[(b, 3_000_000), (b, 2_000_000)]).await;
+        let result =
+            set_allocations_for_security(&pool, sec, &[(b, 3_000_000), (b, 2_000_000)]).await;
         assert!(result.is_err());
         let msg = format!("{}", result.unwrap_err());
         assert!(msg.contains("Duplicate"), "Error message: {msg}");

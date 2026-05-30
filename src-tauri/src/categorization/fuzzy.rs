@@ -35,7 +35,10 @@ mod tests {
     use super::*;
 
     fn entry(cp: &str, cat: i64) -> HistoryEntry {
-        HistoryEntry { counterparty: cp.to_string(), category_id: cat }
+        HistoryEntry {
+            counterparty: cp.to_string(),
+            category_id: cat,
+        }
     }
 
     #[test]
@@ -54,9 +57,7 @@ mod tests {
     #[test]
     fn returns_none_when_below_threshold() {
         let history = vec![entry("Edeka", 2)];
-        assert!(
-            suggest_category_from_history("Bank of America", &history, 0.8).is_none()
-        );
+        assert!(suggest_category_from_history("Bank of America", &history, 0.8).is_none());
     }
 
     #[test]

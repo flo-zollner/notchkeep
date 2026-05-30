@@ -1,6 +1,6 @@
+use super::DbResult;
 use serde::Serialize;
 use sqlx::SqlitePool;
-use super::DbResult;
 
 #[derive(Debug, Clone, Serialize, sqlx::FromRow)]
 #[serde(rename_all = "camelCase")]
@@ -45,7 +45,7 @@ pub async fn find_data_issues(pool: &SqlitePool) -> DbResult<IntegrityReport> {
            FROM transactions t
           WHERE t.kind IN ('buy','sell','dividend','corporate_action','tax')
             AND NOT EXISTS (SELECT 1 FROM securities_trades st WHERE st.tx_id = t.id)
-          ORDER BY t.booking_date DESC, t.id DESC"
+          ORDER BY t.booking_date DESC, t.id DESC",
     )
     .fetch_all(pool)
     .await?;
@@ -57,7 +57,7 @@ pub async fn find_data_issues(pool: &SqlitePool) -> DbResult<IntegrityReport> {
            JOIN securities s ON s.id = sba.security_id
            JOIN buckets b ON b.id = sba.bucket_id
           WHERE b.archived = 1
-          ORDER BY s.name"
+          ORDER BY s.name",
     )
     .fetch_all(pool)
     .await?;
@@ -67,7 +67,7 @@ pub async fn find_data_issues(pool: &SqlitePool) -> DbResult<IntegrityReport> {
            FROM securities s
           WHERE NOT EXISTS (SELECT 1 FROM securities_trades st WHERE st.security_id = s.id)
             AND NOT EXISTS (SELECT 1 FROM security_prices sp WHERE sp.security_id = s.id)
-          ORDER BY s.name"
+          ORDER BY s.name",
     )
     .fetch_all(pool)
     .await?;
@@ -97,8 +97,11 @@ mod tests {
     async fn detects_buy_tx_without_trade_row() {
         let pool = connect_memory().await.unwrap();
         sqlx::query(
-            "INSERT INTO accounts (name, kind, currency) VALUES ('Broker', 'broker', 'EUR')"
-        ).execute(&pool).await.unwrap();
+            "INSERT INTO accounts (name, kind, currency) VALUES ('Broker', 'broker', 'EUR')",
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
         sqlx::query(
             "INSERT INTO transactions (account_id, booking_date, amount_cents, currency, source, imported_at, kind)
              VALUES (1, '2026-05-01', -10000, 'EUR', 'manual', '2026-05-01T00:00:00Z', 'buy')"
@@ -124,9 +127,10 @@ mod tests {
         sqlx::query(
             "INSERT INTO securities (isin, name, currency, asset_type) VALUES ('US0000000001', 'Sec', 'USD', 'stock')"
         ).execute(&pool).await.unwrap();
-        sqlx::query(
-            "INSERT INTO buckets (name, archived) VALUES ('Old', 1)"
-        ).execute(&pool).await.unwrap();
+        sqlx::query("INSERT INTO buckets (name, archived) VALUES ('Old', 1)")
+            .execute(&pool)
+            .await
+            .unwrap();
         sqlx::query(
             "INSERT INTO security_bucket_allocations (security_id, bucket_id, shares_micro) VALUES (1, 1, 1000000)"
         ).execute(&pool).await.unwrap();

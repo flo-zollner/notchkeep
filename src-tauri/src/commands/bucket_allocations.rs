@@ -1,7 +1,9 @@
 use tauri::State;
 
 use crate::commands::accounts::{CommandError, DbState};
-use crate::db::bucket_allocations::{self as db_alloc, BucketAllocation, NewBucketAllocationPayload};
+use crate::db::bucket_allocations::{
+    self as db_alloc, BucketAllocation, NewBucketAllocationPayload,
+};
 
 #[tauri::command]
 pub async fn ready_to_assign(state: State<'_, DbState>) -> Result<i64, CommandError> {
@@ -32,7 +34,13 @@ pub async fn move_between_buckets(
     amount_cents: i64,
     occurred_on: Option<String>,
 ) -> Result<(), CommandError> {
-    db_alloc::move_between_buckets(&state.pool(), from_bucket, to_bucket, amount_cents, occurred_on)
-        .await?;
+    db_alloc::move_between_buckets(
+        &state.pool(),
+        from_bucket,
+        to_bucket,
+        amount_cents,
+        occurred_on,
+    )
+    .await?;
     Ok(())
 }

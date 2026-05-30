@@ -41,7 +41,9 @@ impl AppConfig {
 
     pub fn default(data_dir: &Path) -> Self {
         Self {
-            db_path: Self::default_db_path(data_dir).to_string_lossy().into_owned(),
+            db_path: Self::default_db_path(data_dir)
+                .to_string_lossy()
+                .into_owned(),
         }
     }
 }
@@ -55,13 +57,18 @@ mod tests {
     fn load_returns_default_when_file_missing() {
         let dir = tempdir().unwrap();
         let cfg = AppConfig::load(dir.path()).unwrap();
-        assert_eq!(cfg.db_path, dir.path().join("budget.sqlite").to_string_lossy());
+        assert_eq!(
+            cfg.db_path,
+            dir.path().join("budget.sqlite").to_string_lossy()
+        );
     }
 
     #[test]
     fn save_then_load_roundtrips() {
         let dir = tempdir().unwrap();
-        let cfg = AppConfig { db_path: "/custom/path/budget.sqlite".into() };
+        let cfg = AppConfig {
+            db_path: "/custom/path/budget.sqlite".into(),
+        };
         cfg.save(dir.path()).unwrap();
         let loaded = AppConfig::load(dir.path()).unwrap();
         assert_eq!(loaded, cfg);
@@ -70,8 +77,16 @@ mod tests {
     #[test]
     fn save_overwrites_existing_file() {
         let dir = tempdir().unwrap();
-        AppConfig { db_path: "/first".into() }.save(dir.path()).unwrap();
-        AppConfig { db_path: "/second".into() }.save(dir.path()).unwrap();
+        AppConfig {
+            db_path: "/first".into(),
+        }
+        .save(dir.path())
+        .unwrap();
+        AppConfig {
+            db_path: "/second".into(),
+        }
+        .save(dir.path())
+        .unwrap();
         let loaded = AppConfig::load(dir.path()).unwrap();
         assert_eq!(loaded.db_path, "/second");
     }

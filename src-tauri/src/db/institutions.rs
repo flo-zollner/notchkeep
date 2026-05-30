@@ -4,8 +4,7 @@ use sqlx::SqlitePool;
 use super::{DbError, DbResult};
 use crate::model::{Institution, InstitutionSummary};
 
-const INSTITUTION_COLUMNS: &str =
-    "id, name, icon, color, bic, country, note, archived, created_at";
+const INSTITUTION_COLUMNS: &str = "id, name, icon, color, bic, country, note, archived, created_at";
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -102,7 +101,9 @@ pub async fn list_institutions(
              ORDER BY LOWER(name) ASC"
         )
     };
-    Ok(sqlx::query_as::<_, Institution>(&sql).fetch_all(pool).await?)
+    Ok(sqlx::query_as::<_, Institution>(&sql)
+        .fetch_all(pool)
+        .await?)
 }
 
 pub async fn update_institution(
@@ -130,11 +131,26 @@ pub async fn update_institution(
     );
     Ok(sqlx::query_as::<_, Institution>(&sql)
         .bind(p.name.map(|s| s.trim().to_string()).unwrap_or(current.name))
-        .bind(match p.icon { Some(inner) => normalize_opt(inner), None => current.icon })
-        .bind(match p.color { Some(inner) => normalize_opt(inner), None => current.color })
-        .bind(match p.bic { Some(inner) => normalize_opt(inner), None => current.bic })
-        .bind(match p.country { Some(inner) => normalize_opt(inner), None => current.country })
-        .bind(match p.note { Some(inner) => normalize_opt(inner), None => current.note })
+        .bind(match p.icon {
+            Some(inner) => normalize_opt(inner),
+            None => current.icon,
+        })
+        .bind(match p.color {
+            Some(inner) => normalize_opt(inner),
+            None => current.color,
+        })
+        .bind(match p.bic {
+            Some(inner) => normalize_opt(inner),
+            None => current.bic,
+        })
+        .bind(match p.country {
+            Some(inner) => normalize_opt(inner),
+            None => current.country,
+        })
+        .bind(match p.note {
+            Some(inner) => normalize_opt(inner),
+            None => current.note,
+        })
         .bind(p.archived.unwrap_or(current.archived))
         .bind(id)
         .fetch_one(pool)
@@ -142,12 +158,10 @@ pub async fn update_institution(
 }
 
 pub async fn institution_account_count(pool: &SqlitePool, id: i64) -> DbResult<i64> {
-    let (cnt,): (i64,) = sqlx::query_as(
-        "SELECT COUNT(*) FROM accounts WHERE institution_id = ?1",
-    )
-    .bind(id)
-    .fetch_one(pool)
-    .await?;
+    let (cnt,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM accounts WHERE institution_id = ?1")
+        .bind(id)
+        .fetch_one(pool)
+        .await?;
     Ok(cnt)
 }
 
@@ -197,14 +211,18 @@ pub async fn upsert_institution_by_name(
     if let Some(existing) = get_institution_by_name(pool, name).await? {
         return Ok(existing);
     }
-    create_institution(pool, NewInstitutionPayload {
-        name: name.to_string(),
-        icon: icon.map(String::from),
-        color: color.map(String::from),
-        bic: bic.map(String::from),
-        country: country.map(String::from),
-        note: None,
-    }).await
+    create_institution(
+        pool,
+        NewInstitutionPayload {
+            name: name.to_string(),
+            icon: icon.map(String::from),
+            color: color.map(String::from),
+            bic: bic.map(String::from),
+            country: country.map(String::from),
+            note: None,
+        },
+    )
+    .await
 }
 
 pub async fn list_institutions_with_summary(
@@ -234,14 +252,19 @@ mod tests {
     #[tokio::test]
     async fn create_institution_round_trip() {
         let pool = connect_memory().await.unwrap();
-        let inst = create_institution(&pool, NewInstitutionPayload {
-            name: "Trade Republic".into(),
-            icon: Some("bank".into()),
-            color: Some("oklch(0.55 0.13 230)".into()),
-            bic: Some("TRADDEFFXXX".into()),
-            country: Some("DE".into()),
-            note: None,
-        }).await.unwrap();
+        let inst = create_institution(
+            &pool,
+            NewInstitutionPayload {
+                name: "Trade Republic".into(),
+                icon: Some("bank".into()),
+                color: Some("oklch(0.55 0.13 230)".into()),
+                bic: Some("TRADDEFFXXX".into()),
+                country: Some("DE".into()),
+                note: None,
+            },
+        )
+        .await
+        .unwrap();
         assert_eq!(inst.name, "Trade Republic");
         assert_eq!(inst.bic.as_deref(), Some("TRADDEFFXXX"));
         assert!(!inst.archived);
@@ -250,23 +273,38 @@ mod tests {
     #[tokio::test]
     async fn create_institution_empty_name_errors() {
         let pool = connect_memory().await.unwrap();
-        let err = create_institution(&pool, NewInstitutionPayload {
-            name: "  ".into(), icon: None, color: None, bic: None, country: None, note: None,
-        }).await.unwrap_err();
+        let err = create_institution(
+            &pool,
+            NewInstitutionPayload {
+                name: "  ".into(),
+                icon: None,
+                color: None,
+                bic: None,
+                country: None,
+                note: None,
+            },
+        )
+        .await
+        .unwrap_err();
         assert!(err.to_string().contains("name"));
     }
 
     #[tokio::test]
     async fn create_institution_normalizes_empty_strings_to_none() {
         let pool = connect_memory().await.unwrap();
-        let inst = create_institution(&pool, NewInstitutionPayload {
-            name: "X".into(),
-            icon: Some("".into()),
-            color: Some("  ".into()),
-            bic: None,
-            country: None,
-            note: Some("".into()),
-        }).await.unwrap();
+        let inst = create_institution(
+            &pool,
+            NewInstitutionPayload {
+                name: "X".into(),
+                icon: Some("".into()),
+                color: Some("  ".into()),
+                bic: None,
+                country: None,
+                note: Some("".into()),
+            },
+        )
+        .await
+        .unwrap();
         assert!(inst.icon.is_none());
         assert!(inst.color.is_none());
         assert!(inst.note.is_none());
@@ -275,78 +313,182 @@ mod tests {
     #[tokio::test]
     async fn create_institution_bic_check_rejects_lowercase() {
         let pool = connect_memory().await.unwrap();
-        let err = create_institution(&pool, NewInstitutionPayload {
-            name: "X".into(), icon: None, color: None,
-            bic: Some("traddeff".into()),
-            country: None, note: None,
-        }).await.unwrap_err();
-        assert!(err.to_string().to_lowercase().contains("check"), "got: {err}");
+        let err = create_institution(
+            &pool,
+            NewInstitutionPayload {
+                name: "X".into(),
+                icon: None,
+                color: None,
+                bic: Some("traddeff".into()),
+                country: None,
+                note: None,
+            },
+        )
+        .await
+        .unwrap_err();
+        assert!(
+            err.to_string().to_lowercase().contains("check"),
+            "got: {err}"
+        );
     }
 
     #[tokio::test]
     async fn create_institution_bic_check_accepts_8_and_11() {
         let pool = connect_memory().await.unwrap();
-        create_institution(&pool, NewInstitutionPayload {
-            name: "A".into(), icon: None, color: None,
-            bic: Some("TRADDEFF".into()),
-            country: None, note: None,
-        }).await.unwrap();
-        create_institution(&pool, NewInstitutionPayload {
-            name: "B".into(), icon: None, color: None,
-            bic: Some("TRADDEFFXXX".into()),
-            country: None, note: None,
-        }).await.unwrap();
+        create_institution(
+            &pool,
+            NewInstitutionPayload {
+                name: "A".into(),
+                icon: None,
+                color: None,
+                bic: Some("TRADDEFF".into()),
+                country: None,
+                note: None,
+            },
+        )
+        .await
+        .unwrap();
+        create_institution(
+            &pool,
+            NewInstitutionPayload {
+                name: "B".into(),
+                icon: None,
+                color: None,
+                bic: Some("TRADDEFFXXX".into()),
+                country: None,
+                note: None,
+            },
+        )
+        .await
+        .unwrap();
     }
 
     #[tokio::test]
     async fn create_institution_country_check_rejects_lowercase() {
         let pool = connect_memory().await.unwrap();
-        let err = create_institution(&pool, NewInstitutionPayload {
-            name: "X".into(), icon: None, color: None, bic: None,
-            country: Some("de".into()), note: None,
-        }).await.unwrap_err();
-        assert!(err.to_string().to_lowercase().contains("check"), "got: {err}");
+        let err = create_institution(
+            &pool,
+            NewInstitutionPayload {
+                name: "X".into(),
+                icon: None,
+                color: None,
+                bic: None,
+                country: Some("de".into()),
+                note: None,
+            },
+        )
+        .await
+        .unwrap_err();
+        assert!(
+            err.to_string().to_lowercase().contains("check"),
+            "got: {err}"
+        );
     }
 
     #[tokio::test]
     async fn create_institution_country_check_rejects_3_chars() {
         let pool = connect_memory().await.unwrap();
-        let err = create_institution(&pool, NewInstitutionPayload {
-            name: "X".into(), icon: None, color: None, bic: None,
-            country: Some("DEU".into()), note: None,
-        }).await.unwrap_err();
-        assert!(err.to_string().to_lowercase().contains("check"), "got: {err}");
+        let err = create_institution(
+            &pool,
+            NewInstitutionPayload {
+                name: "X".into(),
+                icon: None,
+                color: None,
+                bic: None,
+                country: Some("DEU".into()),
+                note: None,
+            },
+        )
+        .await
+        .unwrap_err();
+        assert!(
+            err.to_string().to_lowercase().contains("check"),
+            "got: {err}"
+        );
     }
 
     #[tokio::test]
     async fn name_unique_constraint_is_case_insensitive() {
         let pool = connect_memory().await.unwrap();
-        create_institution(&pool, NewInstitutionPayload {
-            name: "Trade Republic".into(), icon: None, color: None, bic: None, country: None, note: None,
-        }).await.unwrap();
-        let err = create_institution(&pool, NewInstitutionPayload {
-            name: "trade republic".into(), icon: None, color: None, bic: None, country: None, note: None,
-        }).await.unwrap_err();
-        assert!(err.to_string().to_lowercase().contains("unique"), "got: {err}");
+        create_institution(
+            &pool,
+            NewInstitutionPayload {
+                name: "Trade Republic".into(),
+                icon: None,
+                color: None,
+                bic: None,
+                country: None,
+                note: None,
+            },
+        )
+        .await
+        .unwrap();
+        let err = create_institution(
+            &pool,
+            NewInstitutionPayload {
+                name: "trade republic".into(),
+                icon: None,
+                color: None,
+                bic: None,
+                country: None,
+                note: None,
+            },
+        )
+        .await
+        .unwrap_err();
+        assert!(
+            err.to_string().to_lowercase().contains("unique"),
+            "got: {err}"
+        );
     }
 
     #[tokio::test]
     async fn bic_unique_constraint_allows_multiple_null() {
         let pool = connect_memory().await.unwrap();
-        create_institution(&pool, NewInstitutionPayload {
-            name: "A".into(), icon: None, color: None, bic: None, country: None, note: None,
-        }).await.unwrap();
-        create_institution(&pool, NewInstitutionPayload {
-            name: "B".into(), icon: None, color: None, bic: None, country: None, note: None,
-        }).await.unwrap();
+        create_institution(
+            &pool,
+            NewInstitutionPayload {
+                name: "A".into(),
+                icon: None,
+                color: None,
+                bic: None,
+                country: None,
+                note: None,
+            },
+        )
+        .await
+        .unwrap();
+        create_institution(
+            &pool,
+            NewInstitutionPayload {
+                name: "B".into(),
+                icon: None,
+                color: None,
+                bic: None,
+                country: None,
+                note: None,
+            },
+        )
+        .await
+        .unwrap();
     }
 
     #[tokio::test]
     async fn get_institution_returns_inserted() {
         let pool = connect_memory().await.unwrap();
-        let inst = create_institution(&pool, NewInstitutionPayload {
-            name: "X".into(), icon: None, color: None, bic: None, country: None, note: None,
-        }).await.unwrap();
+        let inst = create_institution(
+            &pool,
+            NewInstitutionPayload {
+                name: "X".into(),
+                icon: None,
+                color: None,
+                bic: None,
+                country: None,
+                note: None,
+            },
+        )
+        .await
+        .unwrap();
         let fetched = get_institution(&pool, inst.id).await.unwrap();
         assert_eq!(fetched.id, inst.id);
         assert_eq!(fetched.name, "X");
@@ -362,14 +504,36 @@ mod tests {
     #[tokio::test]
     async fn list_institutions_excludes_archived_by_default() {
         let pool = connect_memory().await.unwrap();
-        let a = create_institution(&pool, NewInstitutionPayload {
-            name: "active".into(), icon: None, color: None, bic: None, country: None, note: None,
-        }).await.unwrap();
-        let _b = create_institution(&pool, NewInstitutionPayload {
-            name: "archived".into(), icon: None, color: None, bic: None, country: None, note: None,
-        }).await.unwrap();
+        let a = create_institution(
+            &pool,
+            NewInstitutionPayload {
+                name: "active".into(),
+                icon: None,
+                color: None,
+                bic: None,
+                country: None,
+                note: None,
+            },
+        )
+        .await
+        .unwrap();
+        let _b = create_institution(
+            &pool,
+            NewInstitutionPayload {
+                name: "archived".into(),
+                icon: None,
+                color: None,
+                bic: None,
+                country: None,
+                note: None,
+            },
+        )
+        .await
+        .unwrap();
         sqlx::query("UPDATE institutions SET archived = 1 WHERE name = 'archived'")
-            .execute(&pool).await.unwrap();
+            .execute(&pool)
+            .await
+            .unwrap();
 
         let visible = list_institutions(&pool, false).await.unwrap();
         assert_eq!(visible.len(), 1);
@@ -382,58 +546,95 @@ mod tests {
     #[tokio::test]
     async fn update_institution_coalesces_partial_payload() {
         let pool = connect_memory().await.unwrap();
-        let inst = create_institution(&pool, NewInstitutionPayload {
-            name: "alt".into(),
-            icon: Some("bank".into()),
-            color: None,
-            bic: Some("TRADDEFFXXX".into()),
-            country: Some("DE".into()),
-            note: None,
-        }).await.unwrap();
+        let inst = create_institution(
+            &pool,
+            NewInstitutionPayload {
+                name: "alt".into(),
+                icon: Some("bank".into()),
+                color: None,
+                bic: Some("TRADDEFFXXX".into()),
+                country: Some("DE".into()),
+                note: None,
+            },
+        )
+        .await
+        .unwrap();
 
         // None = field not sent → old value is preserved.
-        let updated = update_institution(&pool, inst.id, UpdateInstitutionPayload {
-            name: Some("neu".into()),
-            icon: None, color: None, bic: None, country: None, note: None,
-            archived: None,
-        }).await.unwrap();
+        let updated = update_institution(
+            &pool,
+            inst.id,
+            UpdateInstitutionPayload {
+                name: Some("neu".into()),
+                icon: None,
+                color: None,
+                bic: None,
+                country: None,
+                note: None,
+                archived: None,
+            },
+        )
+        .await
+        .unwrap();
         assert_eq!(updated.name, "neu");
         assert_eq!(updated.icon.as_deref(), Some("bank"));
         assert_eq!(updated.bic.as_deref(), Some("TRADDEFFXXX"));
         assert_eq!(updated.country.as_deref(), Some("DE"));
         assert!(!updated.archived);
 
-        let archived = update_institution(&pool, inst.id, UpdateInstitutionPayload {
-            name: None, icon: None, color: None, bic: None, country: None, note: None,
-            archived: Some(true),
-        }).await.unwrap();
+        let archived = update_institution(
+            &pool,
+            inst.id,
+            UpdateInstitutionPayload {
+                name: None,
+                icon: None,
+                color: None,
+                bic: None,
+                country: None,
+                note: None,
+                archived: Some(true),
+            },
+        )
+        .await
+        .unwrap();
         assert!(archived.archived);
     }
 
     #[tokio::test]
     async fn update_institution_can_clear_optional_fields() {
         let pool = connect_memory().await.unwrap();
-        let inst = create_institution(&pool, NewInstitutionPayload {
-            name: "X".into(),
-            icon: Some("bank".into()),
-            color: Some("blue".into()),
-            bic: Some("TRADDEFFXXX".into()),
-            country: Some("DE".into()),
-            note: Some("hi".into()),
-        }).await.unwrap();
+        let inst = create_institution(
+            &pool,
+            NewInstitutionPayload {
+                name: "X".into(),
+                icon: Some("bank".into()),
+                color: Some("blue".into()),
+                bic: Some("TRADDEFFXXX".into()),
+                country: Some("DE".into()),
+                note: Some("hi".into()),
+            },
+        )
+        .await
+        .unwrap();
         assert_eq!(inst.icon.as_deref(), Some("bank"));
 
         // Some(None) = field explicitly set to null → field is cleared.
         // None = field not sent → old value is preserved.
-        let cleared = update_institution(&pool, inst.id, UpdateInstitutionPayload {
-            name: None,
-            icon: Some(None),    // explicitly clear
-            color: None,         // keep
-            bic: Some(None),     // explicitly clear
-            country: None,       // keep
-            note: Some(None),    // explicitly clear
-            archived: None,
-        }).await.unwrap();
+        let cleared = update_institution(
+            &pool,
+            inst.id,
+            UpdateInstitutionPayload {
+                name: None,
+                icon: Some(None), // explicitly clear
+                color: None,      // keep
+                bic: Some(None),  // explicitly clear
+                country: None,    // keep
+                note: Some(None), // explicitly clear
+                archived: None,
+            },
+        )
+        .await
+        .unwrap();
         assert!(cleared.icon.is_none(), "icon should be cleared");
         assert_eq!(cleared.color.as_deref(), Some("blue"), "color preserved");
         assert!(cleared.bic.is_none(), "bic should be cleared");
@@ -444,34 +645,89 @@ mod tests {
     #[tokio::test]
     async fn institution_account_count_returns_zero_when_unused() {
         let pool = connect_memory().await.unwrap();
-        let inst = create_institution(&pool, NewInstitutionPayload {
-            name: "X".into(), icon: None, color: None, bic: None, country: None, note: None,
-        }).await.unwrap();
+        let inst = create_institution(
+            &pool,
+            NewInstitutionPayload {
+                name: "X".into(),
+                icon: None,
+                color: None,
+                bic: None,
+                country: None,
+                note: None,
+            },
+        )
+        .await
+        .unwrap();
         assert_eq!(institution_account_count(&pool, inst.id).await.unwrap(), 0);
     }
 
     #[tokio::test]
     async fn institution_account_count_counts_assigned_accounts() {
         let pool = connect_memory().await.unwrap();
-        let inst = create_institution(&pool, NewInstitutionPayload {
-            name: "X".into(), icon: None, color: None, bic: None, country: None, note: None,
-        }).await.unwrap();
-        crate::db::accounts::create_account(&pool, "A1", "bank", "EUR", None, None, Some(inst.id)).await.unwrap();
-        crate::db::accounts::create_account(&pool, "A2", "broker", "EUR", None, None, Some(inst.id)).await.unwrap();
-        crate::db::accounts::create_account(&pool, "A3", "cash", "EUR", None, None, None).await.unwrap();
+        let inst = create_institution(
+            &pool,
+            NewInstitutionPayload {
+                name: "X".into(),
+                icon: None,
+                color: None,
+                bic: None,
+                country: None,
+                note: None,
+            },
+        )
+        .await
+        .unwrap();
+        crate::db::accounts::create_account(&pool, "A1", "bank", "EUR", None, None, Some(inst.id))
+            .await
+            .unwrap();
+        crate::db::accounts::create_account(
+            &pool,
+            "A2",
+            "broker",
+            "EUR",
+            None,
+            None,
+            Some(inst.id),
+        )
+        .await
+        .unwrap();
+        crate::db::accounts::create_account(&pool, "A3", "cash", "EUR", None, None, None)
+            .await
+            .unwrap();
         assert_eq!(institution_account_count(&pool, inst.id).await.unwrap(), 2);
     }
 
     #[tokio::test]
     async fn delete_institution_sets_account_institution_id_to_null() {
         let pool = connect_memory().await.unwrap();
-        let inst = create_institution(&pool, NewInstitutionPayload {
-            name: "X".into(), icon: None, color: None, bic: None, country: None, note: None,
-        }).await.unwrap();
-        let acc = crate::db::accounts::create_account(&pool, "A", "bank", "EUR", None, None, Some(inst.id))
-            .await.unwrap();
+        let inst = create_institution(
+            &pool,
+            NewInstitutionPayload {
+                name: "X".into(),
+                icon: None,
+                color: None,
+                bic: None,
+                country: None,
+                note: None,
+            },
+        )
+        .await
+        .unwrap();
+        let acc = crate::db::accounts::create_account(
+            &pool,
+            "A",
+            "bank",
+            "EUR",
+            None,
+            None,
+            Some(inst.id),
+        )
+        .await
+        .unwrap();
         assert!(delete_institution(&pool, inst.id).await.unwrap());
-        let reloaded = crate::db::accounts::get_account(&pool, acc.id).await.unwrap();
+        let reloaded = crate::db::accounts::get_account(&pool, acc.id)
+            .await
+            .unwrap();
         assert!(reloaded.institution_id.is_none());
     }
 
@@ -484,12 +740,45 @@ mod tests {
     #[tokio::test]
     async fn institution_balance_sums_assigned_account_tx() {
         let pool = connect_memory().await.unwrap();
-        let inst = create_institution(&pool, NewInstitutionPayload {
-            name: "X".into(), icon: None, color: None, bic: None, country: None, note: None,
-        }).await.unwrap();
-        let a1 = crate::db::accounts::create_account(&pool, "A1", "bank", "EUR", None, None, Some(inst.id)).await.unwrap();
-        let a2 = crate::db::accounts::create_account(&pool, "A2", "broker", "EUR", None, None, Some(inst.id)).await.unwrap();
-        let other = crate::db::accounts::create_account(&pool, "O", "cash", "EUR", None, None, None).await.unwrap();
+        let inst = create_institution(
+            &pool,
+            NewInstitutionPayload {
+                name: "X".into(),
+                icon: None,
+                color: None,
+                bic: None,
+                country: None,
+                note: None,
+            },
+        )
+        .await
+        .unwrap();
+        let a1 = crate::db::accounts::create_account(
+            &pool,
+            "A1",
+            "bank",
+            "EUR",
+            None,
+            None,
+            Some(inst.id),
+        )
+        .await
+        .unwrap();
+        let a2 = crate::db::accounts::create_account(
+            &pool,
+            "A2",
+            "broker",
+            "EUR",
+            None,
+            None,
+            Some(inst.id),
+        )
+        .await
+        .unwrap();
+        let other =
+            crate::db::accounts::create_account(&pool, "O", "cash", "EUR", None, None, None)
+                .await
+                .unwrap();
         sqlx::query(
             "INSERT INTO transactions (account_id, booking_date, amount_cents, currency, counterparty, source)
              VALUES
@@ -506,9 +795,19 @@ mod tests {
     #[tokio::test]
     async fn institution_balance_zero_when_no_accounts() {
         let pool = connect_memory().await.unwrap();
-        let inst = create_institution(&pool, NewInstitutionPayload {
-            name: "X".into(), icon: None, color: None, bic: None, country: None, note: None,
-        }).await.unwrap();
+        let inst = create_institution(
+            &pool,
+            NewInstitutionPayload {
+                name: "X".into(),
+                icon: None,
+                color: None,
+                bic: None,
+                country: None,
+                note: None,
+            },
+        )
+        .await
+        .unwrap();
         assert_eq!(institution_balance(&pool, inst.id).await.unwrap(), 0);
     }
 
@@ -516,8 +815,15 @@ mod tests {
     async fn upsert_institution_by_name_creates_if_missing() {
         let pool = connect_memory().await.unwrap();
         let inst = upsert_institution_by_name(
-            &pool, "Trade Republic", Some("bank"), Some("blue"), None, Some("DE"),
-        ).await.unwrap();
+            &pool,
+            "Trade Republic",
+            Some("bank"),
+            Some("blue"),
+            None,
+            Some("DE"),
+        )
+        .await
+        .unwrap();
         assert_eq!(inst.name, "Trade Republic");
         assert_eq!(inst.country.as_deref(), Some("DE"));
     }
@@ -525,12 +831,20 @@ mod tests {
     #[tokio::test]
     async fn upsert_institution_by_name_returns_existing_if_present() {
         let pool = connect_memory().await.unwrap();
-        let first = upsert_institution_by_name(
-            &pool, "Trade Republic", Some("bank"), None, None, None,
-        ).await.unwrap();
+        let first =
+            upsert_institution_by_name(&pool, "Trade Republic", Some("bank"), None, None, None)
+                .await
+                .unwrap();
         let second = upsert_institution_by_name(
-            &pool, "Trade Republic", Some("other-icon"), Some("red"), None, Some("AT"),
-        ).await.unwrap();
+            &pool,
+            "Trade Republic",
+            Some("other-icon"),
+            Some("red"),
+            None,
+            Some("AT"),
+        )
+        .await
+        .unwrap();
         assert_eq!(first.id, second.id, "no duplicate");
         // Fields are NOT overwritten (idempotent, no update):
         assert_eq!(second.icon.as_deref(), Some("bank"));
@@ -539,24 +853,78 @@ mod tests {
     #[tokio::test]
     async fn upsert_institution_by_name_matches_case_insensitive() {
         let pool = connect_memory().await.unwrap();
-        let first = upsert_institution_by_name(&pool, "Trade Republic", None, None, None, None).await.unwrap();
-        let second = upsert_institution_by_name(&pool, "trade republic", None, None, None, None).await.unwrap();
+        let first = upsert_institution_by_name(&pool, "Trade Republic", None, None, None, None)
+            .await
+            .unwrap();
+        let second = upsert_institution_by_name(&pool, "trade republic", None, None, None, None)
+            .await
+            .unwrap();
         assert_eq!(first.id, second.id);
     }
 
     #[tokio::test]
     async fn list_institutions_with_summary_aggregates() {
         let pool = connect_memory().await.unwrap();
-        let i1 = create_institution(&pool, NewInstitutionPayload {
-            name: "A".into(), icon: None, color: None, bic: None, country: None, note: None,
-        }).await.unwrap();
-        let i2 = create_institution(&pool, NewInstitutionPayload {
-            name: "B".into(), icon: None, color: None, bic: None, country: None, note: None,
-        }).await.unwrap();
+        let i1 = create_institution(
+            &pool,
+            NewInstitutionPayload {
+                name: "A".into(),
+                icon: None,
+                color: None,
+                bic: None,
+                country: None,
+                note: None,
+            },
+        )
+        .await
+        .unwrap();
+        let i2 = create_institution(
+            &pool,
+            NewInstitutionPayload {
+                name: "B".into(),
+                icon: None,
+                color: None,
+                bic: None,
+                country: None,
+                note: None,
+            },
+        )
+        .await
+        .unwrap();
 
-        let a1 = crate::db::accounts::create_account(&pool, "A1", "bank", "EUR", None, None, Some(i1.id)).await.unwrap();
-        let a2 = crate::db::accounts::create_account(&pool, "A2", "broker", "EUR", None, None, Some(i1.id)).await.unwrap();
-        let _b1 = crate::db::accounts::create_account(&pool, "B1", "bank", "EUR", None, None, Some(i2.id)).await.unwrap();
+        let a1 = crate::db::accounts::create_account(
+            &pool,
+            "A1",
+            "bank",
+            "EUR",
+            None,
+            None,
+            Some(i1.id),
+        )
+        .await
+        .unwrap();
+        let a2 = crate::db::accounts::create_account(
+            &pool,
+            "A2",
+            "broker",
+            "EUR",
+            None,
+            None,
+            Some(i1.id),
+        )
+        .await
+        .unwrap();
+        let _b1 = crate::db::accounts::create_account(
+            &pool,
+            "B1",
+            "bank",
+            "EUR",
+            None,
+            None,
+            Some(i2.id),
+        )
+        .await
+        .unwrap();
 
         sqlx::query(
             "INSERT INTO transactions (account_id, booking_date, amount_cents, currency, counterparty, source)
@@ -567,8 +935,14 @@ mod tests {
         .bind(a1.id).bind(a2.id).execute(&pool).await.unwrap();
 
         let summaries = list_institutions_with_summary(&pool).await.unwrap();
-        let s_a = summaries.iter().find(|s| s.id == i1.id).expect("A in summary");
-        let s_b = summaries.iter().find(|s| s.id == i2.id).expect("B in summary");
+        let s_a = summaries
+            .iter()
+            .find(|s| s.id == i1.id)
+            .expect("A in summary");
+        let s_b = summaries
+            .iter()
+            .find(|s| s.id == i2.id)
+            .expect("B in summary");
         assert_eq!(s_a.account_count, 2);
         assert_eq!(s_a.balance_cents, 150000);
         assert_eq!(s_b.account_count, 1);

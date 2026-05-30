@@ -8,9 +8,7 @@ use crate::db::portfolio::{
 };
 
 #[tauri::command]
-pub async fn list_holdings(
-    state: State<'_, DbState>,
-) -> Result<Vec<Holding>, CommandError> {
+pub async fn list_holdings(state: State<'_, DbState>) -> Result<Vec<Holding>, CommandError> {
     Ok(db_portfolio::current_holdings(&state.pool()).await?)
 }
 
@@ -25,7 +23,10 @@ pub struct AccountMarketValue {
 pub async fn portfolio_value_by_account_today(
     state: State<'_, DbState>,
 ) -> Result<Vec<AccountMarketValue>, CommandError> {
-    let today = chrono::Utc::now().date_naive().format("%Y-%m-%d").to_string();
+    let today = chrono::Utc::now()
+        .date_naive()
+        .format("%Y-%m-%d")
+        .to_string();
     let raw = db_portfolio::portfolio_value_by_account_on_date(&state.pool(), &today).await?;
     Ok(raw
         .into_iter()
@@ -59,10 +60,14 @@ pub async fn cost_basis_history(
     months: u32,
 ) -> Result<Vec<CostBasisPoint>, CommandError> {
     if !(2000..=2100).contains(&end_year) {
-        return Err(CommandError { message: format!("end_year out of range: {end_year}") });
+        return Err(CommandError {
+            message: format!("end_year out of range: {end_year}"),
+        });
     }
     if months > 600 {
-        return Err(CommandError { message: format!("months out of range: {months}") });
+        return Err(CommandError {
+            message: format!("months out of range: {months}"),
+        });
     }
     Ok(db_portfolio::cost_basis_history(&state.pool(), end_year, end_month, months).await?)
 }
@@ -110,7 +115,10 @@ pub async fn set_security_allocations(
     security_id: i64,
     items: Vec<AllocationItem>,
 ) -> Result<(), CommandError> {
-    let pairs: Vec<(i64, i64)> = items.into_iter().map(|i| (i.bucket_id, i.shares_micro)).collect();
+    let pairs: Vec<(i64, i64)> = items
+        .into_iter()
+        .map(|i| (i.bucket_id, i.shares_micro))
+        .collect();
     Ok(db_portfolio::set_allocations_for_security(&state.pool(), security_id, &pairs).await?)
 }
 
