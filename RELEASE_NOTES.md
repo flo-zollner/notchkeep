@@ -1,10 +1,13 @@
-# Notchkeep v0.2.0 — Security-Härtung
+# Notchkeep v0.2.1 — CI-Release-Verifizierung
 
 **Simple Personal Networth.**
 
-Wartungs- und Sicherheits-Release nach einem vollständigen Line-by-Line-
-Security-Audit der App. Keine Breaking Changes, keine Datenmigration nötig —
-bestehende SQLite-Datenbanken werden unverändert weiterverwendet.
+Patch-Release ohne Code-Änderungen: erster Durchlauf des automatischen
+GitHub-Actions-Release-Workflows (Linux/Windows/macOS). Inhaltlich identisch
+zu v0.2.0 — keine Breaking Changes, keine Datenmigration nötig.
+
+Die Sicherheits- und Härtungs-Änderungen aus v0.2.0 sind weiterhin enthalten
+(siehe unten).
 
 ## Sicherheit & Härtung
 
