@@ -1,6 +1,7 @@
 <script lang="ts">
   import CategoriesModal from '$lib/components/CategoriesModal.svelte';
   import RulesModal from '$lib/components/RulesModal.svelte';
+  import LicensesModal from '$lib/components/LicensesModal.svelte';
   import Icon from '$lib/components/Icon.svelte';
   import { settings, setHide, setLang, setShowCents, setTheme, t } from '$lib/settings.svelte';
   import ExportButton from '$lib/components/ExportButton.svelte';
@@ -11,14 +12,21 @@
   import { onMount } from 'svelte';
 
   const SOURCE_URL = 'https://github.com/flo-zollner/notchkeep';
-  async function openSource() {
-    try { await openUrl(SOURCE_URL); } catch { window.open(SOURCE_URL, '_blank'); }
+  // Display label without the scheme, derived from SOURCE_URL so the link target
+  // and the visible text can never drift apart.
+  const SOURCE_LABEL = SOURCE_URL.replace(/^https?:\/\//, '');
+  // Canonical GPL-3.0 text (the app's own license). Opened externally rather than
+  // bundled, so we don't ship the full license verbatim in the repo's static dir.
+  const LICENSE_URL = 'https://www.gnu.org/licenses/gpl-3.0.html';
+  async function openExternal(url: string) {
+    try { await openUrl(url); } catch { window.open(url, '_blank'); }
   }
 
   const tp = $derived(t().portfolio);
 
   let showCats = $state(false);
   let showRules = $state(false);
+  let showThirdParty = $state(false);
   let detectingTransfers = $state(false);
   let detectTransfersResult = $state<number | null>(null);
 
@@ -281,21 +289,23 @@
     <dl class="about">
       <dt>Lizenz</dt>
       <dd>
-        <a href="/licenses.html" target="_blank" rel="noopener">GPL-3.0-or-later</a>
+        <button type="button" class="link-inline" onclick={() => openExternal(LICENSE_URL)}>
+          GPL-3.0-or-later
+        </button>
       </dd>
       <dt>Copyright</dt>
       <dd>© 2026 Florian Zollner</dd>
       <dt>Quellcode</dt>
       <dd>
-        <button type="button" class="link-arrow" onclick={openSource}>
-          github.com/&lt;TODO&gt;
+        <button type="button" class="link-arrow" onclick={() => openExternal(SOURCE_URL)}>
+          {SOURCE_LABEL}
         </button>
       </dd>
       <dt>Drittanbieter-Lizenzen</dt>
       <dd>
-        <a href="/licenses.html" target="_blank" rel="noopener">
+        <button type="button" class="link-arrow" onclick={() => (showThirdParty = true)}>
           Vollständige Liste anzeigen
-        </a>
+        </button>
       </dd>
     </dl>
     <p class="warranty">
@@ -314,6 +324,9 @@
 {/if}
 {#if showRules}
   <RulesModal onClose={() => (showRules = false)} />
+{/if}
+{#if showThirdParty}
+  <LicensesModal onClose={() => (showThirdParty = false)} />
 {/if}
 
 <style>
@@ -396,11 +409,17 @@
   }
   .about dt { color: var(--text-muted); font-weight: 500; }
   .about dd { margin: 0; color: var(--text); }
-  .about a {
+  /* Inline text button styled as a link (license popup trigger). */
+  .link-inline {
+    background: none;
+    border: 0;
+    padding: 0;
+    font: inherit;
+    cursor: pointer;
     color: var(--accent);
     text-decoration: none;
   }
-  .about a:hover { text-decoration: underline; }
+  .link-inline:hover { text-decoration: underline; }
   .warranty {
     font-size: 11.5px;
     color: var(--text-faint);
