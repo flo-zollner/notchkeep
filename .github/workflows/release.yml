@@ -60,7 +60,11 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
-          version: 9
+          # Muss zur lokal genutzten pnpm-Major passen. pnpm 9 brach im CI mit
+          # "packages field missing or empty" ab (pnpm-workspace.yaml nutzt
+          # `allowBuilds`, das pnpm 9 nicht kennt) → setup-node pnpm-Cache
+          # schlug fehl. 11 = lokale Version.
+          version: 11
 
       - name: Setup Node
         uses: actions/setup-node@v4
