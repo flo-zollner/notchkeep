@@ -3,7 +3,10 @@
   import RulesModal from '$lib/components/RulesModal.svelte';
   import LicensesModal from '$lib/components/LicensesModal.svelte';
   import Icon from '$lib/components/Icon.svelte';
-  import { settings, setHide, setLang, setShowCents, setTheme, t } from '$lib/settings.svelte';
+  import { settings, setHide, setLang, setShowCents, setTheme, setUpdateConsent, t } from '$lib/settings.svelte';
+  import { getVersion } from '@tauri-apps/api/app';
+  import { checkNow, updateState, downloadAndInstall, skipCurrent, restart } from '$lib/updater/updater.svelte';
+  import UpdateAvailableDialog from '$lib/components/UpdateAvailableDialog.svelte';
   import { startOnboarding, startTour } from '$lib/onboarding/onboarding.svelte';
   import ExportButton from '$lib/components/ExportButton.svelte';
   import KursRefreshButton from '$lib/components/KursRefreshButton.svelte';
@@ -67,6 +70,22 @@
     accounts = await api.listAccounts();
     categories = await api.listCategories();
   });
+
+  let appVersion = $state('');
+  let checkMessage = $state('');
+  let showUpdate = $state(false);
+  $effect(() => { void getVersion().then((v) => (appVersion = v)).catch(() => {}); });
+
+  function toggleAuto() {
+    setUpdateConsent(settings.updateConsent === 'enabled' ? 'declined' : 'enabled');
+  }
+  async function onCheckNow() {
+    checkMessage = t().updates.checking;
+    const hasUpdate = await checkNow();
+    if (hasUpdate) { showUpdate = true; checkMessage = ''; }
+    else if (updateState.status === 'error') checkMessage = t().updates.checkFailed;
+    else checkMessage = t().updates.upToDate;
+  }
 
   function buildExportFilter(): ExportFilter {
     return {
@@ -251,6 +270,35 @@
   </div>
 
   <div class="card col-12 card-pad-lg">
+    <div class="card-h"><h3>{t().updates.settingsToggle}</h3></div>
+
+    <div class="setting-row">
+      <div>
+        <div class="sr-label">{t().updates.settingsToggle}</div>
+      </div>
+      <button
+        class="toggle"
+        class:on={settings.updateConsent === 'enabled'}
+        onclick={toggleAuto}
+        aria-pressed={settings.updateConsent === 'enabled'}
+        aria-label={t().updates.settingsToggle}
+      >
+        <span class="knob" class:on={settings.updateConsent === 'enabled'}></span>
+      </button>
+    </div>
+
+    <div class="setting-row">
+      <div>
+        <div class="sr-label">{appVersion ? t().updates.currentVersion(appVersion) : ''}</div>
+      </div>
+      <button class="btn" onclick={onCheckNow}>
+        {t().updates.checkNow}
+      </button>
+    </div>
+    {#if checkMessage}<p class="muted">{checkMessage}</p>{/if}
+  </div>
+
+  <div class="card col-12 card-pad-lg">
     <div class="card-h"><h3>{t().common.exportTitle}</h3></div>
     <div class="export-grid">
       <label>
@@ -350,6 +398,14 @@
 {/if}
 {#if showThirdParty}
   <LicensesModal onClose={() => (showThirdParty = false)} />
+{/if}
+{#if showUpdate}
+  <UpdateAvailableDialog
+    onInstall={() => downloadAndInstall()}
+    onSkip={() => { skipCurrent(); showUpdate = false; }}
+    onClose={() => (showUpdate = false)}
+    onRestart={() => restart()}
+  />
 {/if}
 
 <style>
