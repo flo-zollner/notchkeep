@@ -99,8 +99,12 @@ automatically"* (plus a manual *"Check now"* button).
   the system installer.
 
 Updates are delivered from GitHub Releases and every artifact is signed; the app
-installs only verified packages. Linux `.deb`/`.rpm` update via your package
-manager as usual.
+installs only verified packages. The in-app updater covers the `.AppImage`, the
+Windows `.exe` and the macOS `.app`. Linux `.deb`/`.rpm` are **not**
+auto-updated — there is no APT/DNF repository for Notchkeep, so update those by
+downloading and reinstalling the latest package from the
+[releases page](https://github.com/flo-zollner/notchkeep/releases/latest) (or
+use the self-updating `.AppImage`).
 
 ## Concept
 
