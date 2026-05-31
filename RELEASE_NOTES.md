@@ -1,39 +1,24 @@
-# Notchkeep v0.2.2 — Auto-Updates
+# Notchkeep v0.2.3 — Wartung & CI
 
 **Simple Personal Networth.**
 
-Dieses Release bringt **optionale automatische Updates**. Keine Breaking
-Changes, keine Datenmigration — der bestehende lokale Datenbestand bleibt
-unverändert.
+Wartungs-Release ohne funktionale Änderungen. Keine Breaking Changes, keine
+Datenmigration — der bestehende lokale Datenbestand bleibt unverändert.
 
-## Neu: Auto-Updates (opt-in)
+Wer auf **v0.2.2** ist und Auto-Updates aktiviert hat, bekommt dieses Update
+angeboten — es ist zugleich der erste Praxistest der Auto-Update-Kette.
 
-- **Einmal aktivieren, dann still prüfen:** Beim Start fragt die App einmalig,
-  ob sie nach Updates suchen darf. Erst nach Zustimmung wird GitHub kontaktiert
-  — es werden **keine persönlichen Daten** übertragen.
-- **Update-Dialog nur bei echtem Update:** Versionsinfo + Änderungsnotizen,
-  Download mit Fortschritt, dann Neustart-Prompt (Desktop). Eine konkrete
-  Version lässt sich gezielt überspringen.
-- **Steuerung in den Einstellungen:** Schalter „Automatisch nach Updates
-  suchen" + Button „Jetzt prüfen".
+## Änderungen (intern)
 
-### Plattformen
+- **CI-Testgate:** cargo-Tests (App + Plugins), Lizenz-Drift-Prüfung,
+  svelte-check, vitest und Playwright-e2e laufen jetzt bei jedem Push/PR — und
+  als Gate vor jedem Release (ein roter Test verhindert ein Release).
+- **Clippy als Gate:** alle Lints bereinigt, `clippy -D warnings` ist Teil der CI.
+- **Parallele Release-Pipeline:** Tests → Draft anlegen → die vier Builds
+  (Linux, Windows, macOS, Android) laufen parallel statt nacheinander.
 
-- **Desktop (`.AppImage`, Windows-`.exe`/NSIS, macOS-`.app`):** Self-Replace
-  über den Tauri-Updater, signierte Artefakte.
-- **Android (Sideload-`.apk`):** In-App-Updater lädt die signierte APK von der
-  GitHub-Release-Seite, verifiziert sie (sha256 + minisign-Signatur) und startet
-  den System-Installer. `.deb`/`.rpm` aktualisieren wie gehabt über den
-  Paketmanager.
-
-## Hinweis
-
-Dies ist das **Baseline-Release** für Auto-Updates: Ab dieser Version finden
-künftige Updates (nach Aktivierung) automatisch statt. Bestehende
-Installationen müssen einmalig manuell auf v0.2.2 wechseln.
-
-Sicherheit: Alle Update-Artefakte sind signiert; der Client installiert nur
-verifizierte Pakete.
+Die in **v0.2.2** eingeführten Auto-Updates (Desktop via Tauri-Updater,
+Android via signiertem In-App-APK-Updater) sind unverändert enthalten.
 
 ## Privatsphäre
 
