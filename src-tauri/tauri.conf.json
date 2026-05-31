@@ -41,7 +41,7 @@
       "endpoints": [
         "https://github.com/flo-zollner/notchkeep/releases/latest/download/latest.json"
       ],
-      "pubkey": "PLACEHOLDER_PUBKEY_FILLED_IN_TASK_2"
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDI2RUUyMTFGODk0OTgyMzEKUldReGdrbUpIeUh1SmdYWjJLcmJqcUtjaUZPaEYvWXFJK2xBUDYzeG5nYVN6NjJ2QUZPUEVnMzkK"
     }
   }
 }
