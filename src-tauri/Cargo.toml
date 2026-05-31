@@ -41,3 +41,12 @@ pdf-extract = "0.7"
 tempfile = "3.27.0"
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "test-util"] }
 
+# Size-optimized release profile. `panic` is left at the default (unwind) on
+# purpose: importers catch malformed-input panics, and `abort` would turn those
+# into hard crashes on user data.
+[profile.release]
+opt-level = "s"      # optimize for size, keeps most speed (vs. "z")
+lto = true           # cross-crate inlining + dead-code elimination
+codegen-units = 1    # better optimization at the cost of build time
+strip = true         # drop debug symbols from the final binary
+
