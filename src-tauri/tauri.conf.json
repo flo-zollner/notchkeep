@@ -26,6 +26,7 @@
   },
   "bundle": {
     "active": true,
+    "createUpdaterArtifacts": true,
     "targets": "all",
     "icon": [
       "icons/32x32.png",
@@ -34,5 +35,13 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ]
+  },
+  "plugins": {
+    "updater": {
+      "endpoints": [
+        "https://github.com/flo-zollner/notchkeep/releases/latest/download/latest.json"
+      ],
+      "pubkey": "PLACEHOLDER_PUBKEY_FILLED_IN_TASK_2"
+    }
   }
 }
