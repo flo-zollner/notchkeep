@@ -95,7 +95,10 @@ jobs:
       - name: Verify third-party licenses up to date
         if: matrix.platform == 'ubuntu-22.04'
         run: |
-          cargo install cargo-about --locked
+          # cargo-about braucht ab 0.9 das `cli`-Feature für das Binary. Version
+          # gepinnt = identische Ausgabe wie lokal, sonst triggert der Drift-
+          # Check schon bei Tool-Versionsunterschieden statt bei echtem Drift.
+          cargo install cargo-about --version 0.9.0 --locked --features cli
           pnpm gen:licenses
           git diff --exit-code -- static/licenses.html
 
