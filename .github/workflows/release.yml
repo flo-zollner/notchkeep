@@ -37,7 +37,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       # Linux-Systembibliotheken für Tauri 2 (WebKitGTK 4.1, AppIndicator,
       # rsvg, patchelf für AppImage).
@@ -58,7 +58,7 @@ jobs:
             wget
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v5
         with:
           # Muss zur lokal genutzten pnpm-Major passen. pnpm 9 brach im CI mit
           # "packages field missing or empty" ab (pnpm-workspace.yaml nutzt
@@ -67,7 +67,7 @@ jobs:
           version: 11
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           # pnpm 11 verlangt Node >= 22.13. 22 entspricht der lokalen Umgebung.
           node-version: 22
@@ -87,6 +87,17 @@ jobs:
 
       - name: Install frontend dependencies
         run: pnpm install --frozen-lockfile
+
+      # Stellt sicher, dass die eingecheckte static/licenses.html aktuell ist
+      # (GPL-3.0-Compliance). Generiert die Liste neu und bricht ab, wenn sie
+      # vom Commit abweicht — dann muss `pnpm gen:licenses` lokal gelaufen und
+      # committet werden. Nur auf Linux, da plattformunabhängig.
+      - name: Verify third-party licenses up to date
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          cargo install cargo-about --locked
+          pnpm gen:licenses
+          git diff --exit-code -- static/licenses.html
 
       - name: Build and release
         uses: tauri-apps/tauri-action@v0
