@@ -1,75 +1,53 @@
-# Notchkeep v0.2.1 — Onboarding
+# Notchkeep v0.2.2 — Auto-Updates
 
 **Simple Personal Networth.**
 
-Dieses Release bringt ein geführtes Erst-Start-Onboarding. Keine Breaking
-Changes, keine Datenmigration nötig — der bestehende lokale Datenbestand wird
-unverändert weiterverwendet.
+Dieses Release bringt **optionale automatische Updates**. Keine Breaking
+Changes, keine Datenmigration — der bestehende lokale Datenbestand bleibt
+unverändert.
 
-## Neu: Onboarding
+## Neu: Auto-Updates (opt-in)
 
-- **Setup-Assistent beim ersten Start:** Sprache (DE/EN) und Theme wählen,
-  optional direkt das erste Konto anlegen, kurzer Import-Hinweis. Startet nur
-  bei frischer Installation (kein Konto vorhanden); bestehende Installationen
-  werden nicht unterbrochen.
-- **Interaktive Feature-Tour:** Coach-Marks über Dashboard, Navigation,
-  Transaktionen, „Neue Transaktion", Budgets und Import — mit Spotlight auf das
-  jeweils passende Bedienelement.
-- **Responsiv über alle Größen:** Der Assistent wird auf dem Telefon zum
-  Bottom-Sheet, auf größeren Schirmen zum zentrierten Dialog; die Tour
-  highlightet je nach Breite die volle Seitenleiste, die eingeklappte Icon-Leiste
-  (Tablet) oder die untere Tab-Leiste (Telefon).
-- Erneut startbar über *Einstellungen* (Assistent und Tour einzeln).
+- **Einmal aktivieren, dann still prüfen:** Beim Start fragt die App einmalig,
+  ob sie nach Updates suchen darf. Erst nach Zustimmung wird GitHub kontaktiert
+  — es werden **keine persönlichen Daten** übertragen.
+- **Update-Dialog nur bei echtem Update:** Versionsinfo + Änderungsnotizen,
+  Download mit Fortschritt, dann Neustart-Prompt (Desktop). Eine konkrete
+  Version lässt sich gezielt überspringen.
+- **Steuerung in den Einstellungen:** Schalter „Automatisch nach Updates
+  suchen" + Button „Jetzt prüfen".
 
-Die Sicherheits- und Härtungs-Änderungen aus v0.2.0 sind weiterhin enthalten
-(siehe unten).
+### Plattformen
 
-## Sicherheit & Härtung
+- **Desktop (`.AppImage`, Windows-`.exe`/NSIS, macOS-`.app`):** Self-Replace
+  über den Tauri-Updater, signierte Artefakte.
+- **Android (Sideload-`.apk`):** In-App-Updater lädt die signierte APK von der
+  GitHub-Release-Seite, verifiziert sie (sha256 + minisign-Signatur) und startet
+  den System-Installer. `.deb`/`.rpm` aktualisieren wie gehabt über den
+  Paketmanager.
 
-**WebView / Tauri**
-- **Content Security Policy gesetzt** (war zuvor deaktiviert): `default-src 'self'`,
-  `script-src 'self'`, `object-src 'none'`, `base-uri 'self'` + `freezePrototype`.
-  Begrenzt den Schaden eines etwaigen XSS auf den IPC-Layer.
-- Übrig gebliebener `greet`-Debug-Command aus dem IPC-Handler entfernt.
+## Hinweis
 
-**Privatsphäre (keine PII in Logs/Fehlern)**
-- IBANs werden nicht mehr in Fehlermeldungen zurückgegeben.
-- Geräte-Hostnames in Logs maskiert.
-- Absolute Datenbank-Pfade aus Fehlermeldungen entfernt.
-- Importer-Fehler geben keine rohen CSV-Feldwerte mehr aus.
+Dies ist das **Baseline-Release** für Auto-Updates: Ab dieser Version finden
+künftige Updates (nach Aktivierung) automatisch statt. Bestehende
+Installationen müssen einmalig manuell auf v0.2.2 wechseln.
 
-**Datenintegrität & Robustheit**
-- CSV-Betragsparser nutzt geprüfte Arithmetik (kein stiller Integer-Overflow
-  bei manipuliertem Betrag).
-- Kursabruf: nicht-endliche/überlaufende Werte (NaN/∞) werden abgewiesen statt
-  als Null- oder Maximalwert in die DB zu gelangen; negative FX-Raten werden
-  zurückgewiesen.
-- Netzwerk: `https_only` erzwungen (kein HTTP-Downgrade via Redirect) +
-  Connect-Timeout (kein Hängen bei Netzwerkproblemen).
-- Regel-Aktualisierung läuft in einer Transaktion (keine inkonsistenten
-  Teil-Schreibvorgänge mehr).
-- SQLite `busy_timeout` gesetzt (robuster bei parallelem Zugriff / Syncthing).
-
-**Eingabe-Validierung**
-- Manuelle Kurs-Eingabe validiert das Datumsformat.
-- Backup-Validierung über typsichere Connection-Optionen (read-only) statt
-  String-URL.
+Sicherheit: Alle Update-Artefakte sind signiert; der Client installiert nur
+verifizierte Pakete.
 
 ## Privatsphäre
 
-Daten bleiben lokal in SQLite. Optional via Syncthing zwischen deinen
-Geräten synchronisiert — keine Cloud, keine Telemetrie.
+Daten bleiben lokal in SQLite. Optional via Syncthing zwischen deinen Geräten
+synchronisiert — keine Cloud, keine Telemetrie. Der Update-Check ist ein
+opt-in Versions-Abruf, keine Telemetrie.
 
 ## Plattformen
 
 Binary-Bundles für:
 - Linux (`.AppImage`, `.deb`, `.rpm`)
-- macOS (`.dmg`)
-- Windows (`.msi`)
-- Android (`.apk` über `pnpm tauri android build`)
-
-Dieses Release enthält die lokal gebauten **Linux**-Bundles. Checksummen
-(SHA-256) stehen unten im Release-Eintrag.
+- macOS (`.dmg`, Apple Silicon)
+- Windows (`.msi`, `.exe`)
+- Android (`.apk`)
 
 ## Build aus Source
 
@@ -86,4 +64,3 @@ Details siehe [README.md](README.md).
 Notchkeep ist freie Software unter **GPL-3.0-or-later** (siehe `COPYING`).
 Vollständige Drittanbieter-Lizenzen in `static/licenses.html` (im App-Bundle
 unter *Einstellungen → Über*) bzw. [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md).
-Keine neuen Abhängigkeiten gegenüber v0.1.0.
