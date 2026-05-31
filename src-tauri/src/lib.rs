@@ -254,7 +254,7 @@ pub fn run() {
             })?;
             if let AcquireOutcome::HeldByOther(holder) = &outcome {
                 // MVP: log only; UI warning will come with the frontend hook.
-                // Hostnames are PII (see CLAUDE.md), so we only log a masked
+                // Hostnames are PII (see CONTRIBUTING.md), so we only log a masked
                 // prefix — enough to tell two devices apart, not enough to
                 // identify the user from a captured log / logcat.
                 eprintln!(

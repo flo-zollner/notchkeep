@@ -1,7 +1,7 @@
 import type { Account } from '$lib/api';
 
 /**
- * PII-compliant Account-Seeds. IBANs folgen dem Dummy-Pattern aus CLAUDE.md
+ * PII-compliant Account-Seeds. IBANs folgen dem Dummy-Pattern aus CONTRIBUTING.md
  * (`DE00 0000 0000 0000 0000 00` oder `DE12 3456 7890 1234 5678 90`).
  */
 export const SEED_ACCOUNTS: Account[] = [

@@ -21,7 +21,7 @@ pub fn hostname() -> String {
     gethostname::gethostname().to_string_lossy().into_owned()
 }
 
-/// Masks a hostname for logging. Hostnames are PII (CLAUDE.md), but a short
+/// Masks a hostname for logging. Hostnames are PII (see CONTRIBUTING.md), but a short
 /// prefix is useful to distinguish devices in a sync-conflict log. Keeps at
 /// most the first 3 characters and appends `***`. Empty → "***".
 pub fn mask_hostname(hostname: &str) -> String {

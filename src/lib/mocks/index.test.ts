@@ -17,7 +17,7 @@ describe('Mock-Tauri invoke — accounts/categories/institutions', () => {
     }
   });
 
-  it('seeded IBANs follow the dummy pattern (CLAUDE.md privacy rule)', async () => {
+  it('seeded IBANs follow the dummy pattern (CONTRIBUTING.md privacy rule)', async () => {
     const invoke = createMockTauriInvoke();
     const accounts = await invoke<Account[]>('get_accounts');
 

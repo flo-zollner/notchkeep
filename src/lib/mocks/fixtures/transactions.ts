@@ -4,7 +4,7 @@ import { mulberry32 } from './timeseries';
 /**
  * Deterministischer Generator für Mock-Transaktionen. Erzeugt eine plausibel
  * gestreute Sequenz über die letzten 24 Monate, ohne reale Marken-/Personen-
- * namen (CLAUDE.md §Privatsphäre). Counterparty-Pool ist absichtlich generisch.
+ * namen (CONTRIBUTING.md, Privatsphäre). Counterparty-Pool ist absichtlich generisch.
  */
 
 const COUNTERPARTIES = {

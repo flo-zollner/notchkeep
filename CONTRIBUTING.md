@@ -46,7 +46,9 @@ pnpm dev:mock           # browser-only dev against the mock IPC layer
   decimals only at the UI boundary.
 - **IDs:** UUID v4 stored as TEXT. **Migrations** are additive and live in
   `src-tauri/migrations/`.
-- See [`CLAUDE.md`](CLAUDE.md) for the full architecture and workflow notes.
+- The source is split into `src-tauri/` (Rust/Tauri backend) and `src/`
+  (SvelteKit frontend); existing modules and their inline tests document the
+  conventions.
 
 ### 🔐 Privacy — never commit real financial data
 
@@ -57,9 +59,11 @@ This is a finance app, so this rule is strict and non-negotiable:
   messages, issues or PRs.
 - `/test-material/` is gitignored and holds real statements. **Never** commit it
   or copy it into `src-tauri/tests/fixtures/`.
-- Test fixtures must use the documented dummy substitutions (e.g.
-  `DE00 0000 0000 0000 0000 00`, `Max Mustermann`, `BANKDEFFXXX`) — see the
-  fixture rules in [`CLAUDE.md`](CLAUDE.md).
+- Test fixtures must use dummy substitutions only: IBAN
+  `DE00 0000 0000 0000 0000 00`, BIC `BANKDEFFXXX`, names `Max Mustermann` /
+  `Erika Mustermann` / `Beispiel GmbH`, tax ID `00 000 000 000`, depot number
+  `99999999`, and rounded, non-real amounts. Place them under
+  `src-tauri/tests/fixtures/<bank>/`.
 - Redact PII (counterparty, IBAN suffix, purpose) before logging.
 
 When in doubt, use synthetic data and ask in the issue/PR.
@@ -92,8 +96,9 @@ After `cargo add` / `pnpm add`, run `pnpm gen:licenses:check` — it must stay g
 Implement the `Importer` trait in `src-tauri/src/importers/<bank>.rs`. The caller
 auto-routes cash vs. trade rows independently of the UI account picker. Each
 importer needs the five mandatory tests (happy path, idempotent re-import, tax
-classification, trade routing, warnings). The full playbook is in
-[`CLAUDE.md`](CLAUDE.md).
+classification, trade routing, warnings). The existing importers under
+`src-tauri/src/importers/` (e.g. `trade_republic_csv.rs`, `sparkasse_csv.rs`)
+and their inline `#[cfg(test)]` tests are good references.
 
 ### Pull requests
 
@@ -152,7 +157,9 @@ pnpm dev:mock           # Browser-only-Dev gegen die Mock-IPC-Schicht
   Umrechnung erst an der UI-Grenze.
 - **IDs:** UUID v4 als TEXT. **Migrations** sind additiv und liegen in
   `src-tauri/migrations/`.
-- Architektur und Workflow im Detail: [`CLAUDE.md`](CLAUDE.md).
+- Der Quellcode ist geteilt in `src-tauri/` (Rust/Tauri-Backend) und `src/`
+  (SvelteKit-Frontend); bestehende Module und ihre Inline-Tests dokumentieren
+  die Konventionen.
 
 ### 🔐 Privatsphäre — niemals echte Finanzdaten committen
 
@@ -163,9 +170,11 @@ Dies ist eine Finanz-App, daher gilt diese Regel strikt und ohne Ausnahme:
   Commit-Messages, Issues oder PRs.
 - `/test-material/` ist gitignored und enthält echte Auszüge. **Niemals**
   committen oder nach `src-tauri/tests/fixtures/` kopieren.
-- Test-Fixtures müssen die dokumentierten Dummy-Ersetzungen verwenden (z. B.
-  `DE00 0000 0000 0000 0000 00`, `Max Mustermann`, `BANKDEFFXXX`) — siehe die
-  Fixture-Regeln in [`CLAUDE.md`](CLAUDE.md).
+- Test-Fixtures dürfen nur Dummy-Ersetzungen enthalten: IBAN
+  `DE00 0000 0000 0000 0000 00`, BIC `BANKDEFFXXX`, Namen `Max Mustermann` /
+  `Erika Mustermann` / `Beispiel GmbH`, Steuer-ID `00 000 000 000`, Depotnr.
+  `99999999`, gerundete, nicht-reale Beträge. Ablage unter
+  `src-tauri/tests/fixtures/<bank>/`.
 - PII (Gegenpartei, IBAN-Suffix, Verwendungszweck) vor dem Logging schwärzen.
 
 Im Zweifel synthetische Daten nutzen und im Issue/PR nachfragen.
@@ -198,8 +207,9 @@ Nach `cargo add` / `pnpm add`: `pnpm gen:licenses:check` muss grün bleiben.
 Den `Importer`-Trait in `src-tauri/src/importers/<bank>.rs` implementieren. Der
 Caller routet Cash- vs. Trade-Zeilen automatisch, unabhängig vom UI-Konto-Picker.
 Jeder Importer braucht die fünf Pflicht-Tests (Happy-Path, idempotenter
-Re-Import, Tax-Klassifikation, Trade-Routing, Warnings). Das vollständige
-Playbook steht in [`CLAUDE.md`](CLAUDE.md).
+Re-Import, Tax-Klassifikation, Trade-Routing, Warnings). Die bestehenden
+Importer unter `src-tauri/src/importers/` (z. B. `trade_republic_csv.rs`,
+`sparkasse_csv.rs`) und ihre Inline-`#[cfg(test)]`-Tests dienen als Referenz.
 
 ### Pull Requests
 
