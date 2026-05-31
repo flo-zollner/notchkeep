@@ -15,8 +15,11 @@ if (!existsSync(target)) {
   process.exit(1);
 }
 
+// Exclude our own package. license-checker matches on exact name@version, so
+// read the current version from package.json instead of hardcoding it.
+const pkg = JSON.parse(readFileSync(resolve(root, 'package.json'), 'utf8'));
 const raw = execSync(
-  'npx --yes license-checker --production --json --excludePackages "notchkeep@0.1.0"',
+  `npx --yes license-checker --production --json --excludePackages "notchkeep@${pkg.version}"`,
   { cwd: root, encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 }
 );
 const data = JSON.parse(raw);
