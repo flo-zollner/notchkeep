@@ -19,7 +19,14 @@
     evaluateAutoStart,
     startOnboarding,
     startTour,
+    onboarding,
   } from '$lib/onboarding/onboarding.svelte';
+  import UpdateActivationDialog from '$lib/components/UpdateActivationDialog.svelte';
+  import UpdateAvailableDialog from '$lib/components/UpdateAvailableDialog.svelte';
+  import {
+    runStartupFlow, enableUpdates, declineUpdates,
+    downloadAndInstall, skipCurrent, restart,
+  } from '$lib/updater/updater.svelte';
   import { api, type SyncConflictFile } from '$lib/api';
 
   let { children } = $props();
@@ -45,6 +52,36 @@
     if (action === 'open-wizard') startOnboarding();
     else if (action === 'mark-completed') setOnboardingCompleted(true);
   }
+
+  let showActivation = $state(false);
+  let showUpdate = $state(false);
+
+  async function startUpdaterFlow() {
+    const action = await runStartupFlow();
+    if (action === 'show-activation') showActivation = true;
+    else if (action === 'show-update') showUpdate = true;
+  }
+
+  function onActivationEnable() { showActivation = false; enableUpdates(); void startUpdaterFlow(); }
+  function onActivationLater() { showActivation = false; }
+  function onActivationNever() { showActivation = false; declineUpdates(); }
+
+  async function onInstall() { await downloadAndInstall(); }
+  function onSkip() { skipCurrent(); showUpdate = false; }
+  function onCloseUpdate() { showUpdate = false; }
+  async function onRestart() { await restart(); }
+
+  // Trigger the updater flow once the wizard closes after first-run onboarding.
+  // We track whether the wizard was previously active so we fire only on the
+  // transition active→inactive, not on every reactive re-run.
+  let wizardWasPreviouslyActive = false;
+  $effect(() => {
+    const isActive = onboarding.wizardActive;
+    if (wizardWasPreviouslyActive && !isActive && appSettings.onboardingCompleted) {
+      void startUpdaterFlow();
+    }
+    wizardWasPreviouslyActive = isActive;
+  });
 
   let startupError = $state<{ path: string } | null>(null);
   let priceRefreshStage = $state<'idle' | 'started' | 'completed' | 'failed'>('idle');
@@ -113,6 +150,7 @@
 
   onMount(() => {
     void initOnboarding();
+    if (appSettings.onboardingCompleted) void startUpdaterFlow();
     applySystemAccent();
     const reapply = () => applySystemAccent();
     window.addEventListener('focus', reapply);
@@ -187,3 +225,10 @@
 
 <OnboardingWizard />
 <TourOverlay />
+
+{#if showActivation}
+  <UpdateActivationDialog onEnable={onActivationEnable} onLater={onActivationLater} onNever={onActivationNever} />
+{/if}
+{#if showUpdate}
+  <UpdateAvailableDialog onInstall={onInstall} onSkip={onSkip} onClose={onCloseUpdate} onRestart={onRestart} />
+{/if}
