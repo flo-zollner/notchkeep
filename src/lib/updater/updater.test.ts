@@ -4,7 +4,7 @@ const { checkMock } = vi.hoisted(() => ({ checkMock: vi.fn() }));
 vi.mock('@tauri-apps/plugin-updater', () => ({ check: checkMock }));
 vi.mock('@tauri-apps/plugin-process', () => ({ relaunch: vi.fn() }));
 
-import { updateState, runStartupFlow } from './updater.svelte';
+import { updateState, runStartupFlow, checkNow, skipCurrent } from './updater.svelte';
 import { settings, _reloadForTests } from '../settings.svelte';
 
 beforeEach(() => {
@@ -51,5 +51,30 @@ describe('runStartupFlow', () => {
     const action = await runStartupFlow();
     expect(action).toBe('idle');
     expect(updateState.status).toBe('idle');
+  });
+});
+
+describe('checkNow and skipCurrent', () => {
+  it('checkNow returns true even when the available version is skipped', async () => {
+    settings.updateConsent = 'enabled';
+    settings.skippedVersion = '0.2.3';
+    checkMock.mockResolvedValue({ version: '0.2.3', currentVersion: '0.2.2' });
+    const has = await checkNow();
+    expect(has).toBe(true);
+    expect(updateState.status).toBe('available');
+  });
+
+  it('skipCurrent persists the available version; a newer version re-appears', async () => {
+    settings.updateConsent = 'enabled';
+    checkMock.mockResolvedValue({ version: '0.2.3', currentVersion: '0.2.2' });
+    await runStartupFlow();          // availableVersion = 0.2.3
+    skipCurrent();
+    expect(settings.skippedVersion).toBe('0.2.3');
+    // same version is now skipped → idle
+    checkMock.mockResolvedValue({ version: '0.2.3', currentVersion: '0.2.2' });
+    expect(await runStartupFlow()).toBe('idle');
+    // newer version → show-update again
+    checkMock.mockResolvedValue({ version: '0.2.4', currentVersion: '0.2.2' });
+    expect(await runStartupFlow()).toBe('show-update');
   });
 });

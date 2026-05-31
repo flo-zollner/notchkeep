@@ -29,11 +29,18 @@ export async function runStartupFlow(): Promise<StartupAction> {
       updateState.status = 'idle';
       return 'idle';
     }
-    pending = update;
-    updateState.availableVersion = update.version;
-    updateState.notes = update.body ?? '';
     const action = decideStartupAction('enabled', update.version, settings.skippedVersion);
-    updateState.status = action === 'show-update' ? 'available' : 'idle';
+    if (action === 'show-update') {
+      pending = update;
+      updateState.availableVersion = update.version;
+      updateState.notes = update.body ?? '';
+      updateState.status = 'available';
+    } else {
+      pending = null;
+      updateState.availableVersion = null;
+      updateState.notes = '';
+      updateState.status = 'idle';
+    }
     return action;
   } catch {
     updateState.status = 'idle';
@@ -51,6 +58,7 @@ export async function checkNow(): Promise<boolean> {
     if (!update) {
       updateState.status = 'idle';
       updateState.availableVersion = null;
+      updateState.notes = '';
       return false;
     }
     pending = update;
