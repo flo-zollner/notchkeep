@@ -146,6 +146,7 @@ export interface I18N {
     upToDate: string;
     checkFailed: string;
     currentVersion: (version: string) => string;
+    installerLaunched: string;
   };
   buckets: {
     title: string;
@@ -744,6 +745,7 @@ export const I18N: Record<Lang, I18N> = {
       upToDate: 'Du bist auf dem neuesten Stand.',
       checkFailed: 'Konnte nicht prüfen — keine Verbindung.',
       currentVersion: (v: string) => `Aktuelle Version: ${v}`,
+      installerLaunched: 'Installation wird gestartet…',
     },
     buckets: {
       title: 'Töpfe',
@@ -1354,6 +1356,7 @@ export const I18N: Record<Lang, I18N> = {
       upToDate: "You're up to date.",
       checkFailed: 'Could not check — no connection.',
       currentVersion: (v: string) => `Current version: ${v}`,
+      installerLaunched: 'Starting installation…',
     },
     buckets: {
       title: 'Buckets',

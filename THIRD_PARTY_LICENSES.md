@@ -22,6 +22,7 @@ npx license-checker --production --summary
 | Crate | Lizenz |
 | --- | --- |
 | `tauri`, `tauri-build`, `tauri-plugin-opener`, `tauri-plugin-dialog` | Apache-2.0 OR MIT |
+| `tauri-plugin-updater`, `tauri-plugin-process`, `tauri-plugin-os` | Apache-2.0 OR MIT |
 | `serde`, `serde_json` | MIT OR Apache-2.0 |
 | `tokio` | MIT |
 | `sqlx` | MIT OR Apache-2.0 |
@@ -37,6 +38,15 @@ npx license-checker --production --summary
 | `tempfile` (dev) | MIT OR Apache-2.0 |
 
 SQLite (über `sqlx`): **Public Domain**.
+
+### Android-Updater-Plugin (`src-tauri/plugins/apk-updater/Cargo.toml`, nur Android)
+
+| Crate | Lizenz |
+| --- | --- |
+| `minisign-verify` | MIT |
+| `hex` | MIT OR Apache-2.0 |
+| `base64` | MIT OR Apache-2.0 |
+| `futures-util` | MIT OR Apache-2.0 |
 
 ## JavaScript / TypeScript (`package.json`)
 

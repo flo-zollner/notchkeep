@@ -28,7 +28,7 @@
     aria-modal="true"
     aria-labelledby={titleId}
   >
-    {#if updateState.status === 'ready'}
+    {#if updateState.status === 'ready' && updateState.supportsRestart}
       <div class="header">
         <h3 id={titleId}>{u.readyTitle}</h3>
       </div>
@@ -42,6 +42,21 @@
           </button>
           <button type="button" class="btn primary" onclick={onRestart}>
             {u.restartNow}
+          </button>
+        </div>
+      </div>
+
+    {:else if updateState.status === 'ready'}
+      <div class="header">
+        <h3 id={titleId}>{u.readyTitle}</h3>
+      </div>
+      <div class="body">
+        <p>{u.installerLaunched}</p>
+      </div>
+      <div class="footer">
+        <div class="right-actions">
+          <button type="button" class="btn primary" onclick={onClose}>
+            {c.close}
           </button>
         </div>
       </div>

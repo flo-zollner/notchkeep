@@ -79,11 +79,17 @@ use crate::db::lock::AcquireOutcome;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let app = tauri::Builder::default()
+    let builder = tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
+        .plugin(tauri_plugin_os::init());
+
+    #[cfg(target_os = "android")]
+    let builder = builder.plugin(tauri_plugin_apk_updater::init());
+
+    let app = builder
         .invoke_handler(tauri::generate_handler![
             get_accounts,
             create_account,

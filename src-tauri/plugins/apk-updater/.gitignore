@@ -1,0 +1,5 @@
+/target/
+# Android-Build-Artefakte (lokal generiert)
+/android/build/
+/android/.tauri/
+/android/.gradle/

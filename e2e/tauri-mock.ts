@@ -217,5 +217,20 @@ export async function mockTauri(page: Page, opts: MockTauriOpts = {}): Promise<v
         currentWebview: { windowLabel: 'main', label: 'main' },
       },
     };
+
+    // @tauri-apps/plugin-os reads these synchronously from a global (NOT via
+    // invoke). The updater module calls platform() at import time to pick the
+    // desktop vs android backend — without this, platform() throws and the
+    // whole updater (and its dialogs) never initialises. 'linux' → desktop
+    // backend, which routes through the plugin:updater mock above.
+    (window as unknown as Record<string, unknown>).__TAURI_OS_PLUGIN_INTERNALS__ = {
+      platform: 'linux',
+      arch: 'x86_64',
+      family: 'unix',
+      os_type: 'linux',
+      version: '0.0.0',
+      eol: '\n',
+      exe_extension: '',
+    };
   }, opts);
 }

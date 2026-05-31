@@ -133,3 +133,111 @@ jobs:
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}
+
+  # Baut, signiert und veröffentlicht das Android-APK. Läuft nach den
+  # Desktop-Jobs, damit das Release-Draft bereits existiert und `gh release
+  # upload` die Assets anhängen kann.
+  android:
+    needs: [build]
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v5
+        with:
+          version: 11
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android NDK
+        run: sdkmanager "ndk;26.1.10909125"
+
+      - name: Setup Rust (Android targets)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android,armv7-linux-androideabi,i686-linux-android,x86_64-linux-android
+
+      # Rust-Build-Cache für Android-Cross-Compile-Targets.
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+          key: android
+
+      - name: Install frontend dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Keystore aus Secret decodieren; landet nur im Runner-Temp, nie im Repo.
+      - name: Decode keystore
+        run: echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > "$RUNNER_TEMP/release.jks"
+
+      # keystore.properties wird von src-tauri/gen/android/app/build.gradle.kts
+      # über rootProject.file("keystore.properties") eingelesen (= src-tauri/gen/android/).
+      - name: Write keystore.properties
+        run: |
+          cat > src-tauri/gen/android/keystore.properties <<EOF
+          storeFile=$RUNNER_TEMP/release.jks
+          storePassword=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          keyAlias=${{ secrets.ANDROID_KEY_ALIAS }}
+          keyPassword=${{ secrets.ANDROID_KEY_PASSWORD }}
+          EOF
+
+      - name: Build signed APK
+        run: pnpm tauri android build --apk
+        env:
+          NDK_HOME: ${{ env.ANDROID_NDK_LATEST_HOME }}
+
+      # Sucht das erste release-APK und benennt es mit der Tag-Version um.
+      - name: Locate APK
+        id: apk
+        run: |
+          APK=$(find src-tauri/gen/android -path '*release*.apk' | head -1)
+          test -n "$APK" || { echo "no APK found"; exit 1; }
+          NAME="Notchkeep_${GITHUB_REF_NAME#v}.apk"
+          cp "$APK" "$NAME"
+          echo "name=$NAME" >> "$GITHUB_OUTPUT"
+
+      # tauri signer sign schreibt die Signatur nach <file>.sig (minisign-Format).
+      # Derselbe minisign-Schlüssel wie für die Desktop-Updater-Signaturen wird
+      # wiederverwendet — kein separates Android-Keypair nötig.
+      - name: Sign APK and build manifest
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          PUB_DATE: ${{ github.event.head_commit.timestamp }}
+        run: |
+          pnpm tauri signer sign \
+            -k "$TAURI_SIGNING_PRIVATE_KEY" \
+            -p "$TAURI_SIGNING_PRIVATE_KEY_PASSWORD" \
+            "${{ steps.apk.outputs.name }}"
+          VER="${GITHUB_REF_NAME#v}"
+          URL="https://github.com/flo-zollner/notchkeep/releases/download/${GITHUB_REF_NAME}/${{ steps.apk.outputs.name }}"
+          node scripts/gen-android-manifest.mjs \
+            "${{ steps.apk.outputs.name }}" \
+            "$VER" \
+            "0" \
+            "$URL" \
+            "${{ steps.apk.outputs.name }}.sig" \
+            android-latest.json
+
+      # APK und Manifest an das bereits vorhandene Draft-Release anhängen
+      # (--clobber überschreibt beim Re-Run eines Jobs).
+      - name: Upload to release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload "${GITHUB_REF_NAME}" "${{ steps.apk.outputs.name }}" android-latest.json --clobber

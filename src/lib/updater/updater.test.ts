@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 const { checkMock } = vi.hoisted(() => ({ checkMock: vi.fn() }));
 vi.mock('@tauri-apps/plugin-updater', () => ({ check: checkMock }));
 vi.mock('@tauri-apps/plugin-process', () => ({ relaunch: vi.fn() }));
+vi.mock('@tauri-apps/plugin-os', () => ({ platform: () => 'linux' }));
 
 import { updateState, runStartupFlow, checkNow, skipCurrent } from './updater.svelte';
 import { settings, _reloadForTests } from '../settings.svelte';

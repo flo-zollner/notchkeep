@@ -59,8 +59,21 @@ pasted file.*
 /src-tauri/*.jks
 /src-tauri/*.keystore
 
-# Tauri Mobile auto-generierter Gradle-Projekt-Ordner — pro Checkout via `pnpm tauri android init` regenerieren
-/src-tauri/gen/
+# Tauri Mobile auto-generierter Gradle-Projekt-Ordner.
+# gen/* ignorieren (statt gen/), damit die Ausnahme für gen/android greift —
+# ein komplett ignoriertes Elternverzeichnis lässt sich sonst nicht re-includen.
+/src-tauri/gen/*
+# Ausnahme: gen/android wird committet (persistente native Config: signing,
+# minSdk, Plugin-Manifest). Secrets und Build-Output bleiben ignoriert.
+!/src-tauri/gen/android/
+/src-tauri/gen/android/.gradle/
+/src-tauri/gen/android/build/
+/src-tauri/gen/android/app/build/
+/src-tauri/gen/android/.cxx/
+/src-tauri/gen/android/local.properties
+/src-tauri/gen/android/keystore.properties
+/src-tauri/gen/android/**/*.jks
+/src-tauri/gen/android/**/*.keystore
 
 # Sonstige lokale Notizen
 /further

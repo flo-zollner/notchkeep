@@ -1,0 +1,5 @@
+"$schema" = "schemas/schema.json"
+
+[default]
+description = "Default permissions for the apk-updater plugin."
+permissions = ["allow-check", "allow-download-and-install"]

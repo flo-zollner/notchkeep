@@ -1,10 +1,13 @@
-import { check, type Update } from '@tauri-apps/plugin-updater';
-import { relaunch } from '@tauri-apps/plugin-process';
+import { platform } from '@tauri-apps/plugin-os';
 import { settings, setUpdateConsent, setSkippedVersion } from '../settings.svelte';
 import { decideStartupAction, type StartupAction } from './decide';
+import { desktopBackend } from './backend-desktop';
+import { androidBackend } from './backend-android';
 
 export type UpdateStatus =
   | 'idle' | 'checking' | 'available' | 'downloading' | 'ready' | 'error';
+
+const backend = platform() === 'android' ? androidBackend : desktopBackend;
 
 export const updateState = $state({
   status: 'idle' as UpdateStatus,
@@ -13,9 +16,8 @@ export const updateState = $state({
   downloaded: 0,
   total: 0,
   error: '' as string,
+  supportsRestart: backend.supportsRestart,
 });
-
-let pending: Update | null = null;
 
 /** Startup flow. Returns the resolved action so the layout can render the
  *  right dialog. Silent on errors during the automatic (enabled) path. */
@@ -24,19 +26,17 @@ export async function runStartupFlow(): Promise<StartupAction> {
   if (first !== 'check') return first;
   try {
     updateState.status = 'checking';
-    const update = await check();
+    const update = await backend.check();
     if (!update) {
       updateState.status = 'idle';
       return 'idle';
     }
     const action = decideStartupAction('enabled', update.version, settings.skippedVersion);
     if (action === 'show-update') {
-      pending = update;
       updateState.availableVersion = update.version;
-      updateState.notes = update.body ?? '';
+      updateState.notes = update.notes;
       updateState.status = 'available';
     } else {
-      pending = null;
       updateState.availableVersion = null;
       updateState.notes = '';
       updateState.status = 'idle';
@@ -54,16 +54,15 @@ export async function checkNow(): Promise<boolean> {
   try {
     updateState.status = 'checking';
     updateState.error = '';
-    const update = await check();
+    const update = await backend.check();
     if (!update) {
       updateState.status = 'idle';
       updateState.availableVersion = null;
       updateState.notes = '';
       return false;
     }
-    pending = update;
     updateState.availableVersion = update.version;
-    updateState.notes = update.body ?? '';
+    updateState.notes = update.notes;
     updateState.status = 'available';
     return true;
   } catch (e) {
@@ -74,24 +73,15 @@ export async function checkNow(): Promise<boolean> {
 }
 
 export async function downloadAndInstall(): Promise<void> {
-  if (!pending) return;
   try {
     updateState.status = 'downloading';
     updateState.downloaded = 0;
     updateState.total = 0;
-    await pending.downloadAndInstall((event) => {
-      switch (event.event) {
-        case 'Started':
-          updateState.total = event.data.contentLength ?? 0;
-          break;
-        case 'Progress':
-          updateState.downloaded += event.data.chunkLength;
-          break;
-        case 'Finished':
-          break;
-      }
+    const result = await backend.downloadAndInstall((d, t) => {
+      updateState.downloaded = d;
+      updateState.total = t;
     });
-    updateState.status = 'ready';
+    updateState.status = result === 'ready' ? 'ready' : 'idle';
   } catch (e) {
     updateState.status = 'error';
     updateState.error = e instanceof Error ? e.message : String(e);
@@ -106,4 +96,4 @@ export function skipCurrent(): void {
   updateState.status = 'idle';
 }
 
-export async function restart(): Promise<void> { await relaunch(); }
+export async function restart(): Promise<void> { await backend.restart(); }
