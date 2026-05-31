@@ -26,6 +26,7 @@ place, all on your own device.
 - [Download &amp; Install](#download--install)
   - [Desktop](#desktop)
   - [Android](#android)
+  - [Updates](#updates)
 - [Concept](#concept)
 - [First Steps](#first-steps)
 - [Privacy &amp; Sync](#privacy--sync)
@@ -49,6 +50,9 @@ place, all on your own device.
 - 📥 **Statement import** — Trade Republic CSVs out of the box; more banks via the
   `Importer` trait.
 - 🧭 **Guided onboarding** — first-run setup wizard and an interactive feature tour.
+- 🔄 **Opt-in auto-updates** — the app can check for new versions and update
+  itself from signed release artifacts (desktop and Android). Off by default,
+  asked once, fully optional — no background calls until you enable it.
 - 🔒 **Local-first &amp; private** — data stays in a local SQLite file; optional
   Syncthing sync, no cloud, no telemetry.
 - 🖥️ **Cross-platform** — Linux, macOS, Windows and Android from one codebase
@@ -73,14 +77,30 @@ run the installer. SHA-256 checksums are listed in the release notes.
 
 ### Android
 
-An Android build is supported but not yet published as a downloadable `.apk`.
-Build it yourself from source:
+A signed `Notchkeep_<version>.apk` is attached to every
+[release](https://github.com/flo-zollner/notchkeep/releases/latest). Download it
+to your device and install it — on first install Android asks you to allow
+installing apps from this source (sideload). Once installed, the app can update
+itself in-place (see [Updates](#updates)).
 
-```bash
-pnpm tauri android build
-```
+> Prefer to build it yourself? `pnpm tauri android build` — see
+> [Building from Source](#building-from-source) for the toolchain.
 
-See [Building from Source](#building-from-source) for the required toolchain.
+### Updates
+
+Auto-updates are **opt-in**. On startup the app asks once whether it may check
+for new versions; nothing is sent to any server and no check happens until you
+agree. You can change this anytime under *Settings → "Check for updates
+automatically"* (plus a manual *"Check now"* button).
+
+- **Desktop** (`.AppImage`, `.exe`, macOS `.app`): the app downloads and applies
+  the signed update, then asks to restart.
+- **Android**: the app downloads the signed `.apk`, verifies it, and launches
+  the system installer.
+
+Updates are delivered from GitHub Releases and every artifact is signed; the app
+installs only verified packages. Linux `.deb`/`.rpm` update via your package
+manager as usual.
 
 ## Concept
 
