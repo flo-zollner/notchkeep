@@ -15,7 +15,37 @@ permissions:
   contents: write
 
 jobs:
+  # Gate: erst alle Tests grün, dann erst bauen + releasen. Verhindert ein
+  # kaputtes Release. Wiederverwendeter Workflow (gleich wie CI bei Push/PR).
+  test:
+    uses: ./.github/workflows/test.yml
+
+  # Legt das Draft-Release EINMAL an (nach grünen Tests), bevor die vier
+  # Build-Jobs parallel ihre Artefakte hochladen. Vermeidet das Race, das
+  # entstünde, wenn jeder Build das Release selbst anlegen wollte.
+  create-release:
+    needs: [test]
+    runs-on: ubuntu-latest
+    outputs:
+      release_id: ${{ steps.create.outputs.release_id }}
+    steps:
+      - uses: actions/checkout@v5
+      - name: Create draft release (idempotent)
+        id: create
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            gh release create "$TAG" --draft \
+              --title "Notchkeep $TAG" \
+              --notes-file RELEASE_NOTES.md
+          fi
+          ID=$(gh release view "$TAG" --json databaseId -q .databaseId)
+          echo "release_id=$ID" >> "$GITHUB_OUTPUT"
+
   build:
+    needs: [create-release]
     strategy:
       fail-fast: false
       matrix:
@@ -88,57 +118,24 @@ jobs:
       - name: Install frontend dependencies
         run: pnpm install --frozen-lockfile
 
-      # Stellt sicher, dass die eingecheckte static/licenses.html aktuell ist
-      # (GPL-3.0-Compliance). Generiert die Liste neu und bricht ab, wenn sie
-      # vom Commit abweicht — dann muss `pnpm gen:licenses` lokal gelaufen und
-      # committet werden. Nur auf Linux, da plattformunabhängig.
-      - name: Verify third-party licenses up to date
-        if: matrix.platform == 'ubuntu-22.04'
-        run: |
-          # cargo-about braucht ab 0.9 das `cli`-Feature für das Binary. Version
-          # gepinnt = identische Ausgabe wie lokal, sonst triggert der Drift-
-          # Check schon bei Tool-Versionsunterschieden statt bei echtem Drift.
-          cargo install cargo-about --version 0.9.0 --locked --features cli
-          pnpm gen:licenses
-          git diff --exit-code -- static/licenses.html
-
-      # RELEASE_NOTES.md (aus dem getaggten Commit) als Release-Body übernehmen.
-      # tauri-action kennt nur den String-Input `releaseBody`, keinen Pfad —
-      # daher die Datei hier in ein (mehrzeiliges) Step-Output lesen. `shell:
-      # bash` ist auf allen Runnern (auch Windows) verfügbar, damit das
-      # Heredoc-Format für GITHUB_OUTPUT überall gleich funktioniert. Fehlt die
-      # Datei, bleibt der Body leer (tauri-action ergänzt die Asset-Liste).
-      - name: Read release notes
-        id: notes
-        shell: bash
-        run: |
-          {
-            echo 'body<<RELEASE_NOTES_EOF'
-            cat RELEASE_NOTES.md 2>/dev/null || true
-            echo 'RELEASE_NOTES_EOF'
-          } >> "$GITHUB_OUTPUT"
-
-      - name: Build and release
+      # Lizenz-Drift wird bereits im test-Gate geprüft — hier nicht erneut nötig.
+      # Build lädt seine Bundles in das von create-release angelegte Draft-
+      # Release (releaseId), legt also selbst keins an → konfliktfreie Parallelität.
+      - name: Build and upload to release
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
-          # Tag/Name/Body aus dem gepushten Tag ableiten. tauri-action sammelt
-          # die Bundles aller Matrix-Jobs in EIN Release (gleicher tagName).
-          tagName: ${{ github.ref_name }}
-          releaseName: 'Notchkeep ${{ github.ref_name }}'
-          releaseBody: ${{ steps.notes.outputs.body }}
-          releaseDraft: true
-          prerelease: false
+          releaseId: ${{ needs.create-release.outputs.release_id }}
           args: ${{ matrix.args }}
 
-  # Baut, signiert und veröffentlicht das Android-APK. Läuft nach den
-  # Desktop-Jobs, damit das Release-Draft bereits existiert und `gh release
-  # upload` die Assets anhängen kann.
+  # Baut, signiert und veröffentlicht das Android-APK — PARALLEL zu den
+  # Desktop-Builds. Hängt nur an create-release (Draft existiert dann), nicht
+  # an build, damit alle vier Builds gleichzeitig laufen.
   android:
-    needs: [build]
+    needs: [create-release]
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout
