@@ -572,7 +572,7 @@ pub async fn detect_recurring(pool: &SqlitePool) -> DbResult<Vec<DetectedRecurri
         });
     }
 
-    out.sort_by(|a, b| b.sample_count.cmp(&a.sample_count));
+    out.sort_by_key(|o| std::cmp::Reverse(o.sample_count));
     Ok(out)
 }
 

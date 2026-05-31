@@ -1220,7 +1220,7 @@ pub async fn asset_allocation(
         .into_iter()
         .map(|(key, value_cents)| AllocationSlice { key, value_cents })
         .collect();
-    slices.sort_by(|a, b| b.value_cents.cmp(&a.value_cents));
+    slices.sort_by_key(|s| std::cmp::Reverse(s.value_cents));
     Ok(slices)
 }
 
