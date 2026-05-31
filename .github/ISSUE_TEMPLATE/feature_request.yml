@@ -1,0 +1,50 @@
+name: 💡 Feature request · Feature-Vorschlag
+description: Suggest an idea or improvement · Eine Idee oder Verbesserung vorschlagen
+labels: ["enhancement"]
+body:
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: Pre-flight · Vorab
+      options:
+        - label: I searched existing issues and this is not a duplicate. · Ich habe bestehende Issues durchsucht; kein Duplikat.
+          required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem · Problem
+      description: What problem would this solve? · Welches Problem löst das?
+      placeholder: "I'm frustrated when … · Mich stört, dass …"
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution · Lösungsvorschlag
+      description: What would you like to happen? · Was wünschst du dir?
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives · Alternativen
+      description: Other approaches you considered. · Andere erwogene Ansätze.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area · Bereich
+      options:
+        - Accounts & institutions · Konten & Institute
+        - Transactions & import · Transaktionen & Import
+        - Budgets & buckets · Budgets & Töpfe
+        - Portfolio & securities · Depot & Wertpapiere
+        - Reports & charts · Reports & Diagramme
+        - Onboarding & UX
+        - Sync & data · Sync & Daten
+        - Other · Sonstiges
+    validations:
+      required: true

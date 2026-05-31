@@ -1,0 +1,12 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 🔒 Report a security vulnerability · Sicherheitslücke melden
+    url: https://github.com/flo-zollner/notchkeep/security/advisories/new
+    about: >-
+      Report security issues privately via GitHub, never as a public issue.
+      Sicherheitsprobleme bitte privat über GitHub melden, nie als öffentliches Issue.
+  - name: 📖 Contributing guide · Mitwirken
+    url: https://github.com/flo-zollner/notchkeep/blob/main/CONTRIBUTING.md
+    about: >-
+      How to set up the project, run the tests and submit changes.
+      Setup, Tests und wie du Änderungen einreichst.

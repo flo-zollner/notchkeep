@@ -1,0 +1,79 @@
+name: 🐞 Bug report · Fehlerbericht
+description: Report a reproducible problem · Ein reproduzierbares Problem melden
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug! ·
+        Danke, dass du dir die Zeit nimmst!
+
+        ⚠️ **Privacy / Privatsphäre:** Notchkeep handles financial data. Do **not**
+        paste real IBANs, account numbers, names or amounts. Redact logs and
+        screenshots or use synthetic data. · Füge **keine** echten IBANs,
+        Kontonummern, Namen oder Beträge ein — schwärzen oder synthetische Daten
+        verwenden.
+
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: Pre-flight · Vorab
+      options:
+        - label: I searched existing issues and this is not a duplicate. · Ich habe bestehende Issues durchsucht; kein Duplikat.
+          required: true
+        - label: My report contains no real financial data / PII. · Mein Bericht enthält keine echten Finanzdaten / PII.
+          required: true
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened? · Was ist passiert?
+      description: A clear description of the bug. · Klare Beschreibung des Fehlers.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce · Schritte zur Reproduktion
+      placeholder: |
+        1. …
+        2. …
+        3. …
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behaviour · Erwartetes Verhalten
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Notchkeep version · Version
+      placeholder: "e.g. v0.2.1 (Settings → About)"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform · Plattform
+      multiple: true
+      options:
+        - Linux
+        - macOS
+        - Windows
+        - Android
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / screenshots · Logs / Screenshots
+      description: Optional — remember to redact PII. · Optional — PII schwärzen.
+      render: shell
