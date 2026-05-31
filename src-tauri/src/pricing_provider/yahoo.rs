@@ -128,8 +128,9 @@ impl PriceProvider for YahooProvider {
                 .unwrap_or_else(|| Utc::now().date_naive());
             Ok(Quote {
                 symbol: result.meta.symbol,
-                price_micro: to_micro(price)
-                .ok_or_else(|| ProviderError::Parse(format!("non-finite price for {symbol}")))?,
+                price_micro: to_micro(price).ok_or_else(|| {
+                    ProviderError::Parse(format!("non-finite price for {symbol}"))
+                })?,
                 as_of,
                 currency: result.meta.currency.map(|c| c.to_uppercase()),
             })
@@ -175,7 +176,10 @@ impl PriceProvider for YahooProvider {
             for (i, ts) in timestamps.iter().enumerate() {
                 if let Some(Some(close)) = closes.get(i) {
                     if let Some(close_micro) = to_micro(*close) {
-                        out.push(PricePoint { date: from_unix(*ts), close_micro });
+                        out.push(PricePoint {
+                            date: from_unix(*ts),
+                            close_micro,
+                        });
                     }
                 }
             }

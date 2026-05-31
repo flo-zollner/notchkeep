@@ -27,8 +27,9 @@ pub async fn set_manual_price(
             message: "price_micro must be >= 0".into(),
         });
     }
-    chrono::NaiveDate::parse_from_str(&date, "%Y-%m-%d")
-        .map_err(|_| CommandError { message: "date must be YYYY-MM-DD".into() })?;
+    chrono::NaiveDate::parse_from_str(&date, "%Y-%m-%d").map_err(|_| CommandError {
+        message: "date must be YYYY-MM-DD".into(),
+    })?;
     Ok(db_prices::upsert_price(&state.pool(), security_id, &date, price_micro, "manual").await?)
 }
 

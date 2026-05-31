@@ -248,13 +248,19 @@ pub(crate) fn parse_amount_cents(s: &str) -> ImportResult<i64> {
     let frac_part = parts.next().unwrap_or("");
 
     if int_part.is_empty() || !int_part.chars().all(|c| c.is_ascii_digit()) {
-        return Err(ImportError::Parse(String::from("amount integer part: invalid digits")));
+        return Err(ImportError::Parse(String::from(
+            "amount integer part: invalid digits",
+        )));
     }
     if !frac_part.chars().all(|c| c.is_ascii_digit()) {
-        return Err(ImportError::Parse(String::from("amount fraction part: invalid digits")));
+        return Err(ImportError::Parse(String::from(
+            "amount fraction part: invalid digits",
+        )));
     }
     if unsigned.split('.').count() > 2 {
-        return Err(ImportError::Parse(String::from("amount: multiple decimal points")));
+        return Err(ImportError::Parse(String::from(
+            "amount: multiple decimal points",
+        )));
     }
 
     let int_val: i64 = int_part.parse().map_err(|_: std::num::ParseIntError| {

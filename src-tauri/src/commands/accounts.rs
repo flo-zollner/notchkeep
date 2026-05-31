@@ -113,10 +113,7 @@ fn normalize_iban(raw: Option<&str>) -> Result<Option<String>, CommandError> {
     }
     if cleaned.len() < 15 || cleaned.len() > 34 {
         return Err(CommandError {
-            message: format!(
-                "iban length must be 15-34, got {}",
-                cleaned.len()
-            ),
+            message: format!("iban length must be 15-34, got {}", cleaned.len()),
         });
     }
     let mut chars = cleaned.chars();
