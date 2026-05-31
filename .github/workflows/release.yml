@@ -224,10 +224,16 @@ jobs:
             "${{ steps.apk.outputs.name }}"
           VER="${GITHUB_REF_NAME#v}"
           URL="https://github.com/flo-zollner/notchkeep/releases/download/${GITHUB_REF_NAME}/${{ steps.apk.outputs.name }}"
+          # versionCode aus der von `tauri android build` (re)generierten
+          # tauri.properties lesen — das ist der echte Wert, mit dem die APK
+          # signiert wurde (Tauri-Formel major*1e6+minor*1e3+patch). So matcht
+          # das Manifest garantiert die APK, statt eine Formel nachzubauen.
+          VCODE=$(grep -oP 'tauri\.android\.versionCode=\K[0-9]+' src-tauri/gen/android/app/tauri.properties)
+          VCODE=${VCODE:-0}
           node scripts/gen-android-manifest.mjs \
             "${{ steps.apk.outputs.name }}" \
             "$VER" \
-            "0" \
+            "$VCODE" \
             "$URL" \
             "${{ steps.apk.outputs.name }}.sig" \
             android-latest.json
