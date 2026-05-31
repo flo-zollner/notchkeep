@@ -66,7 +66,7 @@ export interface I18N {
     exportSearch: string; exportButton: string;
     exportSuccess: (rows: number) => string;
     exportInvalidRange: string;
-    version: string;
+    version: (v: string) => string;
     seeAll: string; breakdown: string; perCat: string; monthAvg: string;
     incomeVsExp: string; topCats: string; recent: string;
     yourMoney: string;
@@ -648,7 +648,7 @@ export const I18N: Record<Lang, I18N> = {
       exportSearch: 'Suche', exportButton: 'CSV speichern',
       exportSuccess: (n) => n === 1 ? '1 Transaktion exportiert' : `${n} Transaktionen exportiert`,
       exportInvalidRange: 'Von-Datum darf nicht nach Bis-Datum liegen',
-      version: 'Version 0.1.0 · Tauri Build',
+      version: (v) => `Version ${v} · Tauri Build`,
       seeAll: 'Alle ansehen', breakdown: 'Aufteilung', perCat: 'Pro Kategorie',
       monthAvg: 'Ø Monat',
       incomeVsExp: 'Einnahmen vs. Ausgaben', topCats: 'Top-Kategorien',
@@ -1259,7 +1259,7 @@ export const I18N: Record<Lang, I18N> = {
       exportSearch: 'Search', exportButton: 'Save CSV',
       exportSuccess: (n) => n === 1 ? '1 transaction exported' : `${n} transactions exported`,
       exportInvalidRange: 'From date must not be after To date',
-      version: 'Version 0.1.0 · Tauri build',
+      version: (v) => `Version ${v} · Tauri build`,
       seeAll: 'See all', breakdown: 'Breakdown', perCat: 'By category',
       monthAvg: 'Monthly avg',
       incomeVsExp: 'Income vs. expenses', topCats: 'Top categories',

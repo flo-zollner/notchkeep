@@ -387,7 +387,7 @@
     </p>
   </div>
 
-  <div class="col-12 version">{t().common.version}</div>
+  <div class="col-12 version">{appVersion ? t().common.version(appVersion) : ''}</div>
 </div>
 
 {#if showCats}
