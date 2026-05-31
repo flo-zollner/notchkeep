@@ -4,6 +4,8 @@ import {
   setTheme,
   setOnboardingCompleted,
   setTourCompleted,
+  setUpdateConsent,
+  setSkippedVersion,
   _reloadForTests,
 } from './settings.svelte';
 
@@ -100,5 +102,36 @@ describe('settings.onboarding flags', () => {
     _reloadForTests();
     expect(settings.onboardingCompleted).toBe(false);
     expect(settings.tourCompleted).toBe(false);
+  });
+});
+
+describe('settings.update preferences', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    _reloadForTests();
+  });
+
+  it('defaults updateConsent to "unset" and skippedVersion to null', () => {
+    expect(settings.updateConsent).toBe('unset');
+    expect(settings.skippedVersion).toBeNull();
+  });
+
+  it('persists updateConsent', () => {
+    setUpdateConsent('enabled');
+    _reloadForTests();
+    expect(settings.updateConsent).toBe('enabled');
+  });
+
+  it('persists skippedVersion', () => {
+    setSkippedVersion('0.2.3');
+    _reloadForTests();
+    expect(settings.skippedVersion).toBe('0.2.3');
+  });
+
+  it('falls back to defaults for legacy localStorage without the fields', () => {
+    localStorage.setItem('saldo.settings', JSON.stringify({ theme: 'dark' }));
+    _reloadForTests();
+    expect(settings.updateConsent).toBe('unset');
+    expect(settings.skippedVersion).toBeNull();
   });
 });
