@@ -1,6 +1,6 @@
 [package]
 name = "notchkeep"
-version = "0.2.1"
+version = "0.2.2"
 description = "Notchkeep — Simple Personal Networth"
 authors = ["Florian Zollner"]
 edition = "2021"
