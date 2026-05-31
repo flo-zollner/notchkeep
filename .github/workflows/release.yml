@@ -15,7 +15,13 @@ permissions:
   contents: write
 
 jobs:
+  # Gate: erst alle Tests grün, dann erst bauen + releasen. Verhindert ein
+  # kaputtes Release. Wiederverwendeter Workflow (gleich wie CI bei Push/PR).
+  test:
+    uses: ./.github/workflows/test.yml
+
   build:
+    needs: [test]
     strategy:
       fail-fast: false
       matrix:

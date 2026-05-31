@@ -1,0 +1,96 @@
+name: Test
+
+# Wiederverwendbarer Test-Workflow (single source of truth für alle Gates).
+# Aufgerufen von ci.yml (bei Push/PR) und release.yml (als Gate vor dem Build).
+on:
+  workflow_call:
+
+jobs:
+  rust:
+    name: Rust (test, licenses)
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v5
+
+      # Linux-Systembibliotheken für Tauri 2 (WebKitGTK 4.1 etc.) — nötig, damit
+      # die App-Crate kompiliert/getestet werden kann.
+      - name: Install Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            patchelf \
+            libgtk-3-dev \
+            libxdo-dev \
+            libssl-dev \
+            build-essential \
+            file \
+            wget
+
+      - uses: pnpm/action-setup@v5
+        with:
+          version: 11
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+          key: ci-rust
+
+      - name: Install frontend dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Cargo test (app)
+        run: cargo test --manifest-path src-tauri/Cargo.toml
+
+      - name: Cargo test (apk-updater plugin)
+        run: cargo test --manifest-path src-tauri/plugins/apk-updater/Cargo.toml
+
+      # Clippy ist (noch) NICHT Teil des Gates: die App hat aktuell 17
+      # vorbestehende Clippy-Lints (z. B. manual_range_contains), die mit
+      # `-D warnings` fehlschlügen. Nach einem Lint-Cleanup hier als harten
+      # Schritt ergänzen.
+
+      - name: Verify third-party licenses up to date
+        run: |
+          cargo install cargo-about --version 0.9.0 --locked --features cli
+          pnpm gen:licenses
+          git diff --exit-code -- static/licenses.html
+
+  web:
+    name: Frontend (check, vitest, e2e)
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v5
+        with:
+          version: 11
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install frontend dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Svelte-check + tsc
+        run: pnpm check
+
+      - name: Unit tests (vitest)
+        run: pnpm test
+
+      - name: Install Playwright Chromium
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: E2E (Playwright, all viewports)
+        run: pnpm test:e2e
