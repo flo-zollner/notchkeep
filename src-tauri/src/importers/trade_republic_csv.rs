@@ -119,6 +119,8 @@ fn tr_extract_trade(
     )
 }
 
+// Parser maps many distinct CSV columns; grouping them into a struct adds no clarity here.
+#[allow(clippy::too_many_arguments)]
 fn parse_trade_fields(
     type_raw: &str,
     symbol: &str,

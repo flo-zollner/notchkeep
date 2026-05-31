@@ -22,11 +22,10 @@ fn reshape_sparkasse_rows(text: &str) -> String {
     let Some(header_line) = lines.next() else {
         return text.to_string();
     };
-    let (header_content, header_terminator) =
-        match header_line.find(|c: char| c == '\n' || c == '\r') {
-            Some(i) => (&header_line[..i], &header_line[i..]),
-            None => (header_line, ""),
-        };
+    let (header_content, header_terminator) = match header_line.find(['\n', '\r']) {
+        Some(i) => (&header_line[..i], &header_line[i..]),
+        None => (header_line, ""),
+    };
     let header_parts: Vec<&str> = header_content.split(',').collect();
 
     let normalize = |s: &str| s.trim().to_lowercase();
@@ -75,7 +74,7 @@ fn reshape_sparkasse_rows(text: &str) -> String {
 
     // Iterate the rest of the input (after the header)
     for line in lines {
-        let (content, terminator) = match line.find(|c: char| c == '\n' || c == '\r') {
+        let (content, terminator) = match line.find(['\n', '\r']) {
             Some(i) => (&line[..i], &line[i..]),
             None => (line, ""),
         };
@@ -162,8 +161,8 @@ fn reshape_sparkasse_rows(text: &str) -> String {
 
         // 5. Reassemble the row
         let mut out_fields: Vec<String> = Vec::with_capacity(expected_cols);
-        for i in 0..partner_name_idx {
-            out_fields.push(parts[i].to_string());
+        for part in parts.iter().take(partner_name_idx) {
+            out_fields.push(part.to_string());
         }
         out_fields.push(partner_name);
         out_fields.push(partner_iban.to_string());

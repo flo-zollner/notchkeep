@@ -149,7 +149,7 @@ pub async fn update_recurring(
     };
     let category_id = p.category_id.unwrap_or(current.category_id);
     let amount_cents = match p.amount_cents {
-        Some(a) if a == 0 => {
+        Some(0) => {
             return Err(DbError::Decode("amount_cents must not be 0".into()));
         }
         Some(a) => a,
@@ -311,7 +311,7 @@ pub async fn recurring_overview(
 ) -> DbResult<Vec<RecurringOverview>> {
     use chrono::NaiveDate;
 
-    if months_ahead < 1 || months_ahead > 24 {
+    if !(1..=24).contains(&months_ahead) {
         return Err(DbError::Decode(format!(
             "months_ahead must be in 1..=24, got {months_ahead}"
         )));
@@ -572,7 +572,7 @@ pub async fn detect_recurring(pool: &SqlitePool) -> DbResult<Vec<DetectedRecurri
         });
     }
 
-    out.sort_by(|a, b| b.sample_count.cmp(&a.sample_count));
+    out.sort_by_key(|o| std::cmp::Reverse(o.sample_count));
     Ok(out)
 }
 

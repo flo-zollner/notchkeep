@@ -1220,7 +1220,7 @@ pub async fn asset_allocation(
         .into_iter()
         .map(|(key, value_cents)| AllocationSlice { key, value_cents })
         .collect();
-    slices.sort_by(|a, b| b.value_cents.cmp(&a.value_cents));
+    slices.sort_by_key(|s| std::cmp::Reverse(s.value_cents));
     Ok(slices)
 }
 
@@ -2116,7 +2116,7 @@ mod tests {
     #[test]
     fn compute_position_value_basic_eur() {
         let v = compute_position_value_cents(10_000_000, 180_500_000, 909_100);
-        assert!(v >= 164_080 && v <= 164_100, "got {v}");
+        assert!((164_080..=164_100).contains(&v), "got {v}");
     }
 
     #[test]

@@ -636,7 +636,7 @@ fn parse_krypto_sammelabrechnung(text: &str) -> ImportResult<Vec<RawTransaction>
                 && after_slash
                     .chars()
                     .next()
-                    .map_or(false, |c| c.is_ascii_digit())
+                    .is_some_and(|c| c.is_ascii_digit())
             {
                 // Check: line contains "Kauf" or "Verkauf" (it is a position line)
                 let tokens: Vec<&str> = trimmed.split_whitespace().collect();
@@ -834,7 +834,7 @@ fn parse_wertpapier_sammelabrechnung(text: &str) -> ImportResult<Vec<RawTransact
                 && after_slash
                     .chars()
                     .next()
-                    .map_or(false, |c| c.is_ascii_digit())
+                    .is_some_and(|c| c.is_ascii_digit())
             {
                 let tokens: Vec<&str> = trimmed.split_whitespace().collect();
                 if tokens.iter().any(|t| *t == "Kauf" || *t == "Verkauf") {

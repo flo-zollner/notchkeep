@@ -798,11 +798,11 @@ pub(crate) async fn cleanup_phantom_mirrors_inner(pool: &SqlitePool) -> Result<u
 
 #[tauri::command]
 pub async fn cleanup_phantom_mirrors(state: State<'_, DbState>) -> Result<usize, CommandError> {
-    Ok(cleanup_phantom_mirrors_inner(&state.pool())
+    cleanup_phantom_mirrors_inner(&state.pool())
         .await
         .map_err(|e| CommandError {
             message: e.to_string(),
-        })?)
+        })
 }
 
 #[cfg(test)]

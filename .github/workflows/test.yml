@@ -39,6 +39,8 @@ jobs:
           cache: pnpm
 
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
 
       - uses: Swatinem/rust-cache@v2
         with:
@@ -54,10 +56,8 @@ jobs:
       - name: Cargo test (apk-updater plugin)
         run: cargo test --manifest-path src-tauri/plugins/apk-updater/Cargo.toml
 
-      # Clippy ist (noch) NICHT Teil des Gates: die App hat aktuell 17
-      # vorbestehende Clippy-Lints (z. B. manual_range_contains), die mit
-      # `-D warnings` fehlschlügen. Nach einem Lint-Cleanup hier als harten
-      # Schritt ergänzen.
+      - name: Clippy (app)
+        run: cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
 
       - name: Verify third-party licenses up to date
         run: |
