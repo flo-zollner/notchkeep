@@ -125,6 +125,28 @@ export interface I18N {
     relativeChange: string;
     relativeChangeHint: string;
   };
+  updates: {
+    activationTitle: string;
+    activationBody: string;
+    enable: string;
+    later: string;
+    never: string;
+    availableTitle: (version: string) => string;
+    availableBody: string;
+    install: string;
+    skipThisVersion: string;
+    downloading: string;
+    readyTitle: string;
+    readyBody: string;
+    restartNow: string;
+    restartLater: string;
+    settingsToggle: string;
+    checkNow: string;
+    checking: string;
+    upToDate: string;
+    checkFailed: string;
+    currentVersion: (version: string) => string;
+  };
   buckets: {
     title: string;
     add: string;
@@ -699,6 +721,29 @@ export const I18N: Record<Lang, I18N> = {
       importErrors: 'Fehler beim Import',
       relativeChange: 'Relative Entwicklung (indexiert)',
       relativeChangeHint: 'Erster Datenpunkt = 100%',
+    },
+    updates: {
+      activationTitle: 'Automatische Updates?',
+      activationBody:
+        'Notchkeep kann beim Start nach neuen Versionen suchen (Anfrage an GitHub). Es werden keine persönlichen Daten übertragen.',
+      enable: 'Aktivieren',
+      later: 'Später',
+      never: 'Nein, nicht mehr fragen',
+      availableTitle: (v: string) => `Update verfügbar: Version ${v}`,
+      availableBody: 'Eine neue Version steht bereit. Jetzt herunterladen und installieren?',
+      install: 'Installieren',
+      skipThisVersion: 'Diese Version nicht mehr anzeigen',
+      downloading: 'Wird heruntergeladen…',
+      readyTitle: 'Update installiert',
+      readyBody: 'Das Update wurde installiert. Jetzt neu starten?',
+      restartNow: 'Jetzt neu starten',
+      restartLater: 'Später',
+      settingsToggle: 'Automatisch nach Updates suchen',
+      checkNow: 'Jetzt prüfen',
+      checking: 'Wird geprüft…',
+      upToDate: 'Du bist auf dem neuesten Stand.',
+      checkFailed: 'Konnte nicht prüfen — keine Verbindung.',
+      currentVersion: (v: string) => `Aktuelle Version: ${v}`,
     },
     buckets: {
       title: 'Töpfe',
@@ -1286,6 +1331,29 @@ export const I18N: Record<Lang, I18N> = {
       importErrors: 'Import errors',
       relativeChange: 'Relative change (indexed)',
       relativeChangeHint: 'First data point = 100%',
+    },
+    updates: {
+      activationTitle: 'Automatic updates?',
+      activationBody:
+        'Notchkeep can check for new versions on startup (request to GitHub). No personal data is transmitted.',
+      enable: 'Enable',
+      later: 'Later',
+      never: "No, don't ask again",
+      availableTitle: (v: string) => `Update available: version ${v}`,
+      availableBody: 'A new version is ready. Download and install now?',
+      install: 'Install',
+      skipThisVersion: "Don't show this version again",
+      downloading: 'Downloading…',
+      readyTitle: 'Update installed',
+      readyBody: 'The update has been installed. Restart now?',
+      restartNow: 'Restart now',
+      restartLater: 'Later',
+      settingsToggle: 'Check for updates automatically',
+      checkNow: 'Check now',
+      checking: 'Checking…',
+      upToDate: "You're up to date.",
+      checkFailed: 'Could not check — no connection.',
+      currentVersion: (v: string) => `Current version: ${v}`,
     },
     buckets: {
       title: 'Buckets',

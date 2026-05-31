@@ -1,6 +1,6 @@
 {
   "name": "notchkeep",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Notchkeep — Simple Personal Networth",
   "type": "module",
   "scripts": {
@@ -15,15 +15,19 @@
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
     "gen:licenses": "cd src-tauri && cargo about generate about.hbs -o ../static/licenses.html && cd .. && node scripts/append-js-licenses.mjs",
-    "gen:licenses:check": "cd src-tauri && cargo about generate about.hbs -o /dev/null"
+    "gen:licenses:check": "cd src-tauri && cargo about generate about.hbs -o /dev/null",
+    "test:e2e": "playwright test"
   },
   "license": "GPL-3.0-or-later",
   "dependencies": {
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-dialog": "^2.7.1",
-    "@tauri-apps/plugin-opener": "^2"
+    "@tauri-apps/plugin-opener": "^2",
+    "@tauri-apps/plugin-process": "^2.3.1",
+    "@tauri-apps/plugin-updater": "^2.10.1"
   },
   "devDependencies": {
+    "@playwright/test": "^1.60.0",
     "@sveltejs/adapter-static": "^3.0.6",
     "@sveltejs/kit": "^2.9.0",
     "@sveltejs/vite-plugin-svelte": "^5.0.0",

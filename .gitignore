@@ -76,3 +76,7 @@ pasted file.*
 
 # Playwright MCP Artefakte (Snapshots, Screenshots, Console-Logs)
 .playwright-mcp/
+
+# Playwright E2E test results and reports (generated, not source)
+/test-results/
+/playwright-report/

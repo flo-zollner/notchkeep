@@ -1,6 +1,7 @@
 import { I18N, type Lang } from './i18n/strings';
 
 export type Theme = 'auto' | 'light' | 'dark';
+export type UpdateConsent = 'unset' | 'enabled' | 'declined';
 
 function parseTheme(v: unknown): Theme {
   if (v === 'auto' || v === 'light' || v === 'dark') return v;
@@ -18,11 +19,16 @@ interface PersistedSettings {
   onboardingCompleted: boolean;
   /** Interactive feature tour (coach-marks) has been completed or skipped. */
   tourCompleted: boolean;
+  /** Opt-in status for automatic update checks. */
+  updateConsent: UpdateConsent;
+  /** Version the user chose to skip, e.g. "0.2.3". Exact string match. */
+  skippedVersion: string | null;
 }
 
 const DEFAULTS: PersistedSettings = {
   theme: 'auto', lang: 'de', hide: false, showCents: false,
   onboardingCompleted: false, tourCompleted: false,
+  updateConsent: 'unset', skippedVersion: null,
 };
 
 function load(): PersistedSettings {
@@ -38,6 +44,11 @@ function load(): PersistedSettings {
       showCents: !!parsed.showCents,
       onboardingCompleted: !!parsed.onboardingCompleted,
       tourCompleted: !!parsed.tourCompleted,
+      updateConsent:
+        parsed.updateConsent === 'enabled' || parsed.updateConsent === 'declined'
+          ? parsed.updateConsent : 'unset',
+      skippedVersion:
+        typeof parsed.skippedVersion === 'string' ? parsed.skippedVersion : null,
     };
   } catch {
     return DEFAULTS;
@@ -58,12 +69,15 @@ export const settings = $state({
   showCents: initial.showCents,
   onboardingCompleted: initial.onboardingCompleted,
   tourCompleted: initial.tourCompleted,
+  updateConsent: initial.updateConsent,
+  skippedVersion: initial.skippedVersion,
 });
 
 function persistAll() {
   persist({
     theme: settings.theme, lang: settings.lang, hide: settings.hide, showCents: settings.showCents,
     onboardingCompleted: settings.onboardingCompleted, tourCompleted: settings.tourCompleted,
+    updateConsent: settings.updateConsent, skippedVersion: settings.skippedVersion,
   });
 }
 
@@ -97,6 +111,9 @@ export function setTourCompleted(v: boolean) {
   persistAll();
 }
 
+export function setUpdateConsent(v: UpdateConsent) { settings.updateConsent = v; persistAll(); }
+export function setSkippedVersion(v: string | null) { settings.skippedVersion = v; persistAll(); }
+
 /** Decimal places for fmtEur, depending on the showCents setting. Reactive. */
 export function eurDecimals(): 0 | 2 {
   return settings.showCents ? 2 : 0;
@@ -116,4 +133,6 @@ export function _reloadForTests(): void {
   settings.showCents = fresh.showCents;
   settings.onboardingCompleted = fresh.onboardingCompleted;
   settings.tourCompleted = fresh.tourCompleted;
+  settings.updateConsent = fresh.updateConsent;
+  settings.skippedVersion = fresh.skippedVersion;
 }
