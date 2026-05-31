@@ -12,7 +12,7 @@
 </script>
 
 {#if visible}
-  <button class="fab" onclick={onClick} aria-label={label}>
+  <button class="fab" data-tour="fab" onclick={onClick} aria-label={label}>
     <span class="fab-plus">+</span>
   </button>
 {/if}

@@ -19,7 +19,7 @@
   });
 </script>
 
-<nav class="tabbar">
+<nav class="tabbar" data-tour="mobilenav">
   {#each mobileTabs as tab (tab.id)}
     <a class="tab" class:active={isActive(page.url.pathname, tab.href)} href={tab.href}>
       <span class="tab-icon">

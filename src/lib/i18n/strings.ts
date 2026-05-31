@@ -472,8 +472,86 @@ export interface I18N {
     errFetch: string;
     errSaveFailed: string;
   };
+  onboarding: OnboardingStrings;
   months: string[];
   weekdays: string[];
+}
+
+export interface OnboardingExplainerCard {
+  title: string;
+  body: string;
+}
+
+export interface OnboardingTourStepText {
+  title: string;
+  body: string;
+}
+
+export interface OnboardingStrings {
+  /** Wizard chrome */
+  skip: string;
+  next: string;
+  back: string;
+  finish: string;
+  startTour: string;
+  later: string;
+  stepOf: (cur: number, total: number) => string;
+
+  /** Step 0 — welcome */
+  welcomeTitle: string;
+  welcomeBody: string;
+  welcomeLang: string;
+  welcomeTheme: string;
+
+  /** Step 1 — how Notchkeep works (explainer cards) */
+  howTitle: string;
+  howBody: string;
+  cards: {
+    accounts: OnboardingExplainerCard;
+    transactions: OnboardingExplainerCard;
+    budgets: OnboardingExplainerCard;
+    buckets: OnboardingExplainerCard;
+    portfolio: OnboardingExplainerCard;
+    import: OnboardingExplainerCard;
+  };
+
+  /** Step 2 — create the first account */
+  accountTitle: string;
+  accountBody: string;
+  accountNameLabel: string;
+  accountNamePlaceholder: string;
+  institutionLabel: string;
+  institutionPlaceholder: string;
+  accountKindLabel: string;
+  createAccount: string;
+  creating: string;
+  accountCreated: (name: string) => string;
+  accountError: string;
+
+  /** Step 3 — import hint */
+  importTitle: string;
+  importBody: string;
+
+  /** Step 4 — done */
+  doneTitle: string;
+  doneBody: string;
+
+  /** Interactive feature tour (coach-marks) */
+  tourSteps: {
+    overview: OnboardingTourStepText;
+    nav: OnboardingTourStepText;
+    addTx: OnboardingTourStepText;
+    transactions: OnboardingTourStepText;
+    budgets: OnboardingTourStepText;
+    import: OnboardingTourStepText;
+  };
+
+  /** Settings section */
+  settingsTitle: string;
+  settingsRestart: string;
+  settingsRestartSub: string;
+  settingsTour: string;
+  settingsTourSub: string;
 }
 
 export const I18N: Record<Lang, I18N> = {
@@ -967,6 +1045,100 @@ export const I18N: Record<Lang, I18N> = {
       startupErrorPick: 'Anderen Pfad wählen…',
       startupErrorDefault: 'Zurück zum Standardpfad',
     },
+    onboarding: {
+      skip: 'Überspringen',
+      next: 'Weiter',
+      back: 'Zurück',
+      finish: 'Loslegen',
+      startTour: 'Tour starten',
+      later: 'Später',
+      stepOf: (cur, total) => `Schritt ${cur} von ${total}`,
+
+      welcomeTitle: 'Willkommen bei Notchkeep',
+      welcomeBody: 'Dein privates Haushaltsbuch — Konten, Budgets, Sparziele und Depot an einem Ort. Alles bleibt lokal auf deinem Gerät. In wenigen Schritten bist du startklar.',
+      welcomeLang: 'Sprache',
+      welcomeTheme: 'Erscheinungsbild',
+
+      howTitle: 'So funktioniert Notchkeep',
+      howBody: 'Sechs Bausteine — so spielen sie zusammen:',
+      cards: {
+        accounts: {
+          title: 'Konten & Institute',
+          body: 'Lege deine Giro-, Spar-, Kreditkarten- und Depotkonten an und gruppiere sie nach Bank/Broker (Institut).',
+        },
+        transactions: {
+          title: 'Transaktionen',
+          body: 'Jede Buchung wird einer Kategorie zugeordnet — manuell erfasst oder per Import. Regeln kategorisieren automatisch.',
+        },
+        budgets: {
+          title: 'Budgets',
+          body: 'Setze pro Kategorie ein monatliches Limit und sieh sofort, wie viel noch übrig ist.',
+        },
+        buckets: {
+          title: 'Töpfe (Sparziele)',
+          body: 'Reserviere Geld für Ziele wie Urlaub oder Rücklage und verfolge den Fortschritt zum Zielbetrag.',
+        },
+        portfolio: {
+          title: 'Depot & Wertpapiere',
+          body: 'Verfolge Käufe, Verkäufe, Dividenden und Kurse deiner Aktien, ETFs und Anleihen.',
+        },
+        import: {
+          title: 'Import',
+          body: 'Importiere Auszüge von Sparkasse, Trade Republic oder Flatex — Cash landet im Verrechnungskonto, Trades im Depot.',
+        },
+      },
+
+      accountTitle: 'Erstes Konto anlegen',
+      accountBody: 'Lege ein erstes Konto an, damit du sofort loslegen kannst. Du kannst das später jederzeit ändern oder weitere hinzufügen.',
+      accountNameLabel: 'Kontoname',
+      accountNamePlaceholder: 'z. B. Girokonto',
+      institutionLabel: 'Institut (optional)',
+      institutionPlaceholder: 'z. B. Meine Bank',
+      accountKindLabel: 'Kontoart',
+      createAccount: 'Konto anlegen',
+      creating: 'Wird angelegt…',
+      accountCreated: (name) => `„${name}" wurde angelegt.`,
+      accountError: 'Konto konnte nicht angelegt werden. Bitte erneut versuchen.',
+
+      importTitle: 'Daten importieren',
+      importBody: 'Hast du bereits Kontoauszüge? Importiere sie als CSV oder PDF — Notchkeep erkennt Sparkasse, Trade Republic und Flatex automatisch. Du kannst das auch später über das Dashboard tun.',
+
+      doneTitle: 'Alles bereit',
+      doneBody: 'Du bist startklar. Möchtest du eine kurze Tour durch die Oberfläche? Sie zeigt dir, wo die wichtigsten Funktionen liegen.',
+
+      tourSteps: {
+        overview: {
+          title: 'Dein Überblick',
+          body: 'Das Dashboard zeigt Nettovermögen, Einnahmen, Ausgaben und Sparquote auf einen Blick.',
+        },
+        nav: {
+          title: 'Navigation',
+          body: 'Über die Navigation erreichst du alle Bereiche: Konten, Transaktionen, Budgets, Töpfe, Depot und Reports.',
+        },
+        addTx: {
+          title: 'Neue Transaktion',
+          body: 'Mit diesem Knopf erfasst du jederzeit schnell eine neue Einnahme, Ausgabe oder Wertpapier-Aktion.',
+        },
+        transactions: {
+          title: 'Transaktionen',
+          body: 'Hier siehst, filterst und kategorisierst du alle Buchungen.',
+        },
+        budgets: {
+          title: 'Budgets',
+          body: 'Lege Monatslimits pro Kategorie fest und behalte deine Ausgaben im Griff.',
+        },
+        import: {
+          title: 'Auszüge importieren',
+          body: 'Über diesen Knopf importierst du Kontoauszüge — der Start für automatisch befüllte Daten.',
+        },
+      },
+
+      settingsTitle: 'Onboarding & Tour',
+      settingsRestart: 'Einführung erneut starten',
+      settingsRestartSub: 'Den Willkommens-Assistenten noch einmal durchlaufen',
+      settingsTour: 'Feature-Tour starten',
+      settingsTourSub: 'Die wichtigsten Funktionen direkt in der App gezeigt bekommen',
+    },
     months: ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'],
     weekdays: ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'],
   },
@@ -1459,6 +1631,100 @@ export const I18N: Record<Lang, I18N> = {
       startupErrorRetry: 'Retry',
       startupErrorPick: 'Choose another path…',
       startupErrorDefault: 'Back to default path',
+    },
+    onboarding: {
+      skip: 'Skip',
+      next: 'Next',
+      back: 'Back',
+      finish: 'Get started',
+      startTour: 'Start tour',
+      later: 'Later',
+      stepOf: (cur, total) => `Step ${cur} of ${total}`,
+
+      welcomeTitle: 'Welcome to Notchkeep',
+      welcomeBody: 'Your private budget book — accounts, budgets, savings goals and portfolio in one place. Everything stays local on your device. A few steps and you are ready to go.',
+      welcomeLang: 'Language',
+      welcomeTheme: 'Appearance',
+
+      howTitle: 'How Notchkeep works',
+      howBody: 'Six building blocks — here is how they fit together:',
+      cards: {
+        accounts: {
+          title: 'Accounts & Institutions',
+          body: 'Add your checking, savings, credit-card and brokerage accounts and group them by bank/broker (institution).',
+        },
+        transactions: {
+          title: 'Transactions',
+          body: 'Every entry is assigned to a category — added manually or via import. Rules categorise automatically.',
+        },
+        budgets: {
+          title: 'Budgets',
+          body: 'Set a monthly limit per category and instantly see how much is left.',
+        },
+        buckets: {
+          title: 'Buckets (savings goals)',
+          body: 'Set money aside for goals like a holiday or a reserve and track progress towards the target.',
+        },
+        portfolio: {
+          title: 'Portfolio & securities',
+          body: 'Track buys, sells, dividends and prices of your stocks, ETFs and bonds.',
+        },
+        import: {
+          title: 'Import',
+          body: 'Import statements from Sparkasse, Trade Republic or Flatex — cash goes to the clearing account, trades to the portfolio.',
+        },
+      },
+
+      accountTitle: 'Create your first account',
+      accountBody: 'Add a first account so you can start right away. You can change it or add more at any time.',
+      accountNameLabel: 'Account name',
+      accountNamePlaceholder: 'e.g. Checking',
+      institutionLabel: 'Institution (optional)',
+      institutionPlaceholder: 'e.g. My Bank',
+      accountKindLabel: 'Account type',
+      createAccount: 'Create account',
+      creating: 'Creating…',
+      accountCreated: (name) => `"${name}" was created.`,
+      accountError: 'Could not create the account. Please try again.',
+
+      importTitle: 'Import data',
+      importBody: 'Already have statements? Import them as CSV or PDF — Notchkeep detects Sparkasse, Trade Republic and Flatex automatically. You can also do this later from the dashboard.',
+
+      doneTitle: 'All set',
+      doneBody: 'You are ready to go. Would you like a short tour of the interface? It shows you where the key features live.',
+
+      tourSteps: {
+        overview: {
+          title: 'Your overview',
+          body: 'The dashboard shows net worth, income, expenses and savings rate at a glance.',
+        },
+        nav: {
+          title: 'Navigation',
+          body: 'The navigation takes you everywhere: accounts, transactions, budgets, buckets, portfolio and reports.',
+        },
+        addTx: {
+          title: 'New transaction',
+          body: 'This button lets you quickly add a new income, expense or securities action anytime.',
+        },
+        transactions: {
+          title: 'Transactions',
+          body: 'See, filter and categorise all your entries here.',
+        },
+        budgets: {
+          title: 'Budgets',
+          body: 'Set monthly limits per category and keep your spending under control.',
+        },
+        import: {
+          title: 'Import statements',
+          body: 'This button imports account statements — the starting point for automatically populated data.',
+        },
+      },
+
+      settingsTitle: 'Onboarding & tour',
+      settingsRestart: 'Restart introduction',
+      settingsRestartSub: 'Run the welcome wizard again',
+      settingsTour: 'Start feature tour',
+      settingsTourSub: 'See the key features highlighted right in the app',
     },
     months: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
     weekdays: ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'],

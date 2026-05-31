@@ -14,9 +14,16 @@ interface PersistedSettings {
   lang: Lang;
   hide: boolean;
   showCents: boolean;
+  /** First-run setup wizard has been completed or skipped. */
+  onboardingCompleted: boolean;
+  /** Interactive feature tour (coach-marks) has been completed or skipped. */
+  tourCompleted: boolean;
 }
 
-const DEFAULTS: PersistedSettings = { theme: 'auto', lang: 'de', hide: false, showCents: false };
+const DEFAULTS: PersistedSettings = {
+  theme: 'auto', lang: 'de', hide: false, showCents: false,
+  onboardingCompleted: false, tourCompleted: false,
+};
 
 function load(): PersistedSettings {
   if (typeof localStorage === 'undefined') return DEFAULTS;
@@ -29,6 +36,8 @@ function load(): PersistedSettings {
       lang: parsed.lang === 'en' ? 'en' : 'de',
       hide: !!parsed.hide,
       showCents: !!parsed.showCents,
+      onboardingCompleted: !!parsed.onboardingCompleted,
+      tourCompleted: !!parsed.tourCompleted,
     };
   } catch {
     return DEFAULTS;
@@ -47,10 +56,15 @@ export const settings = $state({
   lang: initial.lang,
   hide: initial.hide,
   showCents: initial.showCents,
+  onboardingCompleted: initial.onboardingCompleted,
+  tourCompleted: initial.tourCompleted,
 });
 
 function persistAll() {
-  persist({ theme: settings.theme, lang: settings.lang, hide: settings.hide, showCents: settings.showCents });
+  persist({
+    theme: settings.theme, lang: settings.lang, hide: settings.hide, showCents: settings.showCents,
+    onboardingCompleted: settings.onboardingCompleted, tourCompleted: settings.tourCompleted,
+  });
 }
 
 export function setTheme(v: Theme) {
@@ -73,6 +87,16 @@ export function setShowCents(v: boolean) {
   persistAll();
 }
 
+export function setOnboardingCompleted(v: boolean) {
+  settings.onboardingCompleted = v;
+  persistAll();
+}
+
+export function setTourCompleted(v: boolean) {
+  settings.tourCompleted = v;
+  persistAll();
+}
+
 /** Decimal places for fmtEur, depending on the showCents setting. Reactive. */
 export function eurDecimals(): 0 | 2 {
   return settings.showCents ? 2 : 0;
@@ -90,4 +114,6 @@ export function _reloadForTests(): void {
   settings.lang = fresh.lang;
   settings.hide = fresh.hide;
   settings.showCents = fresh.showCents;
+  settings.onboardingCompleted = fresh.onboardingCompleted;
+  settings.tourCompleted = fresh.tourCompleted;
 }

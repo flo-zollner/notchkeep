@@ -1,5 +1,11 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { settings, setTheme, _reloadForTests } from './settings.svelte';
+import {
+  settings,
+  setTheme,
+  setOnboardingCompleted,
+  setTourCompleted,
+  _reloadForTests,
+} from './settings.svelte';
 
 describe('settings.theme', () => {
   beforeEach(() => {
@@ -50,5 +56,49 @@ describe('settings.theme', () => {
     setTheme('auto');
     expect(settings.theme).toBe('auto');
     expect(JSON.parse(localStorage.getItem('saldo.settings')!).theme).toBe('auto');
+  });
+});
+
+describe('settings.onboarding flags', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    _reloadForTests();
+  });
+
+  it('defaults onboardingCompleted and tourCompleted to false', () => {
+    expect(settings.onboardingCompleted).toBe(false);
+    expect(settings.tourCompleted).toBe(false);
+  });
+
+  it('persists onboardingCompleted via setter', () => {
+    setOnboardingCompleted(true);
+    expect(settings.onboardingCompleted).toBe(true);
+    expect(JSON.parse(localStorage.getItem('saldo.settings')!).onboardingCompleted).toBe(true);
+  });
+
+  it('persists tourCompleted via setter', () => {
+    setTourCompleted(true);
+    expect(settings.tourCompleted).toBe(true);
+    expect(JSON.parse(localStorage.getItem('saldo.settings')!).tourCompleted).toBe(true);
+  });
+
+  it('loads persisted flags from localStorage', () => {
+    localStorage.setItem(
+      'saldo.settings',
+      JSON.stringify({ theme: 'auto', lang: 'de', hide: false, showCents: false, onboardingCompleted: true, tourCompleted: true })
+    );
+    _reloadForTests();
+    expect(settings.onboardingCompleted).toBe(true);
+    expect(settings.tourCompleted).toBe(true);
+  });
+
+  it('coerces missing flags to false (legacy settings without the keys)', () => {
+    localStorage.setItem(
+      'saldo.settings',
+      JSON.stringify({ theme: 'dark', lang: 'de', hide: false, showCents: false })
+    );
+    _reloadForTests();
+    expect(settings.onboardingCompleted).toBe(false);
+    expect(settings.tourCompleted).toBe(false);
   });
 });

@@ -399,7 +399,7 @@
       {t().common.importStatements}
     </button>
     <ExportButton getFilter={buildExportFilter} />
-    <div class="new-dropdown">
+    <div class="new-dropdown" data-tour="new-tx">
       <button
         class="btn primary"
         type="button"

@@ -11,7 +11,7 @@
   let { budgetAlertCount, priceRefreshStage }: Props = $props();
 </script>
 
-<aside class="sidebar">
+<aside class="sidebar" data-tour="nav">
   <div class="brand">
     <div class="brand-dot">N</div>
     {t().appName}

@@ -33,8 +33,8 @@ All amounts in cents (integer); conversion to decimals only at the UI boundary.
 
 | Component    | Version                                                   |
 | ------------ | --------------------------------------------------------- |
-| Node.js      | ≥ 20 (LTS)                                                |
-| pnpm         | ≥ 9 (`corepack enable pnpm`)                              |
+| Node.js      | ≥ 22 (LTS)                                                |
+| pnpm         | ≥ 11 (`corepack enable pnpm`)                             |
 | Rust         | current stable toolchain via [rustup](https://rustup.rs) |
 | Tauri 2 deps | platform dependencies: https://tauri.app/start/prerequisites |
 

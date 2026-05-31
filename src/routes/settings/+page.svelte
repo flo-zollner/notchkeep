@@ -4,6 +4,7 @@
   import LicensesModal from '$lib/components/LicensesModal.svelte';
   import Icon from '$lib/components/Icon.svelte';
   import { settings, setHide, setLang, setShowCents, setTheme, t } from '$lib/settings.svelte';
+  import { startOnboarding, startTour } from '$lib/onboarding/onboarding.svelte';
   import ExportButton from '$lib/components/ExportButton.svelte';
   import KursRefreshButton from '$lib/components/KursRefreshButton.svelte';
   import { api, type Account, type Category, type ExportFilter } from '$lib/api';
@@ -223,6 +224,28 @@
         {#if cleanupResult !== null}
           <span class="detect-result">{cleanupResult} repariert</span>
         {/if}
+      </button>
+    </div>
+  </div>
+
+  <div class="card col-12 card-pad-lg">
+    <div class="card-h"><h3>{t().onboarding.settingsTitle}</h3></div>
+    <div class="setting-row">
+      <div>
+        <div class="sr-label">{t().onboarding.settingsRestart}</div>
+        <div class="sr-sub">{t().onboarding.settingsRestartSub}</div>
+      </div>
+      <button class="btn" onclick={() => startOnboarding()}>
+        {t().onboarding.settingsRestart} <Icon name="chevron-right" size={12} />
+      </button>
+    </div>
+    <div class="setting-row">
+      <div>
+        <div class="sr-label">{t().onboarding.settingsTour}</div>
+        <div class="sr-sub">{t().onboarding.settingsTourSub}</div>
+      </div>
+      <button class="btn" onclick={() => startTour()}>
+        {t().onboarding.settingsTour} <Icon name="chevron-right" size={12} />
       </button>
     </div>
   </div>

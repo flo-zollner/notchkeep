@@ -12,9 +12,39 @@
   import { goto } from '$app/navigation';
   import StartupErrorModal from '$lib/components/StartupErrorModal.svelte';
   import SyncConflictModal from '$lib/components/SyncConflictModal.svelte';
+  import OnboardingWizard from '$lib/components/OnboardingWizard.svelte';
+  import TourOverlay from '$lib/components/TourOverlay.svelte';
+  import { settings as appSettings, setOnboardingCompleted } from '$lib/settings.svelte';
+  import {
+    evaluateAutoStart,
+    startOnboarding,
+    startTour,
+  } from '$lib/onboarding/onboarding.svelte';
   import { api, type SyncConflictFile } from '$lib/api';
 
   let { children } = $props();
+
+  /** First-run trigger: decide whether to open the onboarding wizard or the
+   *  feature tour. `?onboarding=force` / `?tour=force` override (used by the
+   *  settings re-launch buttons and by tests). */
+  async function initOnboarding() {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('tour') === 'force') startTour();
+    const force = params.get('onboarding') === 'force';
+    let accountCount = 0;
+    try {
+      accountCount = (await api.listAccounts()).length;
+    } catch {
+      accountCount = 0;
+    }
+    const action = evaluateAutoStart({
+      completed: appSettings.onboardingCompleted,
+      accountCount,
+      force,
+    });
+    if (action === 'open-wizard') startOnboarding();
+    else if (action === 'mark-completed') setOnboardingCompleted(true);
+  }
 
   let startupError = $state<{ path: string } | null>(null);
   let priceRefreshStage = $state<'idle' | 'started' | 'completed' | 'failed'>('idle');
@@ -82,6 +112,7 @@
   });
 
   onMount(() => {
+    void initOnboarding();
     applySystemAccent();
     const reapply = () => applySystemAccent();
     window.addEventListener('focus', reapply);
@@ -153,3 +184,6 @@
 
 <BottomTabBar {budgetAlertCount} />
 <Fab onClick={onFabClick} />
+
+<OnboardingWizard />
+<TourOverlay />

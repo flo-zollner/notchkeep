@@ -335,7 +335,7 @@
     <h1>{t().nav.overview}</h1>
     <div class="sub">{t().common.yourMoney}</div>
   </div>
-  <button class="btn" onclick={() => (showImportModal = true)} disabled={accounts.filter((a) => !a.archived).length === 0}>
+  <button class="btn" data-tour="import" onclick={() => (showImportModal = true)} disabled={accounts.filter((a) => !a.archived).length === 0}>
     <Icon name="arrow-up" size={13} />
     {t().common.importStatements}
   </button>
@@ -367,7 +367,7 @@
   {/if}
 </div>
 
-<div class="kpi-grid">
+<div class="kpi-grid" data-tour="dashboard-kpis">
   <KPI label={t().common.netWorth} value={fmtEur(netWorthCents, { hide: settings.hide })} />
   <KPI label={t().common.income} value={fmtEur(income, { hide: settings.hide })} />
   <KPI label={t().common.expenses} value={fmtEur(expenses, { hide: settings.hide })} />
