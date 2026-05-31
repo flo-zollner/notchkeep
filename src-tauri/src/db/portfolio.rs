@@ -2116,7 +2116,7 @@ mod tests {
     #[test]
     fn compute_position_value_basic_eur() {
         let v = compute_position_value_cents(10_000_000, 180_500_000, 909_100);
-        assert!(v >= 164_080 && v <= 164_100, "got {v}");
+        assert!((164_080..=164_100).contains(&v), "got {v}");
     }
 
     #[test]

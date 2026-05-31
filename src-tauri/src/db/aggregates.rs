@@ -8,8 +8,8 @@ use super::{DbError, DbResult};
 /// SQL fragment for `WHERE` clauses that excludes transactions from cashflow aggregations:
 /// - `transfer`: auto-paired mirror between own accounts, net-zero on both sides.
 /// - `corporate_action`: splits/mergers with no cashflow (typically amount=0).
-/// `buy`/`sell` are included as expense/income — the user treats
-/// securities purchases like regular expenses on the cash account.
+///   `buy`/`sell` are included as expense/income — the user treats
+///   securities purchases like regular expenses on the cash account.
 pub(crate) const EXCLUDED_KINDS_SQL: &str = "kind NOT IN ('transfer', 'corporate_action')";
 
 #[derive(Debug, Clone, Serialize, sqlx::FromRow, PartialEq, Eq)]

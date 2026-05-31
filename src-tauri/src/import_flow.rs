@@ -9,6 +9,30 @@ use crate::db::transactions::{insert_raw_transaction, InsertOutcome};
 use crate::db::{DbError, DbResult};
 use crate::importers::RawTransaction;
 
+/// Row type for uncategorized transaction queries (id, account_id, date, amount, counterparty,
+/// purpose, manual_note).
+type TransactionRuleRow = (
+    i64,
+    i64,
+    String,
+    i64,
+    Option<String>,
+    Option<String>,
+    Option<String>,
+);
+
+/// Row type for transfer-candidate queries (id, account_id, date, amount, currency,
+/// counterparty_iban, purpose).
+type TransferCandidateRow = (
+    i64,
+    i64,
+    String,
+    i64,
+    String,
+    Option<String>,
+    Option<String>,
+);
+
 #[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize)]
 pub struct ImportReport {
     pub parsed: usize,
@@ -128,15 +152,7 @@ pub async fn apply_rules_to_uncategorized(pool: &SqlitePool) -> DbResult<usize> 
     }
 
     use crate::categorization::rules::{first_matching_rule, MatchContext};
-    let rows: Vec<(
-        i64,
-        i64,
-        String,
-        i64,
-        Option<String>,
-        Option<String>,
-        Option<String>,
-    )> = sqlx::query_as(
+    let rows: Vec<TransactionRuleRow> = sqlx::query_as(
         "SELECT id, account_id, booking_date, amount_cents, counterparty, purpose, manual_note
              FROM transactions
              WHERE category_id IS NULL",
@@ -217,15 +233,7 @@ pub async fn count_matching_transactions(pool: &SqlitePool, rule: &Rule) -> DbRe
 }
 
 async fn matching_transaction_ids(pool: &SqlitePool, rule: &Rule) -> DbResult<Vec<i64>> {
-    let rows: Vec<(
-        i64,
-        i64,
-        String,
-        i64,
-        Option<String>,
-        Option<String>,
-        Option<String>,
-    )> = sqlx::query_as(
+    let rows: Vec<TransactionRuleRow> = sqlx::query_as(
         "SELECT id, account_id, booking_date, amount_cents, counterparty, purpose, manual_note
              FROM transactions",
     )
@@ -299,15 +307,7 @@ async fn load_history(pool: &SqlitePool) -> DbResult<Vec<HistoryEntry>> {
 pub async fn detect_inter_account_transfers(pool: &SqlitePool) -> DbResult<usize> {
     // Candidates: paired_tx_id IS NULL + counterparty_iban set + IBAN match.
     // kind NOT IN trade-sides (transfer is NO LONGER excluded).
-    let candidates: Vec<(
-        i64,
-        i64,
-        String,
-        i64,
-        String,
-        Option<String>,
-        Option<String>,
-    )> = sqlx::query_as(
+    let candidates: Vec<TransferCandidateRow> = sqlx::query_as(
         "SELECT t.id, t.account_id, t.booking_date, t.amount_cents, t.currency,
                 t.counterparty_iban, t.purpose
            FROM transactions t

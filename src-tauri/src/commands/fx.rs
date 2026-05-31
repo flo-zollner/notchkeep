@@ -17,11 +17,13 @@ pub struct CurrencyStatus {
     pub in_use: bool,
 }
 
+type FxRateRow = (String, Option<i64>, Option<String>, Option<String>, i64);
+
 /// Returns for each currency (from securities.currency ∪ fx_rates) the most
 /// recent known rate + date + source. EUR is filtered out (always 1.0,
 /// not relevant for user display).
 pub(crate) async fn list_currencies_impl(pool: &SqlitePool) -> DbResult<Vec<CurrencyStatus>> {
-    let rows: Vec<(String, Option<i64>, Option<String>, Option<String>, i64)> = sqlx::query_as(
+    let rows: Vec<FxRateRow> = sqlx::query_as(
         "WITH used AS (
             SELECT DISTINCT UPPER(currency) AS code FROM securities WHERE currency != 'EUR'
          ),
