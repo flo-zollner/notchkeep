@@ -3,11 +3,13 @@
   import { api, listInstitutionsWithSummary, type Account, type InstitutionSummary, errMsg} from '$lib/api';
   import { fmtEur } from '$lib/format';
   import AccountEditModal from '$lib/components/AccountEditModal.svelte';
+  import AccountCreateModal from '$lib/components/AccountCreateModal.svelte';
   import AccountTreeItem from '$lib/components/AccountTreeItem.svelte';
   import ImportStatementsModal from '$lib/components/ImportStatementsModal.svelte';
   import InstitutionCard from '$lib/components/InstitutionCard.svelte';
   import Icon from '$lib/components/Icon.svelte';
   import KPI from '$lib/components/KPI.svelte';
+  import OverflowMenu from '$lib/components/OverflowMenu.svelte';
   import { settings, t } from '$lib/settings.svelte';
 
   // i18n lookup without typed property access — missing keys fall back to the default via ??.
@@ -20,16 +22,6 @@
   let error = $state<string | null>(null);
 
   let creating = $state(false);
-  let newName = $state('');
-  let newKind = $state('bank');
-  let newInstitutionId = $state<number | null>(null);
-
-  /** Kinds that should not carry a bank institution. */
-  const NON_INSTITUTION_KINDS = new Set(['cash', 'loan']);
-  // When the user switches to cash/loan, clear the institution selection.
-  $effect(() => {
-    if (NON_INSTITUTION_KINDS.has(newKind)) newInstitutionId = null;
-  });
 
   let showImportModal = $state(false);
   let importPrefilledAccountId = $state<number | null>(null);
@@ -146,20 +138,6 @@
     loadAll();
   });
 
-  async function createAccount(e: SubmitEvent) {
-    e.preventDefault();
-    if (!newName.trim()) return;
-    try {
-      await api.createAccount(newName.trim(), newKind, undefined, null, null, newInstitutionId);
-      newName = '';
-      newInstitutionId = null;
-      creating = false;
-      await loadAll();
-    } catch (e) {
-      error = errMsg(e);
-    }
-  }
-
   // pickAndImport / pickAndImportFlatex were replaced by the unified
   // ImportStatementsModal. Trigger: openImportModal(accountId?).
 </script>
@@ -169,18 +147,22 @@
     <h1>{t().nav.accounts}</h1>
     <div class="sub">{allAccounts.length} · {t().common.synced}</div>
   </div>
-  <label class="group-toggle">
-    {t().accounts.groupBy}:
-    <select bind:value={groupBy}>
-      <option value="institution">{t().accounts.groupByInstitution}</option>
-      <option value="flat">{t().accounts.groupByFlat}</option>
-    </select>
-  </label>
-  <button class="btn" onclick={() => openImportModal(null)}>
-    <Icon name="download" size={13} />
-    {t().common.importStatements}
-  </button>
-  <button class="btn accent" onclick={() => (creating = !creating)}>
+  <OverflowMenu>
+    {#snippet children()}
+      <div class="overflow-group-select">
+        <span class="overflow-group-label">{t().accounts.groupBy}</span>
+        <select bind:value={groupBy}>
+          <option value="institution">{t().accounts.groupByInstitution}</option>
+          <option value="flat">{t().accounts.groupByFlat}</option>
+        </select>
+      </div>
+      <button onclick={() => { openImportModal(null); }}>
+        <Icon name="download" size={16} />
+        {t().common.importStatements}
+      </button>
+    {/snippet}
+  </OverflowMenu>
+  <button class="btn accent" onclick={() => (creating = true)}>
     <Icon name="plus" size={13} />
     {t().common.addAccount}
   </button>
@@ -195,52 +177,6 @@
   <KPI label={t().nav.accounts} value={String(activeAccounts.length)} />
 </div>
 
-{#if creating}
-  <div class="card card-pad-lg" style="margin-bottom: 14px;">
-    <form onsubmit={createAccount} class="new-form">
-      <div class="field">
-        <div class="field-label">{t().common.name}</div>
-        <input class="input" bind:value={newName} placeholder="z.B. TR Verrechnung" required />
-      </div>
-      <div class="field" style="width: 180px;">
-        <div class="field-label">{t().common.type}</div>
-        <select class="input" bind:value={newKind}>
-          <option value="bank">{kindLabel('bank')}</option>
-          <option value="broker">{kindLabel('broker')}</option>
-          <option value="savings">{kindLabel('savings')}</option>
-          <option value="credit">{kindLabel('credit')}</option>
-          <option value="cash">{kindLabel('cash')}</option>
-          <option value="loan">{kindLabel('loan')}</option>
-        </select>
-      </div>
-      <div class="field" style="width: 200px;">
-        <div class="field-label">{t().common.institution}</div>
-        <select
-          class="input"
-          value={newInstitutionId === null ? '' : String(newInstitutionId)}
-          onchange={(e) => {
-            const v = (e.currentTarget as HTMLSelectElement).value;
-            newInstitutionId = v === '' ? null : Number(v);
-          }}
-          disabled={NON_INSTITUTION_KINDS.has(newKind)}
-          title={NON_INSTITUTION_KINDS.has(newKind) ? t().common.institutionNone : undefined}
-        >
-          <option value="">{t().common.institutionNone}</option>
-          {#each institutionSummaries as inst (inst.id)}
-            <option value={String(inst.id)}>{inst.name}</option>
-          {/each}
-        </select>
-      </div>
-      <div class="form-actions">
-        <button type="button" class="btn" onclick={() => (creating = false)}>
-          {t().common.cancel}
-        </button>
-        <button type="submit" class="btn accent">{t().common.save}</button>
-      </div>
-    </form>
-  </div>
-{/if}
-
 <div class="card card-pad-lg">
   <div class="card-h">
     <h3>{t().nav.accounts}</h3>
@@ -249,8 +185,12 @@
   {#if loading}
     <div class="empty">…</div>
   {:else if allAccounts.length === 0}
-    <div class="empty">
-      {t().common.soon} — {t().common.addAccount}
+    <div class="empty empty-cta">
+      <p>{tx().noAccountsYet ?? 'Noch kein Konto angelegt.'}</p>
+      <button class="btn accent" onclick={() => (creating = true)}>
+        <Icon name="plus" size={13} />
+        {t().common.addAccount}
+      </button>
     </div>
   {:else if groupBy === 'institution'}
     {#each institutionSummaries as inst (inst.id)}
@@ -355,6 +295,12 @@
   />
 {/if}
 
+<AccountCreateModal
+  open={creating}
+  onClose={() => (creating = false)}
+  onCreated={() => loadAll()}
+/>
+
 {#if showImportModal}
   <ImportStatementsModal
     accounts={allAccounts}
@@ -366,33 +312,19 @@
 {/if}
 
 <style>
-  .new-form {
-    display: flex;
-    gap: 12px;
-    align-items: flex-end;
-    flex-wrap: wrap;
-  }
-  .field {
-    display: flex;
-    flex-direction: column;
-    flex: 1 1 200px;
-  }
-  .field-label {
-    font-size: 11.5px;
-    font-weight: 500;
-    color: var(--text-muted);
-    margin-bottom: 5px;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-  }
-  .form-actions {
-    display: flex;
-    gap: 8px;
-  }
   .empty {
     padding: 32px 0;
     text-align: center;
     color: var(--text-faint);
+  }
+  .empty-cta {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+  }
+  .empty-cta p {
+    margin: 0;
   }
   .tree {
     display: flex;
@@ -426,33 +358,32 @@
     cursor: pointer;
     padding: 4px 0;
   }
-  .group-toggle {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 12px;
-    color: var(--text-muted);
-    white-space: nowrap;
+  .unassigned-group {
+    margin-top: 8px;
   }
-  .group-toggle select {
-    font-size: 12px;
+  .overflow-group-select {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 8px 10px;
+    min-height: 44px;
+    justify-content: center;
+  }
+  .overflow-group-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-faint);
+  }
+  .overflow-group-select select {
+    font-size: 13px;
     background: var(--surface-2);
     border: 1px solid var(--border);
     border-radius: 6px;
     color: var(--text);
     padding: 3px 6px;
     cursor: pointer;
-  }
-  .unassigned-group {
-    margin-top: 8px;
-  }
-
-  @media (max-width: 599px) {
-    /* new-form already flex-wraps; ensure inputs have touch target */
-    .new-form .input,
-    .new-form select,
-    .form-actions button {
-      min-height: var(--tap, 44px);
-    }
+    width: 100%;
   }
 </style>

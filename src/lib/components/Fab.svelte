@@ -1,6 +1,7 @@
 <script lang="ts">
   import { page } from '$app/state';
-  import { fabRoutes } from '$lib/nav-config';
+  import { fabRoutes, fabActions } from '$lib/nav-config';
+  import { ripple } from '$lib/actions/ripple';
 
   interface Props {
     onClick: () => void;
@@ -9,10 +10,11 @@
   let { onClick, label = 'Neue Transaktion' }: Props = $props();
 
   const visible = $derived(fabRoutes.has(page.url.pathname));
+  const ariaLabel = $derived(fabActions[page.url.pathname]?.label ?? label);
 </script>
 
 {#if visible}
-  <button class="fab" data-tour="fab" onclick={onClick} aria-label={label}>
+  <button class="fab" data-tour="fab" onclick={onClick} aria-label={ariaLabel} use:ripple>
     <span class="fab-plus">+</span>
   </button>
 {/if}
@@ -36,5 +38,22 @@
   .fab-plus { font-size: 30px; line-height: 1; font-weight: 400; }
   @media (max-width: 599px) {
     .fab { display: flex; }
+  }
+
+  /* ── Material Design 3 FAB (Android) ── */
+  :global(html[data-platform='android']) .fab {
+    background: var(--md-sys-color-primary-container);
+    color: var(--md-sys-color-on-primary-container);
+    border-radius: 16px;
+    box-shadow:
+      0 3px 5px rgba(0, 0, 0, 0.2),
+      0 6px 10px rgba(0, 0, 0, 0.14);
+    transition:
+      box-shadow var(--md-dur-short) var(--md-ease-standard),
+      transform var(--md-dur-short) var(--md-ease-standard);
+  }
+  :global(html[data-platform='android']) .fab:active {
+    transform: none;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
   }
 </style>

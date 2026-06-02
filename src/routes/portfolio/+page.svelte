@@ -9,6 +9,7 @@
   import AllocationDonut from '$lib/components/AllocationDonut.svelte';
   import { goto } from '$app/navigation';
   import { listen } from '@tauri-apps/api/event';
+  import { page } from '$app/state';
   import { settings, t, eurDecimals } from '$lib/settings.svelte';
   import {
     api,
@@ -41,6 +42,14 @@
 
   const tp = $derived(t().portfolio);
   const ts = $derived(t().security);
+
+  let fabHandled = false;
+  $effect(() => {
+    if (!fabHandled && page.url.searchParams.get('new') === '1') {
+      fabHandled = true;
+      addingTrade = true;
+    }
+  });
 
   const now = new Date();
   const currentYear = now.getFullYear();

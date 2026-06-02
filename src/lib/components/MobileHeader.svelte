@@ -44,4 +44,17 @@
   @media (max-width: 599px) {
     .mobile-header { display: flex; }
   }
+
+  /* ── Material Design 3 Small Top App Bar (Android) ── */
+  :global(html[data-platform='android']) .mobile-header {
+    background: var(--bg);
+    border-bottom: none;
+    min-height: 64px;
+    padding: calc(env(safe-area-inset-top) + 10px) 16px 10px;
+  }
+  :global(html[data-platform='android']) .mobile-header .title {
+    font-size: 22px;
+    font-weight: 500;
+    letter-spacing: 0;
+  }
 </style>

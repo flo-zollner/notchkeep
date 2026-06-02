@@ -298,6 +298,9 @@ textarea {
   font-size: 13px;
   margin-top: 2px;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
 }
 
 /* Card */
@@ -332,6 +335,9 @@ textarea {
   margin: 0;
   letter-spacing: -0.01em;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
 }
 
 /* KPI */
@@ -861,5 +867,107 @@ button:focus-visible,
   }
   .topbar h1 {
     font-size: 20px;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Material Design 3 — Android-only layer
+
+   Applied exclusively under html[data-platform="android"] (set by
+   src/lib/platform.ts). Desktop/web keep the default design untouched. This
+   layer adds MD3 motion/shape/state-layer tokens, tonal surfaces, and the
+   ripple ink used by src/lib/actions/ripple.ts. Component-structural MD3
+   changes (nav indicator pill, sheet motion, FAB, top app bar) live in the
+   respective components, also under the same scope.
+   ══════════════════════════════════════════════════════════════════════ */
+html[data-platform='android'] {
+  /* Motion — MD3 easing + duration tokens */
+  --md-ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --md-ease-emphasized: cubic-bezier(0.2, 0, 0, 1);
+  --md-ease-decelerate: cubic-bezier(0.05, 0.7, 0.1, 1);
+  --md-dur-short: 150ms;
+  --md-dur-medium: 250ms;
+  --md-dur-long: 400ms;
+
+  /* State-layer opacities (on-surface overlay) */
+  --md-state-hover: 0.08;
+  --md-state-press: 0.12;
+
+  /* MD3 Navigation Bar is 80dp tall (vs. the default 56px tab bar). */
+  --tabbar-height: 80px;
+}
+
+/* Ripple ink — host gets position/overflow via the action; ink is spawned in JS.
+   Vars carry fallbacks so the classes also work before the android scope cascades. */
+.md-ripple-host {
+  position: relative;
+  overflow: hidden;
+}
+.md-ripple-ink {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  background: currentColor;
+  opacity: var(--md-state-press, 0.12);
+  transform: scale(0);
+  animation: md-ripple-expand var(--md-dur-long, 400ms) var(--md-ease-standard, ease-out) forwards;
+}
+@keyframes md-ripple-expand {
+  to {
+    transform: scale(2.2);
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .md-ripple-ink {
+    animation-duration: 1ms;
+  }
+}
+
+/* ── MD3 shared element styling (phone viewport on Android) ── */
+@media (max-width: 599px) {
+  /* Cards → tonal surface, no hard border, large (16dp) corners */
+  html[data-platform='android'] .card {
+    background: var(--md-sys-color-surface-container-low);
+    border-color: transparent;
+    border-radius: var(--r-lg);
+  }
+
+  /* Buttons → MD3 pill shape with a state layer on press */
+  html[data-platform='android'] .btn {
+    border-radius: 999px;
+    padding: 10px 20px;
+    min-height: 40px;
+    font-size: 14px;
+    font-weight: 500;
+    transition:
+      background var(--md-dur-short) var(--md-ease-standard),
+      box-shadow var(--md-dur-short) var(--md-ease-standard);
+  }
+  html[data-platform='android'] .btn.icon {
+    padding: 8px;
+    min-width: 40px;
+  }
+  html[data-platform='android'] .btn.accent {
+    background: var(--accent);
+    color: var(--accent-fg);
+    border-color: transparent;
+  }
+  html[data-platform='android'] .btn:active {
+    box-shadow: none;
+  }
+
+  /* Inputs → 48dp target, MD3 focus ring */
+  html[data-platform='android'] .input {
+    min-height: 48px;
+    border-radius: var(--r-sm);
+  }
+
+  /* Segmented control → fully rounded MD3 look */
+  html[data-platform='android'] .seg {
+    border-radius: 999px;
+  }
+  html[data-platform='android'] .seg button {
+    border-radius: 999px;
   }
 }

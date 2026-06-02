@@ -9,6 +9,7 @@
   import TxModal from '$lib/components/TxModal.svelte';
   import DepotTxModal from '$lib/components/DepotTxModal.svelte';
   import ImportStatementsModal from '$lib/components/ImportStatementsModal.svelte';
+  import AccountCreateModal from '$lib/components/AccountCreateModal.svelte';
   import SavingsRateChart, { type SavingsChartMode } from '$lib/components/SavingsRateChart.svelte';
   import Skeleton from '$lib/components/Skeleton.svelte';
   import { settings, t } from '$lib/settings.svelte';
@@ -27,6 +28,8 @@
   let accountBalances = $state<Record<number, number>>({});
   let portfolioCents = $state(0);
   let showImportModal = $state(false);
+  let showCreateAccount = $state(false);
+  const hasAccounts = $derived(accounts.filter((a) => !a.archived).length > 0);
 
   const SAVINGS_MODE_KEY = 'saldo.savings.mode';
   function loadSavingsMode(): SavingsChartMode {
@@ -335,10 +338,17 @@
     <h1>{t().nav.overview}</h1>
     <div class="sub">{t().common.yourMoney}</div>
   </div>
-  <button class="btn" data-tour="import" onclick={() => (showImportModal = true)} disabled={accounts.filter((a) => !a.archived).length === 0}>
-    <Icon name="arrow-up" size={13} />
-    {t().common.importStatements}
-  </button>
+  {#if hasAccounts}
+    <button class="btn" data-tour="import" onclick={() => (showImportModal = true)}>
+      <Icon name="arrow-up" size={13} />
+      {t().common.importStatements}
+    </button>
+  {:else}
+    <button class="btn accent" data-tour="import" onclick={() => (showCreateAccount = true)}>
+      <Icon name="plus" size={13} />
+      {t().common.addAccount}
+    </button>
+  {/if}
 </div>
 
 {#if error}
@@ -568,6 +578,12 @@
     onImported={() => { void loadStatic(); void loadRangeTx(); }}
   />
 {/if}
+
+<AccountCreateModal
+  open={showCreateAccount}
+  onClose={() => (showCreateAccount = false)}
+  onCreated={() => { void loadStatic(); void loadRangeTx(); }}
+/>
 
 <style>
   .sav-toggle {

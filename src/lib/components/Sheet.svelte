@@ -135,4 +135,36 @@
     }
     .sheet-handle-wrap { display: block; }
   }
+
+  /* ── Material Design 3 Modal Bottom Sheet (Android) ── */
+  :global(html[data-platform='android']) .sheet-backdrop {
+    animation: md-scrim-in var(--md-dur-medium) var(--md-ease-standard);
+  }
+  :global(html[data-platform='android']) .sheet-panel {
+    border: none;
+    background: var(--md-sys-color-surface-container-low);
+  }
+  @media (max-width: 599px) {
+    :global(html[data-platform='android']) .sheet-panel {
+      border-radius: 28px 28px 0 0;
+      animation: md-sheet-up var(--md-dur-medium) var(--md-ease-emphasized);
+    }
+    :global(html[data-platform='android']) .sheet-handle {
+      width: 32px;
+      height: 4px;
+      background: var(--border-strong);
+    }
+  }
+  @keyframes md-scrim-in {
+    from { opacity: 0; }
+  }
+  @keyframes md-sheet-up {
+    from { transform: translateY(100%); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    :global(html[data-platform='android']) .sheet-backdrop,
+    :global(html[data-platform='android']) .sheet-panel {
+      animation-duration: 1ms;
+    }
+  }
 </style>

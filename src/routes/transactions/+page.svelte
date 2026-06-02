@@ -9,7 +9,9 @@
   import TxModal from '$lib/components/TxModal.svelte';
   import TradeModal from '$lib/components/TradeModal.svelte';
   import ExportButton from '$lib/components/ExportButton.svelte';
+  import OverflowMenu from '$lib/components/OverflowMenu.svelte';
   import ImportStatementsModal from '$lib/components/ImportStatementsModal.svelte';
+  import AccountCreateModal from '$lib/components/AccountCreateModal.svelte';
   import Skeleton from '$lib/components/Skeleton.svelte';
   import DateField from '$lib/components/DateField.svelte';
   import { settings, t } from '$lib/settings.svelte';
@@ -38,6 +40,8 @@
   let filterMinAmount = $state<number | null>(null);  // in cents, abs
 
   let showImportModal = $state(false);
+  let showCreateAccount = $state(false);
+  const hasAccounts = $derived(accounts.filter((a) => !a.archived).length > 0);
   let showFilterPanel = $state(false);
 
   const activeFilterCount = $derived.by(() => {
@@ -394,11 +398,22 @@
     </div>
   </div>
   <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: flex-end;">
-    <button class="btn" onclick={() => (showImportModal = true)} disabled={accounts.filter((a) => !a.archived).length === 0}>
-      <Icon name="arrow-up" size={13} />
-      {t().common.importStatements}
-    </button>
-    <ExportButton getFilter={buildExportFilter} />
+    {#if hasAccounts}
+      <button class="btn" onclick={() => (showImportModal = true)}>
+        <Icon name="arrow-up" size={13} />
+        {t().common.importStatements}
+      </button>
+    {:else}
+      <button class="btn accent" onclick={() => (showCreateAccount = true)}>
+        <Icon name="plus" size={13} />
+        {t().common.addAccount}
+      </button>
+    {/if}
+    <OverflowMenu>
+      {#snippet children()}
+        <ExportButton getFilter={buildExportFilter} />
+      {/snippet}
+    </OverflowMenu>
     <div class="new-dropdown" data-tour="new-tx">
       <button
         class="btn primary"
@@ -720,6 +735,12 @@
     onImported={() => { void loadFirstPage(); }}
   />
 {/if}
+
+<AccountCreateModal
+  open={showCreateAccount}
+  onClose={() => (showCreateAccount = false)}
+  onCreated={() => { void loadMetadata(); void loadFirstPage(); }}
+/>
 
 <svelte:window onclick={(e) => {
   if (!newMenuOpen) return;

@@ -22,6 +22,11 @@ export default defineConfig(async ({ mode }) => ({
             "@tauri-apps/api/event": fileURLToPath(
               new URL("./src/lib/mocks/event.ts", import.meta.url),
             ),
+            // plugin-os reads window.__TAURI_OS_PLUGIN_INTERNALS__ synchronously
+            // and throws in a plain browser; the shim lets the app boot in mock.
+            "@tauri-apps/plugin-os": fileURLToPath(
+              new URL("./src/lib/mocks/plugin-os.ts", import.meta.url),
+            ),
           },
         }
       : undefined,

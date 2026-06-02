@@ -703,6 +703,9 @@
     grid-template-columns: 1.4fr 0.8fr 0.8fr;
     gap: 10px;
   }
+  @media (max-width: 599px) {
+    .row-3 { grid-template-columns: 1fr; }
+  }
   .enabled-field {
     flex-direction: column;
     align-items: flex-start;
@@ -728,9 +731,24 @@
   @media (max-width: 599px) {
     .cond-row {
       grid-template-columns: 1fr 1fr;
+      grid-template-rows: auto auto auto;
     }
+    /* first select (field) */
+    .cond-row > select:first-child { grid-column: 1; grid-row: 1; }
+    /* second select (op) */
+    .cond-row > select:nth-child(2) { grid-column: 2; grid-row: 1; }
     .cond-row .cond-value {
       grid-column: 1 / -1;
+      grid-row: 2;
+    }
+    /* remove button: full-width own row */
+    .cond-row .btn.icon.remove {
+      grid-column: 1 / -1;
+      grid-row: 3;
+      width: 100%;
+      height: auto;
+      padding: 6px;
+      justify-content: center;
     }
   }
   .cond-value {

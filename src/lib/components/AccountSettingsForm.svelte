@@ -115,7 +115,7 @@
       <span class="field-label">{t().common.name}</span>
       <input class="input" bind:value={draft.name} />
     </label>
-    <label class="field" style="max-width: 160px;">
+    <label class="field">
       <span class="field-label">{t().common.type}</span>
       <select class="input" bind:value={draft.kind}>
         <option value="bank">Bank</option>

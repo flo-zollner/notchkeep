@@ -3,6 +3,7 @@
   import Icon from './Icon.svelte';
   import { t } from '$lib/settings.svelte';
   import { mobileTabs, isActive } from '$lib/nav-config';
+  import { ripple } from '$lib/actions/ripple';
   import MoreSheet from './MoreSheet.svelte';
 
   interface Props {
@@ -21,7 +22,7 @@
 
 <nav class="tabbar" data-tour="mobilenav">
   {#each mobileTabs as tab (tab.id)}
-    <a class="tab" class:active={isActive(page.url.pathname, tab.href)} href={tab.href}>
+    <a class="tab" class:active={isActive(page.url.pathname, tab.href)} href={tab.href} use:ripple>
       <span class="tab-icon">
         <Icon name={tab.icon} size={22} />
         {#if tab.id === 'budgets' && budgetAlertCount > 0}
@@ -31,7 +32,7 @@
       <span class="tab-label">{t().nav[tab.labelKey]}</span>
     </a>
   {/each}
-  <button class="tab" class:active={moreActive} onclick={() => (moreOpen = true)} aria-label="Mehr">
+  <button class="tab" class:active={moreActive} onclick={() => (moreOpen = true)} aria-label="Mehr" use:ripple>
     <span class="tab-icon"><Icon name="dots" size={22} /></span>
     <span class="tab-label">Mehr</span>
   </button>
@@ -76,5 +77,40 @@
   .tab-label { font-size: 11px; font-weight: 500; }
   @media (max-width: 599px) {
     .tabbar { display: flex; }
+  }
+
+  /* ── Material Design 3 Navigation Bar (Android) ── */
+  :global(html[data-platform='android']) .tabbar {
+    background: var(--md-sys-color-surface-container);
+    border-top: none;
+  }
+  :global(html[data-platform='android']) .tab {
+    justify-content: flex-start;
+    padding-top: 12px;
+    gap: 4px;
+  }
+  /* The icon wrapper becomes the MD3 active-indicator pill. */
+  :global(html[data-platform='android']) .tab-icon {
+    width: 64px;
+    height: 32px;
+    border-radius: 16px;
+    align-items: center;
+    justify-content: center;
+    transition: background var(--md-dur-medium) var(--md-ease-emphasized);
+  }
+  :global(html[data-platform='android']) .tab.active .tab-icon {
+    background: var(--md-sys-color-secondary-container);
+    color: var(--md-sys-color-on-secondary-container);
+  }
+  :global(html[data-platform='android']) .tab.active .tab-label {
+    color: var(--text);
+    font-weight: 600;
+  }
+  :global(html[data-platform='android']) .tab-label {
+    font-size: 12px;
+  }
+  /* Ripple replaces the flat opacity press feedback. */
+  :global(html[data-platform='android']) .tab:active {
+    opacity: 1;
   }
 </style>

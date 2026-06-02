@@ -47,15 +47,16 @@
 
   {#snippet footer()}
     <div class="footer-actions">
+      <button class="btn ghost" disabled={busy} onclick={onClose}>{t().common.cancel}</button>
       {#if check.kind === 'existing'}
+        <button class="btn danger" disabled={busy} onclick={() => apply('overwriteCopy')}>
+          {t().data.pathChangeOverwriteCopy}
+        </button>
         {#if check.valid}
-          <button disabled={busy} onclick={() => apply('useExisting')}>
+          <button class="btn primary" disabled={busy} onclick={() => apply('useExisting')}>
             {t().data.pathChangeUseExisting}
           </button>
         {/if}
-        <button class="btn warn" disabled={busy} onclick={() => apply('overwriteCopy')}>
-          {t().data.pathChangeOverwriteCopy}
-        </button>
       {:else}
         <button disabled={busy} onclick={() => apply('move')}>
           {t().data.pathChangeMove}
@@ -63,11 +64,10 @@
         <button disabled={busy} onclick={() => apply('copy')}>
           {t().data.pathChangeCopy}
         </button>
-        <button disabled={busy} onclick={() => apply('startFresh')}>
+        <button class="btn primary" disabled={busy} onclick={() => apply('startFresh')}>
           {t().data.pathChangeStartFresh}
         </button>
       {/if}
-      <button class="btn ghost" disabled={busy} onclick={onClose}>{t().common.cancel}</button>
     </div>
   {/snippet}
 </Sheet>
@@ -83,17 +83,20 @@
     display: flex;
     justify-content: flex-end;
     gap: 8px;
-    flex-wrap: nowrap;
-  }
-  @media (max-width: 600px) {
-    .footer-actions button { flex: 1 1 0; min-width: 0; }
+    flex-wrap: wrap;
   }
   button {
     padding: 8px 14px; border-radius: 6px; border: 1px solid var(--border);
     background: var(--surface-2); color: var(--text); cursor: pointer;
-    font: inherit;
+    font: inherit; white-space: normal;
   }
-  .btn.warn { border-color: var(--warning); color: var(--warning); }
+  .btn.primary { background: var(--accent, var(--positive)); color: white; border-color: transparent; }
+  .btn.danger { border-color: var(--negative); color: var(--negative); background: var(--negative-soft); }
   .btn.ghost { border: 0; background: transparent; color: var(--text-muted); }
   button:disabled { opacity: 0.5; cursor: wait; }
+  @media (max-width: 599px) {
+    .footer-actions { flex-direction: column; align-items: stretch; }
+    .footer-actions button { flex: 1 1 0; min-width: 0; min-height: 44px; }
+    .footer-actions .btn.ghost { order: -1; }
+  }
 </style>

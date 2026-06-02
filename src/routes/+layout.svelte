@@ -7,9 +7,24 @@
   import Fab from '$lib/components/Fab.svelte';
   import { settings } from '$lib/settings.svelte';
   import { applySystemAccent } from '$lib/system-accent';
+  import { applyMaterialYou } from '$lib/md3/dynamic-color';
+  import { applyPlatform } from '$lib/platform';
   import { onMount } from 'svelte';
+
+  // Resolve the runtime platform before the first paint so the Material Design 3
+  // layer (scoped to `html[data-platform="android"]`) is in place from the start.
+  applyPlatform();
+
+  function applyColors() {
+    if (typeof document !== 'undefined' && document.documentElement.dataset.platform === 'android') {
+      applyMaterialYou();
+    } else {
+      applySystemAccent();
+    }
+  }
   import { listen } from '@tauri-apps/api/event';
   import { goto } from '$app/navigation';
+  import { page } from '$app/state';
   import StartupErrorModal from '$lib/components/StartupErrorModal.svelte';
   import SyncConflictModal from '$lib/components/SyncConflictModal.svelte';
   import OnboardingWizard from '$lib/components/OnboardingWizard.svelte';
@@ -144,25 +159,33 @@
     if (typeof document !== 'undefined') {
       document.documentElement.dataset.theme = settings.theme;
       // After theme switch, accent must be re-derived (different fg contrast)
-      applySystemAccent();
+      applyColors();
     }
   });
 
   onMount(() => {
     void initOnboarding();
     if (appSettings.onboardingCompleted) void startUpdaterFlow();
-    applySystemAccent();
-    const reapply = () => applySystemAccent();
+    applyColors();
+    const reapply = () => applyColors();
     window.addEventListener('focus', reapply);
     document.addEventListener('visibilitychange', reapply);
+    // On Android the MD3 scheme is written as inline custom properties on <html>,
+    // which override the CSS `prefers-color-scheme` dark block. Re-derive the scheme
+    // when the system colour scheme flips so an 'auto' theme still follows dark mode.
+    const darkMq = window.matchMedia('(prefers-color-scheme: dark)');
+    darkMq.addEventListener('change', reapply);
     return () => {
       window.removeEventListener('focus', reapply);
       document.removeEventListener('visibilitychange', reapply);
+      darkMq.removeEventListener('change', reapply);
     };
   });
 
   function onFabClick() {
-    goto('/transactions?new=1');
+    const path = page.url.pathname;
+    if (path === '/') { goto('/transactions?new=1'); return; }
+    goto(`${path}?new=1`);
   }
 
   /** Global keyboard shortcuts. Ignored when focus is in Input/Textarea/Select. */

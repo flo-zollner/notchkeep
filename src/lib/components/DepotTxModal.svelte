@@ -24,6 +24,7 @@
   let loading = $state(true);
   let saving = $state(false);
   let error = $state<string | null>(null);
+  let confirmDelete = $state(false);
 
   $effect(() => {
     loading = true;
@@ -138,6 +139,7 @@
         holding_account_id: payload.accountId ?? tx.holding_account_id,
       };
       onSaved(updated);
+      confirmDelete = false;
       onClose();
     } catch (e) {
       error = errMsg(e);
@@ -147,7 +149,8 @@
   }
 
   async function deleteTx() {
-    if (!confirm('Diese Wertpapier-Transaktion wirklich löschen? Damit verschwindet auch der Bestandseintrag im Depot.')) {
+    if (!confirmDelete) {
+      confirmDelete = true;
       return;
     }
     saving = true;
@@ -163,17 +166,16 @@
   }
 </script>
 
-<Sheet open={true} {onClose} title={security?.name ?? 'Depot-Transaktion'}>
+<Sheet open={true} onClose={() => { confirmDelete = false; onClose(); }} title={security?.name ?? 'Depot-Transaktion'}>
   {#snippet footer()}
     <div class="footer-actions">
       {#if onDeleted}
         <button type="button" class="btn danger" onclick={deleteTx} disabled={saving}>
-          🗑 Löschen
+          {confirmDelete ? 'Wirklich löschen?' : '🗑 Löschen'}
         </button>
       {/if}
-      <span class="grow"></span>
-      <button type="button" class="btn cancel" onclick={onClose} disabled={saving}>Abbrechen</button>
-      <button type="button" class="btn save" onclick={save} disabled={saving}>
+      <button type="button" class="btn" onclick={() => { confirmDelete = false; onClose(); }} disabled={saving}>Abbrechen</button>
+      <button type="button" class="btn accent" onclick={save} disabled={saving}>
         {saving ? 'Speichert …' : 'Speichern'}
       </button>
     </div>
@@ -304,6 +306,10 @@
     grid-template-columns: 1fr 1fr;
     gap: 12px;
   }
+  @media (max-width: 599px) {
+    .grid { grid-template-columns: 1fr; }
+    .grid label.span2 { grid-column: span 1; }
+  }
   .grid label {
     display: flex; flex-direction: column; gap: 4px;
     font-size: 12px; color: var(--text-muted);
@@ -334,8 +340,6 @@
     cursor: pointer;
     font-size: 14px;
   }
-  .btn.cancel { background: transparent; color: var(--text-muted); }
-  .btn.save { background: var(--accent, var(--positive)); color: white; }
+  .btn.accent { background: var(--accent, var(--positive)); color: white; border: 0; }
   .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-  .grow { flex: 1; }
 </style>

@@ -55,10 +55,10 @@
 
   {#snippet footer()}
     <div class="footer-actions">
-      <button class="btn warn" disabled={busy || typed !== trigger()} onclick={confirm}>
+      <button class="btn ghost" disabled={busy} onclick={onClose}>{t().common.cancel}</button>
+      <button class="btn danger" disabled={busy || typed !== trigger()} onclick={confirm}>
         {t().data.restoreButton}
       </button>
-      <button class="btn ghost" disabled={busy} onclick={onClose}>{t().common.cancel}</button>
     </div>
   {/snippet}
 </Sheet>
@@ -92,7 +92,7 @@
     background: var(--surface-2); color: var(--text); cursor: pointer;
     font: inherit;
   }
-  .btn.warn { border-color: var(--negative); color: var(--negative); }
+  .btn.danger { border-color: var(--negative); color: var(--negative); background: var(--negative-soft); }
   .btn.ghost { border: 0; background: transparent; color: var(--text-muted); }
   .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 </style>

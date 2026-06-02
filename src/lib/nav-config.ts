@@ -51,8 +51,17 @@ export const moreItems: NavItem[] = [
   ...navManage,
 ];
 
-/** Routes on which the FAB (+ transaction) is visible. */
-export const fabRoutes = new Set<string>(['/', '/transactions']);
+/** FAB actions per route: label shown as aria-label, query param appended on click. */
+export const fabActions: Record<string, { label: string; query: string }> = {
+  '/':             { label: 'Neue Transaktion', query: 'new=1' },
+  '/transactions': { label: 'Neue Transaktion', query: 'new=1' },
+  '/buckets':      { label: 'Neuer Topf',        query: 'new=1' },
+  '/recurring':    { label: 'Neue Zahlung',       query: 'new=1' },
+  '/portfolio':    { label: 'Trade hinzufügen',   query: 'new=1' },
+};
+
+/** Routes on which the FAB is visible. */
+export const fabRoutes = new Set(Object.keys(fabActions));
 
 /** Active check (same logic as in +layout.svelte). */
 export function isActive(currentPath: string, href: string): boolean {

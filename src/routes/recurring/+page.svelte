@@ -10,6 +10,7 @@
     type RecurringPayment, type RecurringOverview, type Occurrence,
     type Account, type Category,
   } from '$lib/api';
+  import { page } from '$app/state';
 
   let recurrings = $state<RecurringPayment[]>([]);
   let overview = $state<RecurringOverview[]>([]);
@@ -23,6 +24,14 @@
   let detecting = $state(false);
 
   const tr = $derived(t().recurring);
+
+  let fabHandled = false;
+  $effect(() => {
+    if (!fabHandled && page.url.searchParams.get('new') === '1') {
+      fabHandled = true;
+      addingNew = true;
+    }
+  });
 
   async function loadAll() {
     loading = true;
