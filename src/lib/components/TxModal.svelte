@@ -447,7 +447,7 @@
               title="Copy"
               onclick={() => navigator.clipboard.writeText(counterpartyIban.replace(/\s+/g, '').toUpperCase())}
             >
-              <Icon name="check" size={13} />
+              <Icon name="copy" size={13} />
             </button>
           {/if}
         </div>

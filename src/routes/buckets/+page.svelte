@@ -6,6 +6,7 @@
   import { settings, t } from '$lib/settings.svelte';
   import { api, type Bucket, type BucketProgress } from '$lib/api';
   import { fmtEur } from '$lib/format';
+  import { page } from '$app/state';
 
   let buckets = $state<Bucket[]>([]);
   let progressMap = $state<Map<number, BucketProgress>>(new Map());
@@ -20,6 +21,14 @@
   let allocateFor = $state<Bucket | null>(null);
 
   const tb = $derived(t().buckets);
+
+  let fabHandled = false;
+  $effect(() => {
+    if (!fabHandled && page.url.searchParams.get('new') === '1') {
+      fabHandled = true;
+      addingNew = true;
+    }
+  });
 
   $effect(() => {
     void reload(showArchived);

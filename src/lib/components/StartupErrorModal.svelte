@@ -63,9 +63,9 @@
 
   {#snippet footer()}
     <div class="footer-actions">
-      <button disabled={busy} onclick={retry}>{t().data.startupErrorRetry}</button>
       <button disabled={busy} onclick={pickPath}>{t().data.startupErrorPick}</button>
       <button disabled={busy} onclick={useDefault}>{t().data.startupErrorDefault}</button>
+      <button class="primary" disabled={busy} onclick={retry}>{t().data.startupErrorRetry}</button>
     </div>
   {/snippet}
 </Sheet>
@@ -81,14 +81,19 @@
     display: flex;
     justify-content: flex-end;
     gap: 8px;
-    flex-wrap: nowrap;
-  }
-  @media (max-width: 600px) {
-    .footer-actions button { flex: 1 1 0; min-width: 0; }
+    flex-wrap: wrap;
   }
   button {
     padding: 10px 14px; border-radius: 6px; border: 1px solid var(--border);
     background: var(--surface-2); color: var(--text); cursor: pointer; font: inherit;
+    white-space: normal;
+  }
+  button.primary {
+    background: var(--accent); color: var(--accent-fg, white); border: 0;
   }
   button:disabled { opacity: 0.5; cursor: wait; }
+  @media (max-width: 599px) {
+    .footer-actions { flex-direction: column; align-items: stretch; }
+    .footer-actions button { flex: 1 1 0; min-width: 0; min-height: 44px; }
+  }
 </style>

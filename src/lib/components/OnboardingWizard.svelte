@@ -189,14 +189,14 @@
         <div class="ob-footer-right">
           {#if onboarding.wizardStep === 2}
             <button class="btn" onclick={next}>{o.skip}</button>
-            <button class="btn btn-primary" onclick={createFirstAccount} disabled={!accountName.trim() || creating}>
+            <button class="btn primary" onclick={createFirstAccount} disabled={!accountName.trim() || creating}>
               {creating ? o.creating : o.createAccount}
             </button>
           {:else if onboarding.wizardStep === TOTAL - 1}
             <button class="btn" onclick={finishAndClose}>{o.finish}</button>
-            <button class="btn btn-primary" onclick={finishAndTour}>{o.startTour}</button>
+            <button class="btn primary" onclick={finishAndTour}>{o.startTour}</button>
           {:else}
-            <button class="btn btn-primary" onclick={next}>{o.next}</button>
+            <button class="btn primary" onclick={next}>{o.next}</button>
           {/if}
         </div>
       </div>
@@ -213,6 +213,7 @@
   .ob-skip {
     font-size: 13px; color: var(--text-muted); background: none; border: 0;
     padding: 4px 8px; cursor: pointer; border-radius: var(--r-sm);
+    min-height: 44px;
   }
   .ob-skip:hover { color: var(--text); }
   .ob-bar { display: flex; gap: 4px; padding: 0 18px 4px; }
@@ -275,5 +276,8 @@
 
   @media (max-width: 599px) {
     .ob-cards { grid-template-columns: 1fr; }
+    .ob-body { min-height: auto; }
+    .ob-footer-right { flex: 1; }
+    .ob-footer-right .btn.primary { flex: 1; min-height: 44px; white-space: normal; }
   }
 </style>

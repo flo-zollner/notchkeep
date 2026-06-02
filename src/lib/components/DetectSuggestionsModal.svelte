@@ -131,11 +131,23 @@
     border-radius: 6px;
     font-size: 12px;
   }
-  .cp { font-weight: 500; }
-  .acc, .freq, .samples { color: var(--text-muted); }
-  .amt { text-align: right; font-variant-numeric: tabular-nums; }
+  .cp { font-weight: 500; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .acc, .freq, .samples { color: var(--text-muted); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .amt { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
   .amt.neg { color: var(--negative); }
   .err { color: var(--negative); font-size: 12px; margin: 0; }
+  @media (max-width: 599px) {
+    .list li {
+      grid-template-columns: 20px 1fr auto;
+      grid-template-rows: auto auto;
+    }
+    .list li input[type="checkbox"] { grid-row: 1; grid-column: 1; }
+    .cp { grid-row: 1; grid-column: 2; }
+    .amt { grid-row: 1; grid-column: 3; }
+    .acc { grid-row: 2; grid-column: 2; }
+    .freq { grid-row: 2; grid-column: 2; display: none; }
+    .samples { grid-row: 2; grid-column: 3; text-align: right; }
+  }
   .footer-actions { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: nowrap; }
   @media (max-width: 600px) {
     .footer-actions button { flex: 1 1 0; min-width: 0; }

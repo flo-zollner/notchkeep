@@ -163,6 +163,8 @@
     font-variant-numeric: tabular-nums;
     font-weight: 600;
     font-size: 13.5px;
+    white-space: nowrap;
+    flex-shrink: 0;
   }
   .actions {
     display: flex;

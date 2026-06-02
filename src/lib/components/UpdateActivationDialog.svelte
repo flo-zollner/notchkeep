@@ -134,7 +134,7 @@
     opacity: 0.85;
   }
 
-  @media (max-width: 420px) {
+  @media (max-width: 599px) {
     .footer {
       flex-direction: column;
       align-items: stretch;
@@ -144,6 +144,10 @@
     }
     .right-actions .btn {
       flex: 1;
+    }
+    .btn {
+      min-height: 44px;
+      white-space: normal;
     }
     .btn.ghost {
       text-align: center;

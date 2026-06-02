@@ -249,6 +249,9 @@
   .grid {
     display: grid; grid-template-columns: 1fr 1fr; gap: 10px 12px;
   }
+  @media (max-width: 599px) {
+    .grid { grid-template-columns: 1fr; }
+  }
   .grid label { display: flex; flex-direction: column; font-size: 12px; gap: 4px; color: var(--text-muted); }
   .grid input, .grid select, .grid textarea {
     padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px;

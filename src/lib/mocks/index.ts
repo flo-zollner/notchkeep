@@ -35,3 +35,39 @@ export function createMockTauriInvoke() {
  */
 const singletonInvoke = createMockTauriInvoke();
 export const invoke = singletonInvoke;
+
+/**
+ * Minimal stub of `@tauri-apps/api/core`'s `Channel`. It exists so the mock
+ * alias provides every named export the app imports from `core` (the Android
+ * updater backend imports `Channel`); the optimizer needs it resolvable. The
+ * Android updater path never executes in the browser/mock runtime, so a
+ * constructable no-op with an `onmessage` slot is sufficient.
+ */
+export class Channel<T = unknown> {
+  id = 0;
+  onmessage: (message: T) => void = () => {};
+  toJSON() {
+    return `__CHANNEL__:${this.id}`;
+  }
+}
+
+/**
+ * Minimal stub of `@tauri-apps/api/core`'s `Resource` base class. The updater
+ * plugin's `Update` extends it; like `Channel`, it only needs to be a
+ * constructable named export so the mock-aliased `core` resolves every import
+ * the bundled plugins pull in (otherwise esbuild's dep scan fails and the dev
+ * optimizer never settles → 504 "Outdated Optimize Dep"). Never instantiated
+ * in the browser/mock runtime.
+ */
+export class Resource {
+  #rid: number;
+  constructor(rid = 0) {
+    this.#rid = rid;
+  }
+  get rid() {
+    return this.#rid;
+  }
+  close(): Promise<void> {
+    return Promise.resolve();
+  }
+}
