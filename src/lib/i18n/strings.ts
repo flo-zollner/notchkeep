@@ -148,6 +148,14 @@ export interface I18N {
     checkFailed: string;
     currentVersion: (version: string) => string;
     installerLaunched: string;
+    channelLabel: string;
+    channelSub: string;
+    channelStable: string;
+    channelBeta: string;
+    betaWarnTitle: string;
+    betaWarnBody: string;
+    betaWarnConfirm: string;
+    betaWarnCancel: string;
   };
   buckets: {
     title: string;
@@ -748,6 +756,15 @@ export const I18N: Record<Lang, I18N> = {
       checkFailed: 'Konnte nicht prüfen — keine Verbindung.',
       currentVersion: (v: string) => `Aktuelle Version: ${v}`,
       installerLaunched: 'Installation wird gestartet…',
+      channelLabel: 'Update-Channel',
+      channelSub: 'Stable · Beta (mit Vorabversionen)',
+      channelStable: 'Stable',
+      channelBeta: 'Beta',
+      betaWarnTitle: 'Beta-Channel aktivieren?',
+      betaWarnBody:
+        'Im Beta-Channel erhältst du Vorabversionen (Release Candidates). Diese können instabil sein oder Fehler enthalten. Hinweis: Hast du eine Vorabversion installiert und wechselst zurück zu Stable, bleibst du auf dieser Version, bis Stable sie überholt — es gibt kein automatisches Zurückstufen.',
+      betaWarnConfirm: 'Beta aktivieren',
+      betaWarnCancel: 'Abbrechen',
     },
     buckets: {
       title: 'Töpfe',
@@ -1360,6 +1377,15 @@ export const I18N: Record<Lang, I18N> = {
       checkFailed: 'Could not check — no connection.',
       currentVersion: (v: string) => `Current version: ${v}`,
       installerLaunched: 'Starting installation…',
+      channelLabel: 'Update channel',
+      channelSub: 'Stable · Beta (includes prereleases)',
+      channelStable: 'Stable',
+      channelBeta: 'Beta',
+      betaWarnTitle: 'Enable the beta channel?',
+      betaWarnBody:
+        'The beta channel delivers prerelease builds (release candidates). These may be unstable or contain bugs. Note: if you install a prerelease and switch back to stable, you stay on that version until stable catches up — there is no automatic downgrade.',
+      betaWarnConfirm: 'Enable beta',
+      betaWarnCancel: 'Cancel',
     },
     buckets: {
       title: 'Buckets',
