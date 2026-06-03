@@ -103,7 +103,7 @@ jobs:
           version: 11
 
       - name: Setup Node
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v6
         with:
           # pnpm 11 verlangt Node >= 22.13. 22 entspricht der lokalen Umgebung.
           node-version: 22
@@ -153,7 +153,7 @@ jobs:
           version: 11
 
       - name: Setup Node
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v6
         with:
           node-version: 22
           cache: pnpm
