@@ -36,8 +36,14 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           TAG="${GITHUB_REF_NAME}"
+          # Release candidates (vX.Y.Z-rc.N, also -beta/-alpha) are published as
+          # PRERELEASE. The updater endpoint resolves .../releases/latest/..., and
+          # GitHub's "latest" excludes prereleases — so RCs are never offered as an
+          # update to stable users. Stable tags (no suffix) stay a normal draft.
+          FLAGS="--draft"
+          case "$TAG" in *-rc*|*-beta*|*-alpha*) FLAGS="$FLAGS --prerelease" ;; esac
           if ! gh release view "$TAG" >/dev/null 2>&1; then
-            gh release create "$TAG" --draft \
+            gh release create "$TAG" $FLAGS \
               --title "Notchkeep $TAG" \
               --notes-file RELEASE_NOTES.md
           fi
@@ -58,7 +64,7 @@ jobs:
           - platform: ubuntu-22.04
             args: ''
             rust_targets: ''
-          # Windows — .msi (WiX) und .exe (NSIS).
+          # Windows — nur .exe (NSIS); .msi entfällt (siehe bundle.targets).
           - platform: windows-latest
             args: ''
             rust_targets: ''
@@ -244,3 +250,23 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh release upload "${GITHUB_REF_NAME}" "${{ steps.apk.outputs.name }}" android-latest.json --clobber
+
+  # Entfernt die standalone .sig-Assets, die tauri-action desktop-seitig hochlädt.
+  # Der Updater liest die Signatur INLINE aus latest.json / android-latest.json
+  # (Feld "signature") — eine separate .sig wird weder zum Updaten noch zum
+  # Installieren geladen. Läuft nach allen Uploads (build + android).
+  prune-sigs:
+    needs: [build, android]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Remove unneeded .sig assets (signatures are inline in the manifests)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          mapfile -t sigs < <(gh release view "$TAG" --json assets -q '.assets[].name' | grep '\.sig$' || true)
+          for a in "${sigs[@]}"; do
+            [ -n "$a" ] || continue
+            echo "deleting unneeded asset: $a"
+            gh release delete-asset "$TAG" "$a" -y
+          done
