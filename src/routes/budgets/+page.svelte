@@ -332,7 +332,7 @@
 
   let showAddPopover = $state(false);
   let addCategoryId = $state<number | ''>('');
-  let addBudgetEur = $state<number | ''>('');
+  let addBudgetEur = $state('');
   let addSaving = $state(false);
 
   // Categories without an effective budget for viewMonth: either null (never set)
@@ -345,9 +345,10 @@
   );
 
   async function saveNewBudget() {
-    if (addCategoryId === '' || addBudgetEur === '' || addSaving) return;
-    const cents = Math.round(Number(addBudgetEur) * 100);
-    if (!Number.isFinite(cents) || cents <= 0) return;
+    if (addCategoryId === '' || addBudgetEur.trim() === '' || addSaving) return;
+    const parsed = Number(addBudgetEur.replace(',', '.'));
+    if (!Number.isFinite(parsed) || parsed <= 0) return;
+    const cents = Math.round(parsed * 100);
     addSaving = true;
     try {
       await api.setBudget(addCategoryId as number, viewYear, viewMonth, cents);
@@ -537,12 +538,12 @@
             <label class="add-row">
               <span class="add-label">Budget (€)</span>
               <input
-                type="number"
+                type="text"
+                inputmode="decimal"
                 class="input"
-                min="0"
-                step="10"
-                bind:value={addBudgetEur}
+                value={addBudgetEur}
                 placeholder="0"
+                oninput={(e) => { addBudgetEur = (e.target as HTMLInputElement).value; }}
                 onkeydown={(e) => { if (e.key === 'Enter') void saveNewBudget(); }}
               />
             </label>
@@ -554,7 +555,7 @@
                 type="button"
                 class="btn primary"
                 onclick={saveNewBudget}
-                disabled={addCategoryId === '' || addBudgetEur === '' || Number(addBudgetEur) <= 0 || addSaving}
+                disabled={addCategoryId === '' || addBudgetEur.trim() === '' || Number(addBudgetEur.replace(',', '.')) <= 0 || addSaving}
               >
                 {addSaving ? '…' : 'Speichern'}
               </button>

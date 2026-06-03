@@ -28,6 +28,8 @@
   let occurredOn = $state(todayIso());
   let saving = $state(false);
   let error = $state<string | null>(null);
+  let fromTouched = $state(false);
+  let toTouched = $state(false);
 
   /** Amount in cents parsed from the input field. NaN if unparseable. */
   const amountCents = $derived.by(() => {
@@ -102,7 +104,7 @@
   <div class="grid">
     <label>
       <span>{tb.moveFrom}</span>
-      <select bind:value={fromId}>
+      <select bind:value={fromId} onblur={() => (fromTouched = true)}>
         <option value={null}>{tb.unassignedSource}</option>
         {#each buckets as b (b.id)}
           <option value={b.id}>{b.name}</option>
@@ -112,7 +114,7 @@
 
     <label>
       <span>{tb.moveTo}</span>
-      <select bind:value={toId}>
+      <select bind:value={toId} onblur={() => (toTouched = true)}>
         <option value={null}>{tb.unassignedSource}</option>
         {#each buckets as b (b.id)}
           <option value={b.id}>{b.name}</option>
@@ -142,7 +144,7 @@
     </label>
   </div>
 
-  <p class="err" aria-live="polite">{#if sameEndpoint}<Icon name="warning" size={14} aria-hidden="true" /> {tb.errSameEndpoint}{/if}</p>
+  <p class="err" aria-live="polite">{#if sameEndpoint && fromTouched && toTouched}<Icon name="warning" size={14} aria-hidden="true" /> {tb.errSameEndpoint}{/if}</p>
 
   {#if previewAfter !== null}
     <div class="preview" class:warn={wouldGoNegative}>

@@ -16,6 +16,15 @@
   const isSumOk = $derived(rows.length === 0 || (sumBps >= 9950 && sumBps <= 10050));
   const sumPct = $derived((sumBps / 100).toFixed(2));
 
+  // Track which weight-inputs have been blurred at least once.
+  // Only show the red .sum.off state after the user has left an input field.
+  let blurredWeights = $state(new Set<number>());
+  const anyWeightBlurred = $derived(blurredWeights.size > 0);
+
+  function onWeightBlur(idx: number) {
+    blurredWeights = new Set(blurredWeights).add(idx);
+  }
+
   function updateRow(idx: number, patch: Partial<BreakdownRowInput>) {
     const next = rows.map((r, i) => (i === idx ? { ...r, ...patch } : r));
     onChange(next);
@@ -62,6 +71,7 @@
               value={fmtPct(row.weightBps)}
               oninput={(e) =>
                 updateRow(idx, { weightBps: parsePct((e.target as HTMLInputElement).value) })}
+              onblur={() => onWeightBlur(idx)}
             />
           </td>
           <td>
@@ -78,7 +88,7 @@
     <button type="button" class="ghost" onclick={addRow}>
       <Icon name="plus" size={14} /> {tb.addRow}
     </button>
-    <span class="sum" class:ok={isSumOk} class:off={!isSumOk}>
+    <span class="sum" class:ok={isSumOk} class:off={!isSumOk && anyWeightBlurred}>
       {tb.sum}: {sumPct}%
       {#if rows.length > 0}
         {isSumOk ? tb.sumOk : tb.sumOff}
