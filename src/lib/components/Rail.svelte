@@ -120,4 +120,7 @@
   @media (min-width: 600px) and (max-width: 1023px) {
     .rail { display: flex; }
   }
+  @media (prefers-reduced-motion: reduce) {
+    .spinner { animation: none; }
+  }
 </style>
