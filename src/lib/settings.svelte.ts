@@ -2,6 +2,7 @@ import { I18N, type Lang } from './i18n/strings';
 
 export type Theme = 'auto' | 'light' | 'dark';
 export type UpdateConsent = 'unset' | 'enabled' | 'declined';
+export type ReleaseChannel = 'stable' | 'beta';
 
 function parseTheme(v: unknown): Theme {
   if (v === 'auto' || v === 'light' || v === 'dark') return v;
@@ -23,12 +24,15 @@ interface PersistedSettings {
   updateConsent: UpdateConsent;
   /** Version the user chose to skip, e.g. "0.2.3". Exact string match. */
   skippedVersion: string | null;
+  /** Update channel. 'beta' also offers release candidates / prereleases. */
+  releaseChannel: ReleaseChannel;
 }
 
 const DEFAULTS: PersistedSettings = {
   theme: 'auto', lang: 'de', hide: false, showCents: false,
   onboardingCompleted: false, tourCompleted: false,
   updateConsent: 'unset', skippedVersion: null,
+  releaseChannel: 'stable',
 };
 
 function load(): PersistedSettings {
@@ -49,6 +53,7 @@ function load(): PersistedSettings {
           ? parsed.updateConsent : 'unset',
       skippedVersion:
         typeof parsed.skippedVersion === 'string' ? parsed.skippedVersion : null,
+      releaseChannel: parsed.releaseChannel === 'beta' ? 'beta' : 'stable',
     };
   } catch {
     return DEFAULTS;
@@ -71,6 +76,7 @@ export const settings = $state({
   tourCompleted: initial.tourCompleted,
   updateConsent: initial.updateConsent,
   skippedVersion: initial.skippedVersion,
+  releaseChannel: initial.releaseChannel,
 });
 
 function persistAll() {
@@ -78,6 +84,7 @@ function persistAll() {
     theme: settings.theme, lang: settings.lang, hide: settings.hide, showCents: settings.showCents,
     onboardingCompleted: settings.onboardingCompleted, tourCompleted: settings.tourCompleted,
     updateConsent: settings.updateConsent, skippedVersion: settings.skippedVersion,
+    releaseChannel: settings.releaseChannel,
   });
 }
 
@@ -113,6 +120,7 @@ export function setTourCompleted(v: boolean) {
 
 export function setUpdateConsent(v: UpdateConsent) { settings.updateConsent = v; persistAll(); }
 export function setSkippedVersion(v: string | null) { settings.skippedVersion = v; persistAll(); }
+export function setReleaseChannel(v: ReleaseChannel) { settings.releaseChannel = v; persistAll(); }
 
 /** Decimal places for fmtEur, depending on the showCents setting. Reactive. */
 export function eurDecimals(): 0 | 2 {
@@ -135,4 +143,5 @@ export function _reloadForTests(): void {
   settings.tourCompleted = fresh.tourCompleted;
   settings.updateConsent = fresh.updateConsent;
   settings.skippedVersion = fresh.skippedVersion;
+  settings.releaseChannel = fresh.releaseChannel;
 }

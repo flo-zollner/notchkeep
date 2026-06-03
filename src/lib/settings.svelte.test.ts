@@ -6,6 +6,7 @@ import {
   setTourCompleted,
   setUpdateConsent,
   setSkippedVersion,
+  setReleaseChannel,
   _reloadForTests,
 } from './settings.svelte';
 
@@ -133,5 +134,35 @@ describe('settings.update preferences', () => {
     _reloadForTests();
     expect(settings.updateConsent).toBe('unset');
     expect(settings.skippedVersion).toBeNull();
+  });
+});
+
+describe('settings.releaseChannel', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    _reloadForTests();
+  });
+
+  it('defaults to "stable"', () => {
+    expect(settings.releaseChannel).toBe('stable');
+  });
+
+  it('persists releaseChannel via setter', () => {
+    setReleaseChannel('beta');
+    _reloadForTests();
+    expect(settings.releaseChannel).toBe('beta');
+    expect(JSON.parse(localStorage.getItem('saldo.settings')!).releaseChannel).toBe('beta');
+  });
+
+  it('falls back to "stable" for unknown persisted values', () => {
+    localStorage.setItem('saldo.settings', JSON.stringify({ releaseChannel: 'nightly' }));
+    _reloadForTests();
+    expect(settings.releaseChannel).toBe('stable');
+  });
+
+  it('falls back to "stable" for legacy settings without the field', () => {
+    localStorage.setItem('saldo.settings', JSON.stringify({ theme: 'dark' }));
+    _reloadForTests();
+    expect(settings.releaseChannel).toBe('stable');
   });
 });
