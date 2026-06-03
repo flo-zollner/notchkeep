@@ -251,6 +251,46 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh release upload "${GITHUB_REF_NAME}" "${{ steps.apk.outputs.name }}" android-latest.json --clobber
 
+  # Spiegelt das finalisierte latest.json + android-latest.json des Versions-
+  # Releases auf ein festes "rolling" Release `updater-latest`. Dessen Assets
+  # sind die Updater-Endpoints für ALLE Clients (stable wie beta). Der Channel
+  # wird client-seitig gefiltert: stable verwirft Prereleases. Da Tags in
+  # Versionsreihenfolge gepusht werden, hält `updater-latest` stets den
+  # neuesten Build inkl. RC.
+  rolling-manifest:
+    needs: [build, android]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Mirror manifests to the rolling updater-latest release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          TAG="${GITHUB_REF_NAME}"
+          ROLLING="updater-latest"
+
+          # Manifeste des Versions-Releases holen (latest.json wird von
+          # tauri-action erzeugt, android-latest.json vom android-Job).
+          tmp="$(mktemp -d)"
+          gh release download "$TAG" -p 'latest.json' -p 'android-latest.json' -D "$tmp" --clobber
+
+          # Rolling-Release idempotent anlegen (Prerelease → nicht "Latest" auf
+          # der Releases-Seite). Es trägt nur die zwei Manifest-JSONs.
+          if ! gh release view "$ROLLING" >/dev/null 2>&1; then
+            gh release create "$ROLLING" \
+              --prerelease \
+              --title "Updater channel manifests (rolling)" \
+              --notes "Auto-maintained. Holds the newest latest.json / android-latest.json (incl. prereleases) used by the in-app updater endpoints. Do not delete."
+          fi
+
+          # Manifeste hochladen/überschreiben.
+          uploads=()
+          [ -f "$tmp/latest.json" ] && uploads+=("$tmp/latest.json")
+          [ -f "$tmp/android-latest.json" ] && uploads+=("$tmp/android-latest.json")
+          test "${#uploads[@]}" -gt 0 || { echo "no manifests to mirror"; exit 1; }
+          gh release upload "$ROLLING" "${uploads[@]}" --clobber
+
   # Entfernt die standalone .sig-Assets, die tauri-action desktop-seitig hochlädt.
   # Der Updater liest die Signatur INLINE aus latest.json / android-latest.json
   # (Feld "signature") — eine separate .sig wird weder zum Updaten noch zum
