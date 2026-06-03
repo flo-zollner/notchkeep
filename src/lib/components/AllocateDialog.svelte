@@ -141,9 +141,7 @@
     </label>
   </div>
 
-  {#if sameEndpoint}
-    <p class="err">{tb.errSameEndpoint}</p>
-  {/if}
+  <p class="err" aria-live="polite">{#if sameEndpoint}{tb.errSameEndpoint}{/if}</p>
 
   {#if previewAfter !== null}
     <div class="preview" class:warn={wouldGoNegative}>
@@ -158,9 +156,7 @@
     </div>
   {/if}
 
-  {#if error}
-    <p class="err">{error}</p>
-  {/if}
+  <p class="err" aria-live="polite">{#if error}{error}{/if}</p>
 </Sheet>
 
 <style>
@@ -206,6 +202,7 @@
     font-size: 12px;
     color: var(--negative, #ef4444);
   }
+  .err:empty { display: none; }
   .footer-actions {
     display: flex;
     justify-content: flex-end;

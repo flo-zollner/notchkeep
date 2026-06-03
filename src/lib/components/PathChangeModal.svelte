@@ -41,9 +41,7 @@
     </p>
   {/if}
 
-  {#if error}
-    <p class="error">{error}</p>
-  {/if}
+  <p class="error" aria-live="polite">{#if error}{error}{/if}</p>
 
   {#snippet footer()}
     <div class="footer-actions">
@@ -79,6 +77,7 @@
   }
   .hint { font-size: 12px; color: var(--text-muted); margin: 0 0 16px 0; }
   .error { color: var(--negative); font-size: 12px; }
+  .error:empty { display: none; }
   .footer-actions {
     display: flex;
     justify-content: flex-end;

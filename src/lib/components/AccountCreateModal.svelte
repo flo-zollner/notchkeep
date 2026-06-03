@@ -66,9 +66,7 @@
       void submit();
     }}
   >
-    {#if error}
-      <div class="form-error">{error}</div>
-    {/if}
+    <div class="form-error" aria-live="polite">{#if error}{error}{/if}</div>
     <div class="field">
       <div class="field-label">{t().common.name}</div>
       <!-- svelte-ignore a11y_autofocus -->

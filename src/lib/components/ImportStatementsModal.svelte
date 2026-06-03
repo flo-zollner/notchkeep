@@ -259,9 +259,7 @@
         {/if}
       {/if}
 
-      {#if error}
-        <p class="err">{error}</p>
-      {/if}
+      <p class="err" aria-live="polite">{#if error}{error}{/if}</p>
     </div>
 </Sheet>
 
@@ -342,6 +340,7 @@
     color: var(--negative);
     border-radius: 8px; font-size: 13px;
   }
+  .err:empty { display: none; }
   .footer-actions {
     display: flex;
     justify-content: flex-end;

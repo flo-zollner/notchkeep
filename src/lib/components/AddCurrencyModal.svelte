@@ -57,9 +57,7 @@
     <small class="hint">{tc.addModalCodeHint}</small>
   </label>
 
-  {#if error}
-    <div class="err">{error}</div>
-  {/if}
+  <div class="err" aria-live="polite">{#if error}{error}{/if}</div>
 
   {#snippet footer()}
     <div class="footer-actions">
@@ -93,6 +91,7 @@
     padding: 10px; background: var(--negative-soft);
     border-radius: 6px; margin-bottom: 12px;
   }
+  .err:empty { display: none; }
   .footer-actions {
     display: flex;
     justify-content: flex-end;

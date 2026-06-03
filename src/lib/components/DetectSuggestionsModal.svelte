@@ -115,7 +115,7 @@
     </ul>
   {/if}
 
-  {#if error}<p class="err">{error}</p>{/if}
+  <p class="err" aria-live="polite">{#if error}{error}{/if}</p>
 </Sheet>
 
 <style>
@@ -136,6 +136,7 @@
   .amt { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
   .amt.neg { color: var(--negative); }
   .err { color: var(--negative); font-size: 12px; margin: 0; }
+  .err:empty { display: none; }
   @media (max-width: 599px) {
     .list li {
       grid-template-columns: 20px 1fr auto;

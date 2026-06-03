@@ -265,9 +265,7 @@
     <span>{tx().archived ?? 'Archiviert (in Dropdowns ausblenden)'}</span>
   </label>
 
-  {#if error}
-    <div class="error">{error}</div>
-  {/if}
+  <div class="error" aria-live="polite">{#if error}{error}{/if}</div>
 
   <div class="actions">
     {#if onCancel}
@@ -319,6 +317,7 @@
   }
   .toggle { display: flex; align-items: center; gap: 8px; font-size: 13px; }
   .error { color: var(--negative); font-size: 12px; }
+  .error:empty { display: none; }
   .actions { display: flex; justify-content: flex-end; gap: 8px; }
   .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 </style>
