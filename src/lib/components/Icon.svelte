@@ -10,7 +10,7 @@
     | 'heart' | 'repeat' | 'plane' | 'shield' | 'briefcase' | 'wallet'
     | 'lock' | 'globe' | 'download' | 'refresh' | 'dots'
     | 'eye' | 'eye-off' | 'pencil' | 'tag' | 'target' | 'trending' | 'goal'
-    | 'copy';
+    | 'copy' | 'warning';
 
   interface Props {
     name: IconName | string;
@@ -173,6 +173,10 @@
   {:else if name === 'copy'}
     <rect x="9" y="9" width="11" height="11" rx="2" />
     <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+  {:else if name === 'warning'}
+    <path d="M12 3L2 20h20L12 3z" />
+    <path d="M12 9v5" />
+    <path d="M12 18h.01" />
   {:else}
     <circle cx="12" cy="12" r="3" />
   {/if}

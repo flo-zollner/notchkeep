@@ -105,7 +105,7 @@
     if (security === null) return;
     const eur = parseEur(manualPrice);
     if (!Number.isFinite(eur) || eur < 0) {
-      manualMsg = 'Ungültiger Preis';
+      manualMsg = 'Bitte einen gültigen Preis eingeben';
       return;
     }
     const micro = Math.round(eur * 1_000_000);

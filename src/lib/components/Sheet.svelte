@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
+  import { focusTrap } from '$lib/actions/focusTrap';
 
   interface Props {
     open: boolean;
@@ -59,6 +60,7 @@
       class="sheet-panel"
       bind:this={panel}
       style:transform={isDragging ? `translateY(${dragDelta}px)` : ''}
+      use:focusTrap
       role="dialog"
       aria-modal="true"
       aria-label={title ?? 'Dialog'}
