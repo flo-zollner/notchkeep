@@ -414,6 +414,8 @@ mod tests {
     async fn migration_0017_adds_kest_and_withholding_columns() {
         let pool = connect_memory().await.unwrap();
         for col in ["kest_cents", "withholding_tax_cents"] {
+            // nosemgrep: rust-sql-format-string -- `col` is a hardcoded literal from
+            // the loop above, not user input; no injection surface (test-only).
             let rows: Vec<(String,)> = sqlx::query_as(&format!(
                 "SELECT name FROM pragma_table_info('securities_trades') WHERE name='{col}'",
             ))
