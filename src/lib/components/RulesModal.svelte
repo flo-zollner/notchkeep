@@ -12,6 +12,7 @@
   import { parseEur, fmtEurInput } from '$lib/format';
   import Icon from './Icon.svelte';
   import { t } from '$lib/settings.svelte';
+  import { snackbar } from '$lib/snackbar.svelte';
   import Sheet from './Sheet.svelte';
 
   interface Props {
@@ -126,8 +127,8 @@
   let selectedId = $state<number | null>(null);
   let dirty = $state(false);
   let saving = $state(false);
-  let confirmingDelete = $state(false);
   let error = $state<string | null>(null);
+  const tc = $derived(t().common);
   let applyResult = $state<string | null>(null);
 
   // Form fields
@@ -165,7 +166,6 @@
     formTargetCategoryId = categories[0]?.id ?? null;
     formPriority = 100;
     formEnabled = true;
-    confirmingDelete = false;
     error = null;
     applyResult = null;
     previewCount = null;
@@ -184,7 +184,6 @@
     formTargetCategoryId = r.targetCategoryId;
     formPriority = r.priority;
     formEnabled = r.enabled;
-    confirmingDelete = false;
     error = null;
     applyResult = null;
     dirty = false;
@@ -299,16 +298,17 @@
 
   async function remove() {
     if (selectedId === null) return;
-    if (!confirmingDelete) {
-      confirmingDelete = true;
-      return;
-    }
+    const id = selectedId;
     try {
-      await api.deleteRule(selectedId);
+      await api.deleteRule(id);
       selectedId = null;
       dirty = false;
       previewCount = null;
       rules = await api.listRules();
+      snackbar.showUndo(tc.deleted, tc.undo, async () => {
+        await api.restoreRule(id);
+        rules = await api.listRules();
+      });
     } catch (e) {
       error = errMsg(e);
     }
@@ -560,7 +560,7 @@
           <div class="actions">
             {#if selectedId !== null}
               <button class="btn delete" onclick={remove} type="button">
-                {confirmingDelete ? t().common.confirmDelete : t().common.delete}
+                {tc.delete}
               </button>
             {/if}
             <div class="spacer"></div>

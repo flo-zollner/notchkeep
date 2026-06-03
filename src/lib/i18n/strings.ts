@@ -24,6 +24,7 @@ export interface I18N {
     all: string; month: string; week: string; day: string;
     search: string; add: string; addTx: string; filter: string;
     cancel: string; close: string; save: string; delete: string;
+    undo: string; deleted: string;
     vs: string; from: string; to: string; compare: string;
     remaining: string; spent: string; ofBudget: string;
     forecast: string; actual: string; planned: string;
@@ -600,6 +601,7 @@ export const I18N: Record<Lang, I18N> = {
       all: 'Alle', month: 'Monat', week: 'Woche', day: 'Tag',
       search: 'Suchen…', add: 'Hinzufügen', addTx: 'Transaktion',
       filter: 'Filter', cancel: 'Abbrechen', close: 'Schließen', save: 'Speichern', delete: 'Löschen',
+      undo: 'Rückgängig', deleted: 'Gelöscht',
       vs: 'vs.', from: 'von', to: 'bis', compare: 'Vergleich',
       remaining: 'Verbleibend', spent: 'Ausgegeben', ofBudget: 'des Budgets',
       forecast: 'Prognose', actual: 'Ist', planned: 'Plan',
@@ -1211,6 +1213,7 @@ export const I18N: Record<Lang, I18N> = {
       all: 'All', month: 'Month', week: 'Week', day: 'Day',
       search: 'Search…', add: 'Add', addTx: 'Transaction',
       filter: 'Filter', cancel: 'Cancel', close: 'Close', save: 'Save', delete: 'Delete',
+      undo: 'Undo', deleted: 'Deleted',
       vs: 'vs.', from: 'from', to: 'to', compare: 'Compare',
       remaining: 'Remaining', spent: 'Spent', ofBudget: 'of budget',
       forecast: 'Forecast', actual: 'Actual', planned: 'Planned',

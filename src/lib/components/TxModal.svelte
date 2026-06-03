@@ -5,6 +5,7 @@
   import Sheet from './Sheet.svelte';
   import DateField from './DateField.svelte';
   import { settings, t, eurDecimals } from '$lib/settings.svelte';
+  import { snackbar } from '$lib/snackbar.svelte';
 
   interface Props {
     open?: boolean;
@@ -21,6 +22,7 @@
   let { open = true, tx, accounts, categories, onClose, onSaved, onDeleted, onCategoryCreated, defaultAccountId }: Props = $props();
 
   const tx_ = () => t().common as unknown as Record<string, string | undefined>;
+  const tc = $derived(t().common);
 
   let buckets = $state<Bucket[]>([]);
   let bucketCashMap = $state<Map<number, number>>(new Map());
@@ -118,7 +120,6 @@
 
   let saving = $state(false);
   let deleting = $state(false);
-  let confirmingDelete = $state(false);
   let error = $state<string | null>(null);
 
   // Live category suggestion
@@ -259,20 +260,22 @@
 
   async function doDelete() {
     if (!tx) return;
-    if (!confirmingDelete) {
-      confirmingDelete = true;
-      return;
-    }
+    const id = tx.id;
+    const wasTrade = isTradeTx(tx);
     deleting = true;
     error = null;
     try {
-      if (isTradeTx(tx)) {
-        await api.deleteTrade(tx.id);
+      if (wasTrade) {
+        await api.deleteTrade(id);
       } else {
-        await api.deleteTransaction(tx.id);
+        await api.deleteTransaction(id);
       }
-      onDeleted?.(tx.id);
+      onDeleted?.(id);
       onClose();
+      snackbar.showUndo(tc.deleted, tc.undo, async () => {
+        await api.restoreTransaction(id);
+        onDeleted?.(id);
+      });
     } catch (e) {
       error = errMsg(e);
       deleting = false;
@@ -502,7 +505,7 @@
           onclick={doDelete}
           disabled={deleting}
         >
-          {confirmingDelete ? t().common.confirmDelete : t().common.delete}
+          {t().common.delete}
         </button>
       {/if}
       <button class="btn" onclick={onClose}>{t().common.cancel}</button>

@@ -29,6 +29,7 @@
   import SyncConflictModal from '$lib/components/SyncConflictModal.svelte';
   import OnboardingWizard from '$lib/components/OnboardingWizard.svelte';
   import TourOverlay from '$lib/components/TourOverlay.svelte';
+  import Snackbar from '$lib/components/Snackbar.svelte';
   import { settings as appSettings, setOnboardingCompleted } from '$lib/settings.svelte';
   import {
     evaluateAutoStart,
@@ -252,6 +253,7 @@
 
 <OnboardingWizard />
 <TourOverlay />
+<Snackbar />
 
 <div id="live-announcer" aria-live="polite" aria-atomic="true" style="position:absolute;width:1px;height:1px;padding:0;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0"></div>
 

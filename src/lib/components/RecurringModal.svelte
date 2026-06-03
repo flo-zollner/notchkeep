@@ -8,6 +8,7 @@
     type RecurringPayment, type Account, type Category,
     type NewRecurringPayload, type UpdateRecurringPayload, errMsg} from '$lib/api';
   import { fmtEurInput, parseEur } from '$lib/format';
+  import { snackbar } from '$lib/snackbar.svelte';
 
   interface Props {
     recurring: RecurringPayment | null;
@@ -45,10 +46,10 @@
   let formNote = $state(recurring?.note ?? '');
 
   let saving = $state(false);
-  let confirmingDelete = $state(false);
   let error = $state<string | null>(null);
 
   const tr = $derived(t().recurring);
+  const tc = $derived(t().common);
 
   function parseAmountCents(): number | null {
     const n = parseEur(formAmount);
@@ -104,16 +105,18 @@
 
   async function remove() {
     if (!recurring) return;
-    if (!confirmingDelete) {
-      confirmingDelete = true;
-      return;
-    }
+    const id = recurring.id;
     try {
-      await api.deleteRecurring(recurring.id);
-      onDeleted?.();
+      await api.deleteRecurring(id);
     } catch (e) {
       error = errMsg(e);
+      return;
     }
+    onDeleted?.();
+    snackbar.showUndo(tc.deleted, tc.undo, async () => {
+      await api.restoreRecurring(id);
+      onSaved();
+    });
   }
 </script>
 
@@ -122,7 +125,7 @@
     <div class="footer-actions">
       {#if isEdit}
         <button type="button" class="btn danger" onclick={remove}>
-          {confirmingDelete ? tr.confirmDelete : t().common.delete}
+          {t().common.delete}
         </button>
       {/if}
       <button type="button" class="btn" onclick={onClose}>{t().common.cancel}</button>
