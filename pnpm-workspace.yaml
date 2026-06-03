@@ -1,2 +1,6 @@
 allowBuilds:
   esbuild: true
+# Force the transitive `cookie` dep (via @sveltejs/kit, build-time only) past the
+# GHSA-pxg6-pf52-xh8x fix line. kit still declares ^0.6.0; 0.7.x is API-compatible.
+overrides:
+  cookie@<0.7.0: ">=0.7.0 <0.8.0"
