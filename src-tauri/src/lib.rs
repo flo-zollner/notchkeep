@@ -216,6 +216,8 @@ pub fn run() {
             check_sync_conflicts,
             resolve_conflict_keep_current,
             resolve_conflict_use_other,
+            crate::commands::updater::updater_check,
+            crate::commands::updater::updater_download_install,
         ])
         .setup(|app| {
             let data_dir = {
@@ -284,6 +286,8 @@ pub fn run() {
                 device_id: device_id.clone(),
                 hostname: hostname.clone(),
             });
+            // Desktop updater: holds the pending Update between check and install.
+            app.manage(crate::commands::updater::PendingUpdate::default());
 
             // 6e: ProviderState + background price refresh.
             use crate::pricing_provider::yahoo::YahooProvider;

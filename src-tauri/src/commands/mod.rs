@@ -18,3 +18,4 @@ pub mod rules;
 pub mod securities;
 pub mod trades;
 pub mod transactions;
+pub mod updater;
