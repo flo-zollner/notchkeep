@@ -74,7 +74,7 @@ use crate::commands::trades::{create_trade, delete_trade, get_trade, list_trades
 use crate::commands::transactions::{
     aggregate_transactions, assign_account, assign_bucket, assign_category,
     cleanup_phantom_mirrors, create_transaction, delete_transaction, detect_transfers,
-    list_transactions, suggest_category, update_transaction,
+    list_transactions, restore_transaction, suggest_category, update_transaction,
 };
 use crate::db::lock::AcquireOutcome;
 
@@ -105,6 +105,7 @@ pub fn run() {
             create_transaction,
             update_transaction,
             delete_transaction,
+            restore_transaction,
             suggest_category,
             assign_category,
             list_categories,

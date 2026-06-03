@@ -236,11 +236,7 @@ pub async fn list_trades(
 }
 
 pub async fn delete_trade(pool: &SqlitePool, tx_id: i64) -> DbResult<bool> {
-    let res = sqlx::query("DELETE FROM transactions WHERE id = ?1")
-        .bind(tx_id)
-        .execute(pool)
-        .await?;
-    Ok(res.rows_affected() > 0)
+    crate::db::transactions::move_transaction_to_trash(pool, tx_id).await
 }
 
 pub async fn update_trade(
@@ -1328,5 +1324,99 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(amt, -10000, "Rollback: amount_cents unchanged");
+    }
+
+    #[tokio::test]
+    async fn trash_and_restore_trade_round_trips() {
+        let pool = connect_memory().await.unwrap();
+        let (acc, sec) = setup_broker_and_security(&pool).await;
+
+        let created = create_trade(
+            &pool,
+            NewTradePayload {
+                account_id: acc,
+                security_id: sec,
+                booking_date: "2026-05-20".into(),
+                side: "buy".into(),
+                shares_micro: 2_000_000,
+                unit_price_micro: Some(50_000_000),
+                fee_cents: 100,
+                kest_cents: 0,
+                withholding_tax_cents: 0,
+                fx_rate_micro: None,
+                amount_cents: -10_100,
+                currency: None,
+                counterparty: None,
+                manual_note: None,
+                holding_account_id: None,
+            },
+        )
+        .await
+        .unwrap();
+        let tx_id = created.tx.id;
+
+        // move to trash via delete_trade (now delegates to move_transaction_to_trash)
+        let moved = delete_trade(&pool, tx_id).await.unwrap();
+        assert!(moved);
+
+        let (live_tx,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM transactions")
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+        assert_eq!(live_tx, 0, "live transactions must be empty");
+
+        let (live_st,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM securities_trades")
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+        assert_eq!(live_st, 0, "live securities_trades must be empty");
+
+        let (del_tx,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM deleted_transactions")
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+        assert_eq!(del_tx, 1, "deleted_transactions must hold 1 row");
+
+        let (del_st,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM deleted_securities_trades")
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+        assert_eq!(del_st, 1, "deleted_securities_trades must hold 1 row");
+
+        // restore
+        let restored = crate::db::transactions::restore_transaction(&pool, tx_id)
+            .await
+            .unwrap();
+        assert!(restored);
+
+        let (live_tx2,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM transactions")
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+        assert_eq!(
+            live_tx2, 1,
+            "live transactions must hold 1 row after restore"
+        );
+
+        let (live_st2,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM securities_trades")
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+        assert_eq!(
+            live_st2, 1,
+            "live securities_trades must hold 1 row after restore"
+        );
+
+        // tx_id is preserved and trade is linked back
+        let (st_tx_id,): (i64,) =
+            sqlx::query_as("SELECT tx_id FROM securities_trades WHERE tx_id = ?1")
+                .bind(tx_id)
+                .fetch_one(&pool)
+                .await
+                .unwrap();
+        assert_eq!(
+            st_tx_id, tx_id,
+            "securities_trades.tx_id must match original"
+        );
     }
 }

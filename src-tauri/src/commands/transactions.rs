@@ -557,17 +557,19 @@ pub async fn update_transaction(
 pub async fn delete_transaction(state: State<'_, DbState>, id: i64) -> Result<(), CommandError> {
     let pool = state.pool();
     assert_not_trade_tx(&pool, id).await?;
-    let rows = sqlx::query("DELETE FROM transactions WHERE id = ?")
-        .bind(id)
-        .execute(&pool)
-        .await?
-        .rows_affected();
-    if rows == 0 {
+    let ok = crate::db::transactions::move_transaction_to_trash(&pool, id).await?;
+    if !ok {
         return Err(CommandError {
             message: format!("transaction {id} not found"),
         });
     }
     Ok(())
+}
+
+#[tauri::command]
+pub async fn restore_transaction(state: State<'_, DbState>, id: i64) -> Result<bool, CommandError> {
+    let pool = state.pool();
+    Ok(crate::db::transactions::restore_transaction(&pool, id).await?)
 }
 
 #[derive(Debug, Clone, Serialize)]
