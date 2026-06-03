@@ -3,7 +3,6 @@
   "version": "0.2.4-rc.1",
   "description": "Notchkeep — Simple Personal Networth",
   "type": "module",
-  "packageManager": "pnpm@11.1.2",
   "scripts": {
     "dev": "vite dev",
     "dev:mock": "vite dev --mode mock",
