@@ -262,9 +262,18 @@ jobs:
       - name: Remove unneeded .sig assets (signatures are inline in the manifests)
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # This job has no checkout, so gh cannot infer the repo from .git.
+          # Without GH_REPO, `gh release view` fails ("not a git repository") and
+          # the prune silently does nothing. Tell gh the repo explicitly.
+          GH_REPO: ${{ github.repository }}
         run: |
           TAG="${GITHUB_REF_NAME}"
-          mapfile -t sigs < <(gh release view "$TAG" --json assets -q '.assets[].name' | grep '\.sig$' || true)
+          # No `|| true` on the gh call itself — if listing assets fails, the job
+          # must fail (not silently skip). `|| true` is only for grep, which exits
+          # 1 when no asset matches.
+          assets="$(gh release view "$TAG" --json assets -q '.assets[].name')"
+          mapfile -t sigs < <(printf '%s\n' "$assets" | grep '\.sig$' || true)
+          echo "found ${#sigs[@]} .sig asset(s) to prune"
           for a in "${sigs[@]}"; do
             [ -n "$a" ] || continue
             echo "deleting unneeded asset: $a"
