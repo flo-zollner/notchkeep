@@ -1,21 +1,25 @@
-# Notchkeep v0.2.3 — Wartung & CI
+# Notchkeep v0.2.4-rc.1 — Release Candidate (CI-Sicherheit & Release-Tuning)
 
 **Simple Personal Networth.**
 
-Wartungs-Release ohne funktionale Änderungen. Keine Breaking Changes, keine
-Datenmigration — der bestehende lokale Datenbestand bleibt unverändert.
-
-Wer auf **v0.2.2** ist und Auto-Updates aktiviert hat, bekommt dieses Update
-angeboten — es ist zugleich der erste Praxistest der Auto-Update-Kette.
+> **Hinweis: Dies ist ein Release Candidate (Vorabversion).** RC-Builds sind als
+> *Prerelease* markiert und werden **nicht** automatisch als Update angeboten —
+> die Auto-Update-Kette für stabile Nutzer bleibt unberührt. Zum Testen manuell
+> installieren. Keine Breaking Changes, keine Datenmigration — der bestehende
+> lokale Datenbestand bleibt unverändert.
 
 ## Änderungen (intern)
 
-- **CI-Testgate:** cargo-Tests (App + Plugins), Lizenz-Drift-Prüfung,
-  svelte-check, vitest und Playwright-e2e laufen jetzt bei jedem Push/PR — und
-  als Gate vor jedem Release (ein roter Test verhindert ein Release).
-- **Clippy als Gate:** alle Lints bereinigt, `clippy -D warnings` ist Teil der CI.
-- **Parallele Release-Pipeline:** Tests → Draft anlegen → die vier Builds
-  (Linux, Windows, macOS, Android) laufen parallel statt nacheinander.
+- **Security-/Quality-Pipeline in der CI:** statische Analyse, CVE-/Advisory-Scan
+  (cargo-deny, OSV), Pentest-Checks (Dateirechte, Logfile-PII, Zertifikats-,
+  Versions- und Update-Endpoint-Prüfung), SBOM-Erzeugung und ein SARIF-Report.
+  Lokale Check-Skripte und ein ESLint-Bug-Gate ergänzen das bestehende Testgate.
+- **DB-Dateirechte:** lokale SQLite-Datei wird mit `0600` (nur Eigentümer) angelegt.
+- **Schlankere Release-Artefakte:** die Windows-`.msi` (WiX) entfällt — die
+  NSIS-`.exe` deckt Installation **und** Update ab. Die redundanten standalone
+  `.sig`-Assets werden entfernt (die Signatur liegt inline im Update-Manifest).
+- **RC-Kanal:** Tags der Form `vX.Y.Z-rc.N` werden als Prerelease veröffentlicht
+  und vom Updater nie an stabile Nutzer ausgeliefert.
 
 Die in **v0.2.2** eingeführten Auto-Updates (Desktop via Tauri-Updater,
 Android via signiertem In-App-APK-Updater) sind unverändert enthalten.
@@ -31,7 +35,7 @@ opt-in Versions-Abruf, keine Telemetrie.
 Binary-Bundles für:
 - Linux (`.AppImage`, `.deb`, `.rpm`)
 - macOS (`.dmg`, Apple Silicon)
-- Windows (`.msi`, `.exe`)
+- Windows (`.exe`, NSIS)
 - Android (`.apk`)
 
 ## Build aus Source
