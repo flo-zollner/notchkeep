@@ -3,10 +3,11 @@
   import RulesModal from '$lib/components/RulesModal.svelte';
   import LicensesModal from '$lib/components/LicensesModal.svelte';
   import Icon from '$lib/components/Icon.svelte';
-  import { settings, setHide, setLang, setShowCents, setTheme, setUpdateConsent, t } from '$lib/settings.svelte';
+  import { settings, setHide, setLang, setShowCents, setTheme, setUpdateConsent, setReleaseChannel, t } from '$lib/settings.svelte';
   import { getVersion } from '@tauri-apps/api/app';
   import { checkNow, updateState, downloadAndInstall, skipCurrent, restart } from '$lib/updater/updater.svelte';
   import UpdateAvailableDialog from '$lib/components/UpdateAvailableDialog.svelte';
+  import ChannelWarningDialog from '$lib/components/ChannelWarningDialog.svelte';
   import { startOnboarding, startTour } from '$lib/onboarding/onboarding.svelte';
   import ExportButton from '$lib/components/ExportButton.svelte';
   import KursRefreshButton from '$lib/components/KursRefreshButton.svelte';
@@ -85,6 +86,25 @@
     if (hasUpdate) { showUpdate = true; checkMessage = ''; }
     else if (updateState.status === 'error') checkMessage = t().updates.checkFailed;
     else checkMessage = t().updates.upToDate;
+  }
+
+  let showChannelWarning = $state(false);
+
+  // Deliberate deviation from the UX guide's "no confirm for reversible actions"
+  // (§9/§14): switching channel is reversible, but enabling prereleases is a
+  // consequential system decision (unstable builds, no auto-downgrade) — an
+  // informed confirm is justified (§11/§15), analogous to UpdateActivationDialog.
+  function selectChannel(c: 'stable' | 'beta') {
+    if (c === settings.releaseChannel) return;
+    if (c === 'beta') { showChannelWarning = true; return; } // confirm before enabling beta
+    setReleaseChannel('stable');
+  }
+  function confirmBeta() {
+    setReleaseChannel('beta');
+    showChannelWarning = false;
+  }
+  function cancelBeta() {
+    showChannelWarning = false; // selection stays 'stable'
   }
 
   function buildExportFilter(): ExportFilter {
@@ -274,6 +294,23 @@
 
     <div class="setting-row">
       <div>
+        <div class="sr-label">{t().updates.channelLabel}</div>
+        <div class="sr-sub">{t().updates.channelSub}</div>
+      </div>
+      <div class="seg">
+        <button
+          class:on={settings.releaseChannel === 'stable'}
+          onclick={() => selectChannel('stable')}
+        >{t().updates.channelStable}</button>
+        <button
+          class:on={settings.releaseChannel === 'beta'}
+          onclick={() => selectChannel('beta')}
+        >{t().updates.channelBeta}</button>
+      </div>
+    </div>
+
+    <div class="setting-row">
+      <div>
         <div class="sr-label">{t().updates.settingsToggle}</div>
       </div>
       <button
@@ -406,6 +443,10 @@
     onClose={() => (showUpdate = false)}
     onRestart={() => restart()}
   />
+{/if}
+
+{#if showChannelWarning}
+  <ChannelWarningDialog onConfirm={confirmBeta} onCancel={cancelBeta} />
 {/if}
 
 <style>
