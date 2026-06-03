@@ -1,15 +1,17 @@
 import { invoke, Channel } from '@tauri-apps/api/core';
 import { getVersion } from '@tauri-apps/api/app';
+import type { ReleaseChannel } from '../settings.svelte';
 import { isNewer } from './semver';
+import { updaterEndpoint } from './endpoints';
 
-const ENDPOINT = 'https://github.com/flo-zollner/notchkeep/releases/download/updater-latest/android-latest.json';
 type Manifest = { version: string; notes: string; url: string; sha256: string; signature: string; versionCode: number };
 let pending: Manifest | null = null;
 
 export const androidBackend = {
   supportsRestart: false,
-  async check(): Promise<{ version: string; notes: string } | null> {
-    const m = await invoke<Manifest>('plugin:apk-updater|check', { endpoint: ENDPOINT });
+  async check(channel: ReleaseChannel): Promise<{ version: string; notes: string } | null> {
+    const endpoint = updaterEndpoint(channel, 'android-latest.json');
+    const m = await invoke<Manifest>('plugin:apk-updater|check', { endpoint });
     const current = await getVersion();
     if (!isNewer(m.version, current)) { pending = null; return null; }
     pending = m;

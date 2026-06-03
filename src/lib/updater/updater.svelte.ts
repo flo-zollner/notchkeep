@@ -27,7 +27,7 @@ export async function runStartupFlow(): Promise<StartupAction> {
   if (first !== 'check') return first;
   try {
     updateState.status = 'checking';
-    const update = filterByChannel(await backend.check(), settings.releaseChannel);
+    const update = filterByChannel(await backend.check(settings.releaseChannel), settings.releaseChannel);
     if (!update) {
       updateState.status = 'idle';
       return 'idle';
@@ -55,7 +55,7 @@ export async function checkNow(): Promise<boolean> {
   try {
     updateState.status = 'checking';
     updateState.error = '';
-    const update = filterByChannel(await backend.check(), settings.releaseChannel);
+    const update = filterByChannel(await backend.check(settings.releaseChannel), settings.releaseChannel);
     if (!update) {
       updateState.status = 'idle';
       updateState.availableVersion = null;
