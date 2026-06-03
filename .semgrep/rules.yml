@@ -1,0 +1,20 @@
+rules:
+  - id: no-console-data
+    languages: [typescript]
+    severity: WARNING
+    message: "Avoid console logging that may include financial/PII data (CLAUDE.md)."
+    pattern: console.log(...)
+  - id: tauri-shell-open-untrusted
+    languages: [typescript]
+    severity: ERROR
+    message: "Opening untrusted URLs/paths via the opener plugin — validate first."
+    pattern-either:
+      - pattern: openUrl($X)
+      - pattern: openPath($X)
+  - id: rust-sql-format-string
+    languages: [rust]
+    severity: ERROR
+    message: "Build SQL via bound parameters, not format!/string concat (injection)."
+    pattern-either:
+      - pattern: sqlx::query(&format!(...))
+      - pattern: sqlx::query_as(&format!(...))

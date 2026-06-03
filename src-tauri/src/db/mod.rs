@@ -65,6 +65,24 @@ pub async fn connect_file(db_path: &Path) -> DbResult<SqlitePool> {
         .connect_with(opts)
         .await?;
     MIGRATOR.run(&pool).await?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        for ext in ["", "-wal", "-shm"] {
+            let p = if ext.is_empty() {
+                db_path.to_path_buf()
+            } else {
+                db_path.with_file_name(format!(
+                    "{}{}",
+                    db_path.file_name().unwrap().to_string_lossy(),
+                    ext
+                ))
+            };
+            if p.exists() {
+                let _ = std::fs::set_permissions(&p, std::fs::Permissions::from_mode(0o600));
+            }
+        }
+    }
     Ok(pool)
 }
 
@@ -404,6 +422,21 @@ mod tests {
             .unwrap();
             assert_eq!(rows.len(), 1, "column {col} missing");
         }
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn db_file_is_owner_only() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("app.db");
+        let _pool = connect_file(&path).await.unwrap();
+        let mode = std::fs::metadata(&path).unwrap().permissions().mode() & 0o077;
+        assert_eq!(
+            mode, 0,
+            "DB must not be group/other accessible, got {:o}",
+            mode
+        );
     }
 
     #[tokio::test]

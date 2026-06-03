@@ -16,7 +16,16 @@
     "test:ui": "vitest --ui",
     "gen:licenses": "cd src-tauri && cargo about generate about.hbs -o ../static/licenses.html && cd .. && node scripts/append-js-licenses.mjs",
     "gen:licenses:check": "cd src-tauri && cargo about generate about.hbs -o /dev/null",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "scan:pii": "bash scripts/scan-pii.sh",
+    "scan:versions": "node scripts/check-versions.mjs",
+    "scan:capabilities": "node scripts/audit-capabilities.mjs",
+    "scan:secrets-committed": "bash scripts/check-secrets-committed.sh",
+    "scan:update-endpoint": "node scripts/check-update-endpoint.mjs",
+    "deny": "cd src-tauri && cargo deny check",
+    "sbom": "cargo cyclonedx --manifest-path src-tauri/Cargo.toml -f json && cyclonedx-npm --output-file sbom-npm.json"
   },
   "license": "GPL-3.0-or-later",
   "dependencies": {
@@ -28,6 +37,7 @@
     "@tauri-apps/plugin-updater": "^2.10.1"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.60.0",
     "@sveltejs/adapter-static": "^3.0.6",
     "@sveltejs/kit": "^2.9.0",
@@ -35,10 +45,14 @@
     "@tauri-apps/cli": "^2",
     "@types/node": "^25.9.0",
     "@vitest/ui": "^4.1.7",
+    "eslint": "^10.4.1",
+    "eslint-plugin-svelte": "^3.19.0",
     "jsdom": "^29.1.1",
     "svelte": "^5.0.0",
     "svelte-check": "^4.0.0",
+    "svelte-eslint-parser": "^1.7.1",
     "typescript": "~5.6.2",
+    "typescript-eslint": "^8.60.1",
     "vite": "^6.0.3",
     "vitest": "^4.1.7"
   }
