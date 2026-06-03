@@ -1,12 +1,20 @@
 name: Setup build environment
 description: >-
-  Shared setup for the release build jobs: pnpm, Node, the Rust toolchain
-  (+ cache) and frontend dependencies. The repository must already be checked
+  Shared setup for CI and release jobs: pnpm, Node, frontend dependencies and
+  (optionally) the Rust toolchain + cache. The repository must already be checked
   out (a local composite action is only resolvable after checkout).
 
 inputs:
+  install-rust:
+    description: Install the Rust toolchain + cache. Set 'false' for frontend-only jobs.
+    required: false
+    default: 'true'
   rust-targets:
     description: Comma-separated Rust target triples to install (empty = host only).
+    required: false
+    default: ''
+  rust-components:
+    description: Comma-separated rustup components (e.g. 'clippy').
     required: false
     default: ''
   cache-key:
@@ -33,11 +41,14 @@ runs:
         cache: pnpm
 
     - name: Setup Rust
+      if: ${{ inputs.install-rust == 'true' }}
       uses: dtolnay/rust-toolchain@stable
       with:
         targets: ${{ inputs.rust-targets }}
+        components: ${{ inputs.rust-components }}
 
     - name: Rust cache
+      if: ${{ inputs.install-rust == 'true' }}
       uses: Swatinem/rust-cache@v2
       with:
         workspaces: src-tauri -> target

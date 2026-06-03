@@ -29,26 +29,12 @@ jobs:
             file \
             wget
 
-      - uses: pnpm/action-setup@v6
+      # Shared setup (pnpm, Node, Rust + clippy, cache, frontend deps).
+      - name: Setup build environment
+        uses: ./.github/actions/setup
         with:
-          version: 11
-
-      - uses: actions/setup-node@v6
-        with:
-          node-version: 22
-          cache: pnpm
-
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: clippy
-
-      - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: src-tauri -> target
-          key: ci-rust
-
-      - name: Install frontend dependencies
-        run: pnpm install --frozen-lockfile
+          rust-components: clippy
+          cache-key: ci-rust
 
       - name: Cargo test (app)
         run: cargo test --manifest-path src-tauri/Cargo.toml
@@ -71,17 +57,11 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - uses: pnpm/action-setup@v6
+      # Shared setup, frontend only (no Rust toolchain).
+      - name: Setup build environment
+        uses: ./.github/actions/setup
         with:
-          version: 11
-
-      - uses: actions/setup-node@v6
-        with:
-          node-version: 22
-          cache: pnpm
-
-      - name: Install frontend dependencies
-        run: pnpm install --frozen-lockfile
+          install-rust: 'false'
 
       - name: Svelte-check + tsc
         run: pnpm check
