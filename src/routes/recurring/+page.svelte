@@ -96,7 +96,7 @@
   <section>
     <h2>{tr.upcoming}</h2>
     {#if upcoming.length === 0}
-      <p class="muted">—</p>
+      <EmptyState icon="repeat" title="Keine anstehenden Zahlungen" description="Hier erscheinen demnächst fällige wiederkehrende Zahlungen." />
     {:else}
       <ul class="upcoming-list">
         {#each upcoming as u (`${u.recurring.id}-${u.occurrence.dueDate}`)}

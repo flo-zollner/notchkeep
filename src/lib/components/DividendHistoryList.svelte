@@ -2,6 +2,7 @@
   import { type DividendEntry } from '$lib/api';
   import { fmtEur } from '$lib/format';
   import { settings, t } from '$lib/settings.svelte';
+  import EmptyState from '$lib/components/EmptyState.svelte';
 
   interface Props {
     entries: DividendEntry[];
@@ -29,7 +30,7 @@
 </script>
 
 {#if entries.length === 0}
-  <div class="empty">{tp.emptyDividends}</div>
+  <EmptyState icon="trending" title="Noch keine Dividenden" description="Hier erscheinen erhaltene Dividenden, sobald welche gebucht sind." />
 {:else}
   {#each groups as g (g.year)}
     <div class="group">
@@ -51,12 +52,6 @@
 {/if}
 
 <style>
-  .empty {
-    padding: 24px;
-    text-align: center;
-    color: var(--text-faint);
-    font-size: 13px;
-  }
   .group {
     margin-bottom: 16px;
   }

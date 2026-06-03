@@ -10,6 +10,7 @@
     api,
   } from '$lib/api';
   import { fmtEur } from '$lib/format';
+  import EmptyState from '$lib/components/EmptyState.svelte';
   import Icon from '$lib/components/Icon.svelte';
   import InstitutionModal from '$lib/components/InstitutionModal.svelte';
   import KPI from '$lib/components/KPI.svelte';
@@ -178,7 +179,7 @@
     </section>
   {/if}
 {:else if !error}
-  <div class="empty">Institut nicht gefunden.</div>
+  <EmptyState icon="briefcase" title="Institut nicht gefunden" actionLabel="Zurück" onAction={() => goto('/institute')} />
 {/if}
 
 {#if editing && institution}

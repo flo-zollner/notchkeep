@@ -2,6 +2,7 @@
   import { api, type CategoryMonthBudget } from '$lib/api';
   import { fmtEur, fmtEurInput, parseEur } from '$lib/format';
   import { settings, t, eurDecimals } from '$lib/settings.svelte';
+  import EmptyState from '$lib/components/EmptyState.svelte';
 
   interface Props {
     year: number;
@@ -97,7 +98,7 @@
 {#if loading && matrix.length === 0}
   <div class="empty">…</div>
 {:else if matrix.length === 0}
-  <div class="empty">{t().budgets.notSet}</div>
+  <EmptyState icon="budget" title="Noch keine Budgets" description="Lege Budgets für deine Kategorien an, um Soll/Ist zu sehen." />
 {:else}
   <div class="table-wrap">
     <table class="year-table">
@@ -219,11 +220,5 @@
   }
   .muted {
     color: var(--text-faint);
-  }
-  .empty {
-    padding: 24px;
-    text-align: center;
-    color: var(--text-faint);
-    font-size: 13px;
   }
 </style>

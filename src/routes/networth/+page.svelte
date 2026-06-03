@@ -417,7 +417,7 @@
       </div>
     </div>
     {#if allocation.length === 0}
-      <div class="empty">—</div>
+      <EmptyState icon="networth" title="Keine Aufteilung" description="Sobald Konten mit Beständen existieren, erscheint hier die Aufteilung." />
     {:else}
       <figure class="chart-figure">
         <figcaption class="sr-only">{t().common.breakdown}</figcaption>
@@ -466,7 +466,7 @@
       <a class="btn" href="/accounts"><Icon name="plus" size={13} /> {t().common.addAccount}</a>
     </div>
     {#if activeAccounts.length === 0}
-      <div class="empty">—</div>
+      <EmptyState icon="accounts" title="Noch keine Konten" description="Lege Konten an, um deine Vermögensaufteilung zu sehen." />
     {:else}
       {#each accountsByKind as group (group.kind)}
         <div class="kind-section">

@@ -3,6 +3,7 @@
   import { fmtEur } from '$lib/format';
   import DateField from './DateField.svelte';
   import { settings, t, eurDecimals } from '$lib/settings.svelte';
+  import EmptyState from '$lib/components/EmptyState.svelte';
 
   type Range = '1d' | '1w' | '12m' | '3y' | '5y' | 'all' | 'manual';
   let range = $state<Range>('12m');
@@ -161,7 +162,7 @@
 {#if loading && data.length === 0}
   <div class="empty">…</div>
 {:else if data.length === 0}
-  <div class="empty">{tp.emptyPositions}</div>
+  <EmptyState icon="trending" title="Noch keine Positionen" description="Sobald du Trades erfasst, erscheint hier die Wertentwicklung." />
 {:else}
   <figure class="chart-wrap">
     <svg
@@ -256,12 +257,6 @@
   .seg button.on {
     color: var(--text);
     background: var(--surface-2);
-  }
-  .empty {
-    padding: 24px;
-    text-align: center;
-    color: var(--text-faint);
-    font-size: 13px;
   }
   .chart-wrap {
     position: relative;

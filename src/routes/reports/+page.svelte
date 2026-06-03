@@ -1,6 +1,7 @@
 <script lang="ts">
   import CashflowChart from '$lib/components/CashflowChart.svelte';
   import Donut from '$lib/components/Donut.svelte';
+  import EmptyState from '$lib/components/EmptyState.svelte';
   import Icon from '$lib/components/Icon.svelte';
   import SankeyChart from '$lib/components/SankeyChart.svelte';
   import DateField from '$lib/components/DateField.svelte';
@@ -354,8 +355,8 @@
   <div class="card card-pad-lg empty">…</div>
 {:else if tab === 'breakdown'}
   {#if breakdown.length === 0}
-    <div class="card card-pad-lg empty">
-      {t().common.spent}: 0 €
+    <div class="card card-pad-lg">
+      <EmptyState icon="reports" title="Noch keine Daten" description="Für den gewählten Zeitraum gibt es noch keine Buchungen." />
     </div>
   {:else}
     <div class="grid-12">
@@ -385,7 +386,7 @@
 {:else if tab === 'trend'}
   <div class="card card-pad-lg">
     {#if flow.length === 0}
-      <div class="empty">{t().common.spent}: 0 €</div>
+      <EmptyState icon="reports" title="Noch keine Daten" description="Für den gewählten Zeitraum gibt es noch keine Buchungen." />
     {:else}
       <CashflowChart data={chartData} height={300} hide={settings.hide} />
       <table>
@@ -526,7 +527,7 @@
     {#if cmpLoading && compareRows.length === 0}
       <div class="empty">…</div>
     {:else if compareRows.length === 0}
-      <div class="empty">{t().common.spent}: 0 €</div>
+      <EmptyState icon="reports" title="Noch keine Daten" description="Für den gewählten Zeitraum gibt es noch keine Buchungen." />
     {:else}
       <div class="compare-row compare-head">
         <span></span>
@@ -628,12 +629,6 @@
   }
   .compare-row:last-child {
     border-bottom: none;
-  }
-  .empty {
-    text-align: center;
-    color: var(--text-faint);
-    font-size: 13px;
-    padding: 24px;
   }
   .bud-bar-gap {
     margin-bottom: 12px;

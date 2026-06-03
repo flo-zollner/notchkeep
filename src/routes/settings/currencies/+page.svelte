@@ -4,6 +4,7 @@
   import { api, type CurrencyStatus, errMsg } from '$lib/api';
   import { parseEur } from '$lib/format';
   import AddCurrencyModal from '$lib/components/AddCurrencyModal.svelte';
+  import EmptyState from '$lib/components/EmptyState.svelte';
   import Icon from '$lib/components/Icon.svelte';
   import { t } from '$lib/settings.svelte';
 
@@ -159,7 +160,13 @@
   {#if loading}
     <div class="empty">…</div>
   {:else if currencies.length === 0}
-    <div class="empty">{tc.noRateYet}</div>
+    <EmptyState
+      icon="globe"
+      title="Noch keine Währungen"
+      description="Füge eine weitere Währung hinzu, um Wechselkurse zu pflegen."
+      actionLabel={tc.addBtn}
+      onAction={() => (addOpen = true)}
+    />
   {:else}
     <table>
       <thead>

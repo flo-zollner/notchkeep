@@ -13,6 +13,7 @@
   import { fmtEur } from '$lib/format';
   import AccountSettingsForm from '$lib/components/AccountSettingsForm.svelte';
   import CashflowChart from '$lib/components/CashflowChart.svelte';
+  import EmptyState from '$lib/components/EmptyState.svelte';
   import Icon from '$lib/components/Icon.svelte';
   import KPI from '$lib/components/KPI.svelte';
   import TxRow from '$lib/components/TxRow.svelte';
@@ -259,7 +260,13 @@
       </div>
     </div>
     {#if filteredTxs.length === 0}
-      <div class="empty">–</div>
+      <EmptyState
+        icon="search"
+        title="Keine Treffer"
+        description="Für die aktuelle Suche gibt es keine Buchungen."
+        actionLabel={search ? 'Suche zurücksetzen' : undefined}
+        onAction={search ? () => (search = '') : undefined}
+      />
     {:else}
       {#each filteredTxs as t (t.id)}
         <TxRow

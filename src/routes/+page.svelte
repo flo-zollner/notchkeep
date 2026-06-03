@@ -3,6 +3,7 @@
   import { goto } from '$app/navigation';
   import { api, listInstitutionsWithSummary, type Account, type Bucket, type Category, type Transaction, type InstitutionSummary, errMsg, isTradeTx} from '$lib/api';
   import { fmtEur } from '$lib/format';
+  import EmptyState from '$lib/components/EmptyState.svelte';
   import Icon from '$lib/components/Icon.svelte';
   import KPI from '$lib/components/KPI.svelte';
   import TxRow from '$lib/components/TxRow.svelte';
@@ -494,7 +495,13 @@
         {/each}
       </div>
     {:else if recent.length === 0}
-      <div class="empty">{t().common.importStatements}</div>
+      <EmptyState
+        icon="tx"
+        title="Noch keine Buchungen"
+        description="Erfasse deine erste Transaktion."
+        actionLabel={hasAccounts ? t().common.importStatements : undefined}
+        onAction={hasAccounts ? () => (showImportModal = true) : undefined}
+      />
     {:else}
       {#each groupByDay(recent) as group (group.date)}
         <div class="tx-list-day-header">
