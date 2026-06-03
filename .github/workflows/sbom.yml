@@ -1,6 +1,7 @@
 name: SBOM
+# Reusable: invoked by ci.yml on push/PR. Also runs on published releases.
 on:
-  push: { branches: [main] }
+  workflow_call:
   release: { types: [published] }
 permissions: { contents: read }
 jobs:

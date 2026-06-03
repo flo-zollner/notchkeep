@@ -1,9 +1,81 @@
 name: CI
+
+# Single consolidated pipeline for push (main) and pull requests. Each check is
+# a reusable workflow called as a stage; the final `report` job summarises all
+# stage results into the run summary (Actions → this run → Summary) so the whole
+# pipeline status is visible at a glance instead of as separate workflow runs.
+#
+# Sub-workflows also run on their own triggers outside of CI:
+#   security.yml, pentest.yml — nightly schedule
+#   sbom.yml                  — on published release
+# Run all gates locally before pushing with: pnpm verify
 on:
   pull_request:
   push: { branches: [main] }
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+
+concurrency:
+  group: "ci-${{ github.ref }}"
+  cancel-in-progress: true
+
 jobs:
-  gate:
+  test:
+    uses: ./.github/workflows/test.yml
+  static:
+    uses: ./.github/workflows/static.yml
+  security:
+    uses: ./.github/workflows/security.yml
+  pentest:
+    uses: ./.github/workflows/pentest.yml
+  sbom:
+    uses: ./.github/workflows/sbom.yml
+
+  report:
+    name: Report
+    needs: [test, static, security, pentest, sbom]
+    if: always()
     runs-on: ubuntu-latest
     steps:
-      - run: echo "Required checks for branch protection — Static / Security (cargo-deny) / Pentest checks / Test"
+      - name: Consolidated report
+        env:
+          R_TEST: ${{ needs.test.result }}
+          R_STATIC: ${{ needs.static.result }}
+          R_SECURITY: ${{ needs.security.result }}
+          R_PENTEST: ${{ needs.pentest.result }}
+          R_SBOM: ${{ needs.sbom.result }}
+        run: |
+          icon() {
+            case "$1" in
+              success)   echo "✅";;
+              failure)   echo "❌";;
+              cancelled) echo "🚫";;
+              skipped)   echo "⏭️";;
+              *)         echo "❔";;
+            esac
+          }
+          {
+            echo "## CI Pipeline"
+            echo ""
+            echo "| Stage | Result |"
+            echo "|---|---|"
+            echo "| Test — cargo test, vitest, e2e, licenses | $(icon "$R_TEST") $R_TEST |"
+            echo "| Static — lint, check, clippy, build-smoke, hygiene | $(icon "$R_STATIC") $R_STATIC |"
+            echo "| Security — cargo-deny, osv, semgrep, codeql | $(icon "$R_SECURITY") $R_SECURITY |"
+            echo "| Pentest — invariants, db-permissions | $(icon "$R_PENTEST") $R_PENTEST |"
+            echo "| SBOM — cargo + npm CycloneDX (informational) | $(icon "$R_SBOM") $R_SBOM |"
+          } >> "$GITHUB_STEP_SUMMARY"
+          # Gate: the required stages must succeed. SBOM is informational and does
+          # not block (it uploads an artifact; a hiccup there shouldn't fail CI).
+          fail=0
+          for s in "$R_TEST" "$R_STATIC" "$R_SECURITY" "$R_PENTEST"; do
+            [ "$s" = "success" ] || fail=1
+          done
+          if [ "$fail" = "1" ]; then
+            echo "::error::CI pipeline failed — see the report in the run summary."
+            exit 1
+          fi
+          echo "All required stages passed."
