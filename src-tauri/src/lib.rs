@@ -33,7 +33,7 @@ use crate::commands::bucket_rules::{
 };
 use crate::commands::buckets::{
     bucket_balance, create_bucket, delete_bucket, get_bucket, list_bucket_progress, list_buckets,
-    update_bucket,
+    restore_bucket, update_bucket,
 };
 use crate::commands::budgets::{
     clear_budget, investment_flow_for_month, list_budget_overrides, month_overview, set_budget,
@@ -61,10 +61,11 @@ use crate::commands::prices::{
 };
 use crate::commands::recurring::{
     create_recurring, delete_recurring, detect_recurring, get_recurring, list_recurring,
-    recurring_overview, update_recurring,
+    recurring_overview, restore_recurring, update_recurring,
 };
 use crate::commands::rules::{
-    apply_rule_to_existing, create_rule, delete_rule, list_rules, preview_rule_match, update_rule,
+    apply_rule_to_existing, create_rule, delete_rule, list_rules, preview_rule_match, restore_rule,
+    update_rule,
 };
 use crate::commands::securities::{
     create_security, delete_security, get_security, list_securities, update_security,
@@ -115,6 +116,7 @@ pub fn run() {
             create_rule,
             update_rule,
             delete_rule,
+            restore_rule,
             apply_rule_to_existing,
             preview_rule_match,
             monthly_spending,
@@ -132,6 +134,7 @@ pub fn run() {
             create_bucket,
             update_bucket,
             delete_bucket,
+            restore_bucket,
             bucket_balance,
             list_bucket_progress,
             ready_to_assign,
@@ -189,6 +192,7 @@ pub fn run() {
             create_recurring,
             update_recurring,
             delete_recurring,
+            restore_recurring,
             recurring_overview,
             detect_recurring,
             detect_transfers,

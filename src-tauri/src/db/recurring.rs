@@ -116,7 +116,7 @@ pub async fn create_recurring(
 }
 
 pub async fn get_recurring(pool: &SqlitePool, id: i64) -> DbResult<RecurringPayment> {
-    let sql = format!("SELECT {COLS} FROM recurring_payments WHERE id = ?1");
+    let sql = format!("SELECT {COLS} FROM recurring_payments WHERE id = ?1 AND deleted_at IS NULL");
     Ok(sqlx::query_as(&sql).bind(id).fetch_one(pool).await?)
 }
 
@@ -126,10 +126,16 @@ pub async fn list_recurring(
 ) -> DbResult<Vec<RecurringPayment>> {
     let sql = if include_archived {
         format!(
-            "SELECT {COLS} FROM recurring_payments ORDER BY archived ASC, name COLLATE NOCASE ASC"
+            "SELECT {COLS} FROM recurring_payments \
+             WHERE deleted_at IS NULL \
+             ORDER BY archived ASC, name COLLATE NOCASE ASC"
         )
     } else {
-        format!("SELECT {COLS} FROM recurring_payments WHERE archived = 0 ORDER BY name COLLATE NOCASE ASC")
+        format!(
+            "SELECT {COLS} FROM recurring_payments \
+             WHERE archived = 0 AND deleted_at IS NULL \
+             ORDER BY name COLLATE NOCASE ASC"
+        )
     };
     Ok(sqlx::query_as(&sql).fetch_all(pool).await?)
 }
@@ -194,10 +200,24 @@ pub async fn update_recurring(
 }
 
 pub async fn delete_recurring(pool: &SqlitePool, id: i64) -> DbResult<bool> {
-    let res = sqlx::query("DELETE FROM recurring_payments WHERE id = ?1")
-        .bind(id)
-        .execute(pool)
-        .await?;
+    let res = sqlx::query(
+        "UPDATE recurring_payments SET deleted_at = datetime('now') \
+         WHERE id = ?1 AND deleted_at IS NULL",
+    )
+    .bind(id)
+    .execute(pool)
+    .await?;
+    Ok(res.rows_affected() > 0)
+}
+
+pub async fn restore_recurring(pool: &SqlitePool, id: i64) -> DbResult<bool> {
+    let res = sqlx::query(
+        "UPDATE recurring_payments SET deleted_at = NULL \
+         WHERE id = ?1 AND deleted_at IS NOT NULL",
+    )
+    .bind(id)
+    .execute(pool)
+    .await?;
     Ok(res.rows_affected() > 0)
 }
 
@@ -692,14 +712,37 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn delete_removes_and_returns_bool() {
+    async fn soft_delete_hides_from_list_and_get() {
         let pool = connect_memory().await.unwrap();
         let acc = seed_account(&pool).await;
         let r = create_recurring(&pool, sample_payload(acc)).await.unwrap();
 
         assert!(delete_recurring(&pool, r.id).await.unwrap());
+        // Hidden from both list variants.
+        assert!(list_recurring(&pool, false).await.unwrap().is_empty());
+        assert!(list_recurring(&pool, true).await.unwrap().is_empty());
+        // get returns error (row not found via deleted_at IS NULL filter).
         assert!(get_recurring(&pool, r.id).await.is_err());
+        // Second delete returns false (already soft-deleted).
         assert!(!delete_recurring(&pool, r.id).await.unwrap());
+    }
+
+    #[tokio::test]
+    async fn restore_recurring_brings_it_back() {
+        let pool = connect_memory().await.unwrap();
+        let acc = seed_account(&pool).await;
+        let r = create_recurring(&pool, sample_payload(acc)).await.unwrap();
+
+        assert!(delete_recurring(&pool, r.id).await.unwrap());
+        assert!(list_recurring(&pool, true).await.unwrap().is_empty());
+
+        assert!(restore_recurring(&pool, r.id).await.unwrap());
+        let listed = list_recurring(&pool, true).await.unwrap();
+        assert_eq!(listed.len(), 1);
+        assert_eq!(listed[0].id, r.id);
+
+        // Double-restore returns false (already active).
+        assert!(!restore_recurring(&pool, r.id).await.unwrap());
     }
 
     #[tokio::test]
