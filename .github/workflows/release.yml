@@ -15,16 +15,50 @@ permissions:
   contents: write
 
 jobs:
-  # Gate: erst alle Tests grün, dann erst bauen + releasen. Verhindert ein
-  # kaputtes Release. Wiederverwendeter Workflow (gleich wie CI bei Push/PR).
-  test:
-    uses: ./.github/workflows/test.yml
+  # Gate: nicht erneut testen — die CI (ci.yml) lief bereits beim Push des
+  # getaggten Commits auf main (static → test → security → pentest). Wir warten,
+  # bis dieser CI-Run für GENAU diesen Commit erfolgreich abgeschlossen ist, und
+  # bauen erst dann. Das vermeidet den doppelten Lauf der Test-Suite pro Release.
+  # Existiert kein grüner CI-Run für den Commit (ungetaggter/ungetesteter Stand),
+  # bricht der Release ab.
+  await-ci:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require a successful CI run on this commit
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          REPO="${GITHUB_REPOSITORY}"
+          SHA="${GITHUB_SHA}"
+          echo "Waiting for ci.yml to conclude on ${SHA} …"
+          deadline=$(( SECONDS + 2400 ))   # up to 40 min
+          while [ "${SECONDS}" -lt "${deadline}" ]; do
+            out="$(gh api \
+              "repos/${REPO}/actions/workflows/ci.yml/runs?head_sha=${SHA}&per_page=1" \
+              --jq '.workflow_runs[0] | "\(.status // "none") \(.conclusion // "none")"' \
+              2>/dev/null || echo "none none")"
+            status="${out%% *}"
+            conclusion="${out##* }"
+            echo "ci.yml: status=${status} conclusion=${conclusion}"
+            if [ "${status}" = "completed" ]; then
+              if [ "${conclusion}" = "success" ]; then
+                echo "CI passed on ${SHA} — proceeding to release."
+                exit 0
+              fi
+              echo "::error::CI concluded '${conclusion}' on ${SHA} — refusing to release."
+              exit 1
+            fi
+            sleep 30
+          done
+          echo "::error::Timed out waiting for CI on ${SHA}."
+          exit 1
 
-  # Legt das Draft-Release EINMAL an (nach grünen Tests), bevor die vier
+  # Legt das Draft-Release EINMAL an (nachdem CI grün ist), bevor die vier
   # Build-Jobs parallel ihre Artefakte hochladen. Vermeidet das Race, das
   # entstünde, wenn jeder Build das Release selbst anlegen wollte.
   create-release:
-    needs: [test]
+    needs: [await-ci]
     runs-on: ubuntu-latest
     outputs:
       release_id: ${{ steps.create.outputs.release_id }}
