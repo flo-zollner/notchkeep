@@ -1,4 +1,3 @@
-import type { Institution } from '$lib/api';
 import type { HandlerRegistry } from '../tauri-shim';
 import type { MockStore } from '../store';
 import { mockAccountBalanceCents } from './accounts';

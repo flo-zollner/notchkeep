@@ -4,7 +4,6 @@
   import DepotTxModal from '$lib/components/DepotTxModal.svelte';
   import type { ExportFilter, Institution } from '$lib/api';
   import Icon from '$lib/components/Icon.svelte';
-  import KPI from '$lib/components/KPI.svelte';
   import TxRow from '$lib/components/TxRow.svelte';
   import TxModal from '$lib/components/TxModal.svelte';
   import TradeModal from '$lib/components/TradeModal.svelte';
@@ -75,9 +74,6 @@
     if (selectedIds.has(id)) selectedIds.delete(id);
     else selectedIds.add(id);
     selectedIds = new Set(selectedIds);
-  }
-  function selectAllVisible() {
-    selectedIds = new Set(transactions.map((t) => t.id));
   }
   function clearSelection() {
     selectedIds = new Set();
@@ -411,9 +407,7 @@
       </button>
     {/if}
     <OverflowMenu>
-      {#snippet children()}
-        <ExportButton getFilter={buildExportFilter} />
-      {/snippet}
+      <ExportButton getFilter={buildExportFilter} />
     </OverflowMenu>
     <div class="new-dropdown" data-tour="new-tx">
       <button

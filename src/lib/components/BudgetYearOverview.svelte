@@ -115,8 +115,6 @@
             <td class="sticky cat">{cat.name}</td>
             {#each matrix[ci] as cell, mi (mi)}
               {@const isEdit = editing?.catId === cat.id && editing?.month === mi + 1}
-              <!-- svelte-ignore a11y_click_events_have_key_events -->
-              <!-- svelte-ignore a11y_no_static_element_interactions -->
               <td
                 class="cell"
                 class:override={isOverride(cell)}

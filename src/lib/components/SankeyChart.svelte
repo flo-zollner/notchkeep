@@ -420,8 +420,6 @@
       {@const isClickable = n.canExpand || isOtherBucket || (n.categoryId !== null && n.categoryId > 0)}
       {@const fg = n.side === 'cashflow' ? '#fff' : contrastText(n.color)}
       {@const showCaret = n.canExpand || isOtherBucket}
-      <!-- svelte-ignore a11y_click_events_have_key_events -->
-      <!-- svelte-ignore a11y_no_static_element_interactions -->
       <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
       <g
         class="node"

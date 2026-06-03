@@ -150,19 +150,17 @@
     <div class="sub">{allAccounts.length} · {t().common.synced}</div>
   </div>
   <OverflowMenu>
-    {#snippet children()}
-      <div class="overflow-group-select">
-        <span class="overflow-group-label">{t().accounts.groupBy}</span>
-        <select bind:value={groupBy}>
-          <option value="institution">{t().accounts.groupByInstitution}</option>
-          <option value="flat">{t().accounts.groupByFlat}</option>
-        </select>
-      </div>
-      <button onclick={() => { openImportModal(null); }}>
-        <Icon name="download" size={16} />
-        {t().common.importStatements}
-      </button>
-    {/snippet}
+    <div class="overflow-group-select">
+      <span class="overflow-group-label">{t().accounts.groupBy}</span>
+      <select bind:value={groupBy}>
+        <option value="institution">{t().accounts.groupByInstitution}</option>
+        <option value="flat">{t().accounts.groupByFlat}</option>
+      </select>
+    </div>
+    <button onclick={() => { openImportModal(null); }}>
+      <Icon name="download" size={16} />
+      {t().common.importStatements}
+    </button>
   </OverflowMenu>
   <button class="btn accent" onclick={() => (creating = true)}>
     <Icon name="plus" size={13} />

@@ -1,6 +1,4 @@
 <script lang="ts">
-  import { goto } from '$app/navigation';
-
   interface HistoryPoint {
     m: string;
     v: number;
@@ -141,11 +139,6 @@
   function mapClientXToViewport(clientX: number, el: Element): number {
     const rect = el.getBoundingClientRect();
     return ((clientX - rect.left) / rect.width) * w;
-  }
-
-  function idxFromX(viewportX: number): number {
-    const rel = (viewportX - padL) / (w - padL - padR);
-    return Math.round(Math.max(0, Math.min(1, rel)) * (total - 1));
   }
 
   function handlePointerMove(ev: PointerEvent) {

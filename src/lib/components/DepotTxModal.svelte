@@ -1,9 +1,8 @@
 <script lang="ts">
   import { api, type Account, type Bucket, type Category, type SecurityTrade, type Security, type Transaction, type UpdateTradePayload, errMsg } from '$lib/api';
-  import { fmtEur, fmtNumInput, fmtEurInput, parseEur } from '$lib/format';
-  import Icon from './Icon.svelte';
+  import { fmtNumInput, fmtEurInput, parseEur } from '$lib/format';
   import SecurityPicker from './SecurityPicker.svelte';
-  import { settings, t } from '$lib/settings.svelte';
+  import { t } from '$lib/settings.svelte';
   import { snackbar } from '$lib/snackbar.svelte';
   import Sheet from './Sheet.svelte';
 
@@ -64,7 +63,6 @@
   });
 
   // ── Read-only context display ─────────────────────────────────────────────
-  const cashAccount = $derived(accounts.find((a) => a.id === tx.account_id));
   const category = $derived(
     tx.category_id != null ? categories.find((c) => c.id === tx.category_id) : undefined
   );
@@ -250,7 +248,7 @@
         <label>
           Cash-Konto
           <select bind:value={cashAccountId}>
-            {#each accounts.filter((a) => a.kind !== 'broker') as a}
+            {#each accounts.filter((a) => a.kind !== 'broker') as a (a.id)}
               <option value={a.id}>{a.name}</option>
             {/each}
           </select>
@@ -259,7 +257,7 @@
           Depot
           <select bind:value={depotAccountId}>
             <option value={null}>—</option>
-            {#each accounts.filter((a) => a.kind === 'broker') as a}
+            {#each accounts.filter((a) => a.kind === 'broker') as a (a.id)}
               <option value={a.id}>{a.name}</option>
             {/each}
           </select>

@@ -129,16 +129,20 @@ export default [
       // reactive-dependency touch, not a real unused expression.
       '@typescript-eslint/no-unused-expressions': 'off',
 
-      // --- Opinionated Svelte rules — warn, not error (require migration effort) ---
-      // svelte/prefer-svelte-reactivity: replace native Map/Set/Date with Svelte
-      // wrappers — valid advice, but a large migration; warn only for now.
-      'svelte/prefer-svelte-reactivity': 'warn',
+      // --- Svelte rules that don't fit this app — OFF ---
+      // svelte/prefer-svelte-reactivity: flags every native Map/Set/Date/
+      // URLSearchParams. In this codebase those are almost exclusively one-shot
+      // computations (chart math, formatting, lookups built fresh in $derived) —
+      // not long-lived reactive state. Converting them to Svelte* wrappers would be
+      // pointless churn and could change behavior/perf. Disabled; genuine reactive
+      // state uses $state/SvelteMap deliberately where needed.
+      'svelte/prefer-svelte-reactivity': 'off',
 
-      // svelte/no-navigation-without-resolve: goto() without resolve() can cause
-      // issues with page transitions, but many call sites are intentional fire-and-
-      // forget navigations.  Downgrade to warn so it doesn't block CI until the
-      // team decides on a migration strategy.
-      'svelte/no-navigation-without-resolve': 'warn',
+      // svelte/no-navigation-without-resolve: wants resolve() around every
+      // goto()/href. The app ships as adapter-static inside a Tauri WebView with no
+      // base path, so resolve() is effectively a no-op here. Disabled to avoid
+      // ~40 call sites of no-op churn.
+      'svelte/no-navigation-without-resolve': 'off',
 
       // no-empty: empty catch blocks are sometimes intentional (best-effort paths).
       // Warn instead of error so we notice them without blocking CI.
@@ -161,8 +165,9 @@ export default [
       'svelte/no-useless-children-snippet': 'warn',
 
       // svelte/prefer-writable-derived: refactoring suggestion ($state+$effect →
-      // writable $derived). Valid advice but not a bug; downgrade to warn.
-      'svelte/prefer-writable-derived': 'warn',
+      // writable $derived). A style preference, not a bug, and rewriting reactive
+      // code carries behavior risk for a single occurrence. Disabled.
+      'svelte/prefer-writable-derived': 'off',
     },
   },
 ];

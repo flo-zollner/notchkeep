@@ -6,7 +6,6 @@ import type {
   DividendEntry,
   TradeWithTx,
   AccountMarketValue,
-  PriceRow,
   RefreshReport,
   SecurityBucketAllocation,
   BucketHoldingRow,

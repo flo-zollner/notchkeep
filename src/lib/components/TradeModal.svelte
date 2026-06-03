@@ -191,7 +191,7 @@
     <label>
       {tt.side}
       <select bind:value={side}>
-        {#each SIDES as s}
+        {#each SIDES as s (s)}
           <option value={s}>{tt.sides[s]}</option>
         {/each}
       </select>
@@ -200,7 +200,7 @@
       Cash-Konto
       <select bind:value={cashAccountId}>
         <option value={null}>—</option>
-        {#each cashAccounts as a}
+        {#each cashAccounts as a (a.id)}
           <option value={a.id}>{a.name}</option>
         {/each}
       </select>
@@ -209,7 +209,7 @@
       Depot
       <select bind:value={depotAccountId}>
         <option value={null}>—</option>
-        {#each depotAccounts as a}
+        {#each depotAccounts as a (a.id)}
           <option value={a.id}>{a.name}</option>
         {/each}
       </select>

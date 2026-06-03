@@ -231,7 +231,7 @@
         {/if}
 
         {#if mode === 'bars'}
-          {#each flows as f, i (i)}
+          {#each flows as _f, i (i)}
             {@const r = rates[i]}
             {@const x = xSlot(i, flows.length)}
             {@const y0 = yForRate(0)}

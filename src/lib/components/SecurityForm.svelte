@@ -192,7 +192,7 @@
         <label>{ts.currency}<input type="text" bind:value={currency} maxlength="3" /></label>
         <label>{ts.assetType}
           <select bind:value={assetType}>
-            {#each ASSET_TYPES as at}
+            {#each ASSET_TYPES as at (at)}
               <option value={at}>{ts.types[at]}</option>
             {/each}
           </select>

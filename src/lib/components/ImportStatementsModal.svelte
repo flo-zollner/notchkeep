@@ -16,9 +16,7 @@
   const tc = $derived(t().common);
 
   type Parser = 'flatex' | 'tr' | 'sparkasse';
-  /* svelte-ignore state_referenced_locally */
   let parser = $state<Parser>('flatex');
-  /* svelte-ignore state_referenced_locally */
   let accountId = $state<number | null>(defaultAccountId);
   let pickedFiles = $state<File[]>([]);
   let busy = $state(false);
@@ -253,7 +251,7 @@
           <details class="warnings">
             <summary>{tc.importWarnings(report.warnings.length)}</summary>
             <ul>
-              {#each report.warnings as w}<li>{w}</li>{/each}
+              {#each report.warnings as w, i (i)}<li>{w}</li>{/each}
             </ul>
           </details>
         {/if}

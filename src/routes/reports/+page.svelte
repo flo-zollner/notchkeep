@@ -40,8 +40,6 @@
   const next = stepMonth(curYear, curMonth, 1);
   const thisTo = monthStart(next.y, next.m);
   const prev = stepMonth(curYear, curMonth, -1);
-  const prevFrom = monthStart(prev.y, prev.m);
-  const prevTo = thisFrom;
 
   let tab = $state<'breakdown' | 'trend' | 'compare' | 'composition'>('breakdown');
   let categories = $state<Category[]>([]);

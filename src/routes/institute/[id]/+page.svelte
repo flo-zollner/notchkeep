@@ -68,7 +68,7 @@
     void refresh();
   });
 
-  async function handleSaved(inst: Institution) {
+  async function handleSaved(_inst: Institution) {
     await refresh();
     editing = false;
     // If institution was deleted, refresh() will have set institution = null via error catch.

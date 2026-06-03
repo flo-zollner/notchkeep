@@ -1,15 +1,13 @@
 <script lang="ts">
   import { type DividendEntry } from '$lib/api';
   import { fmtEur } from '$lib/format';
-  import { settings, t } from '$lib/settings.svelte';
+  import { settings } from '$lib/settings.svelte';
   import EmptyState from '$lib/components/EmptyState.svelte';
 
   interface Props {
     entries: DividendEntry[];
   }
   let { entries }: Props = $props();
-
-  const tp = $derived(t().portfolio);
 
   type Group = { year: number; total: number; rows: DividendEntry[] };
 
