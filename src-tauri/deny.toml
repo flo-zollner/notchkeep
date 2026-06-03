@@ -1,6 +1,10 @@
 [advisories]
 db-urls = ["https://github.com/rustsec/advisory-db"]
 yanked = "deny"
+# Block on actual vulnerabilities; only flag "unmaintained" on OUR direct deps.
+# The remaining unmaintained advisories are transitive Tauri/gtk-rs upstream
+# crates we cannot upgrade — informational, not security holes.
+unmaintained = "workspace"
 
 [licenses]
 allow = [
