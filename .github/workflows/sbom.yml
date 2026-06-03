@@ -1,0 +1,24 @@
+name: SBOM
+on:
+  push: { branches: [main] }
+  release: { types: [published] }
+permissions: { contents: read }
+jobs:
+  sbom:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo install cargo-cyclonedx --locked
+      - run: cargo cyclonedx --manifest-path src-tauri/Cargo.toml -f json
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v5
+        with: { node-version: 22, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: npx -y @cyclonedx/cyclonedx-npm --output-file sbom-npm.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: |
+            **/*.cdx.json
+            sbom-npm.json
