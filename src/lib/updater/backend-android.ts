@@ -2,7 +2,7 @@ import { invoke, Channel } from '@tauri-apps/api/core';
 import { getVersion } from '@tauri-apps/api/app';
 import { isNewer } from './semver';
 
-const ENDPOINT = 'https://github.com/flo-zollner/notchkeep/releases/latest/download/android-latest.json';
+const ENDPOINT = 'https://github.com/flo-zollner/notchkeep/releases/download/updater-latest/android-latest.json';
 type Manifest = { version: string; notes: string; url: string; sha256: string; signature: string; versionCode: number };
 let pending: Manifest | null = null;
 
