@@ -79,3 +79,44 @@ describe('checkNow and skipCurrent', () => {
     expect(await runStartupFlow()).toBe('show-update');
   });
 });
+
+describe('release channel filtering', () => {
+  it('stable channel ignores a prerelease (startup → idle)', async () => {
+    settings.updateConsent = 'enabled';
+    settings.releaseChannel = 'stable';
+    checkMock.mockResolvedValue({ version: '0.3.0-rc.2', currentVersion: '0.2.4' });
+    expect(await runStartupFlow()).toBe('idle');
+    expect(updateState.availableVersion).toBeNull();
+  });
+
+  it('beta channel offers a prerelease (startup → show-update)', async () => {
+    settings.updateConsent = 'enabled';
+    settings.releaseChannel = 'beta';
+    checkMock.mockResolvedValue({ version: '0.3.0-rc.2', currentVersion: '0.2.4' });
+    expect(await runStartupFlow()).toBe('show-update');
+    expect(updateState.availableVersion).toBe('0.3.0-rc.2');
+  });
+
+  it('stable channel still offers a stable update', async () => {
+    settings.updateConsent = 'enabled';
+    settings.releaseChannel = 'stable';
+    checkMock.mockResolvedValue({ version: '0.3.0', currentVersion: '0.2.4' });
+    expect(await runStartupFlow()).toBe('show-update');
+  });
+
+  it('checkNow on stable returns false for a prerelease', async () => {
+    settings.updateConsent = 'enabled';
+    settings.releaseChannel = 'stable';
+    checkMock.mockResolvedValue({ version: '0.3.0-rc.2', currentVersion: '0.2.4' });
+    expect(await checkNow()).toBe(false);
+    expect(updateState.status).toBe('idle');
+  });
+
+  it('checkNow on beta returns true for a prerelease', async () => {
+    settings.updateConsent = 'enabled';
+    settings.releaseChannel = 'beta';
+    checkMock.mockResolvedValue({ version: '0.3.0-rc.2', currentVersion: '0.2.4' });
+    expect(await checkNow()).toBe(true);
+    expect(updateState.status).toBe('available');
+  });
+});

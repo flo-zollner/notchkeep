@@ -3,6 +3,7 @@ import { settings, setUpdateConsent, setSkippedVersion } from '../settings.svelt
 import { decideStartupAction, type StartupAction } from './decide';
 import { desktopBackend } from './backend-desktop';
 import { androidBackend } from './backend-android';
+import { filterByChannel } from './channel';
 
 export type UpdateStatus =
   | 'idle' | 'checking' | 'available' | 'downloading' | 'ready' | 'error';
@@ -26,7 +27,7 @@ export async function runStartupFlow(): Promise<StartupAction> {
   if (first !== 'check') return first;
   try {
     updateState.status = 'checking';
-    const update = await backend.check();
+    const update = filterByChannel(await backend.check(), settings.releaseChannel);
     if (!update) {
       updateState.status = 'idle';
       return 'idle';
@@ -54,7 +55,7 @@ export async function checkNow(): Promise<boolean> {
   try {
     updateState.status = 'checking';
     updateState.error = '';
-    const update = await backend.check();
+    const update = filterByChannel(await backend.check(), settings.releaseChannel);
     if (!update) {
       updateState.status = 'idle';
       updateState.availableVersion = null;
