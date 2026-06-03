@@ -1,5 +1,6 @@
 <script lang="ts">
   import Donut from '$lib/components/Donut.svelte';
+  import EmptyState from '$lib/components/EmptyState.svelte';
   import Icon from '$lib/components/Icon.svelte';
   import KPI from '$lib/components/KPI.svelte';
   import NetWorthChart from '$lib/components/NetWorthChart.svelte';
@@ -373,7 +374,11 @@
     {#if loading && history.length === 0}
       <div class="empty">…</div>
     {:else if history.length === 0}
-      <div class="empty">—</div>
+      <EmptyState
+        icon="networth"
+        title="Noch keine Vermögensdaten"
+        description="Lege Konten an und erfasse Buchungen — dann zeigt sich hier deine Vermögensentwicklung."
+      />
     {:else}
       <figure class="chart-figure">
         <figcaption class="sr-only">{t().common.forecast} — {range === 'all' ? t().common.all : range}</figcaption>

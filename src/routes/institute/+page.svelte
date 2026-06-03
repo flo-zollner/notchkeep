@@ -5,6 +5,7 @@
   import InstitutionModal from '$lib/components/InstitutionModal.svelte';
   import Skeleton from '$lib/components/Skeleton.svelte';
   import { t } from '$lib/settings.svelte';
+  import EmptyState from '$lib/components/EmptyState.svelte';
   import { listInstitutionsWithSummary, type InstitutionSummary } from '$lib/api';
 
   let institutions = $state<InstitutionSummary[]>([]);
@@ -48,13 +49,13 @@
     <Skeleton height={120} radius={12} />
   </div>
 {:else if institutions.length === 0}
-  <div class="empty">
-    <Icon name="briefcase" size={48} />
-    <p>{ti.empty ?? 'Noch keine Institute'}</p>
-    <button class="primary" type="button" onclick={() => (showModal = true)}>
-      {ti.emptyCta ?? 'Erstes Institut anlegen'}
-    </button>
-  </div>
+  <EmptyState
+    icon="briefcase"
+    title={ti.empty ?? 'Noch keine Institute'}
+    description="Lege deine erste Bank/Broker an."
+    actionLabel={ti.add ?? 'Institut anlegen'}
+    onAction={() => (showModal = true)}
+  />
 {:else}
   <div class="grid">
     {#each institutions as inst (inst.id)}

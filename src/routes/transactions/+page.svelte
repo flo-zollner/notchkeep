@@ -18,6 +18,7 @@
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
   import { groupByDay } from '$lib/tx-grouping';
+  import EmptyState from '$lib/components/EmptyState.svelte';
 
   let transactions = $state<Transaction[]>([]);
   let accounts = $state<Account[]>([]);
@@ -610,7 +611,23 @@
       {/each}
     </div>
   {:else if groupedFiltered.length === 0}
-    <div class="empty">—</div>
+    {#if hasFilter}
+      <EmptyState
+        icon="search"
+        title="Keine Treffer"
+        description="Für die aktuellen Filter gibt es keine Buchungen."
+        actionLabel="Filter zurücksetzen"
+        onAction={clearFilters}
+      />
+    {:else}
+      <EmptyState
+        icon="tx"
+        title="Noch keine Buchungen"
+        description="Erfasse deine erste Transaktion über das + unten."
+        actionLabel="Neue Transaktion"
+        onAction={openNewCash}
+      />
+    {/if}
   {:else}
     {#if selectedIds.size > 0}
       <div class="bulk-bar">
@@ -908,12 +925,7 @@
     color: var(--text-faint);
     display: inline-flex;
   }
-  .empty {
-    padding: 48px 0;
-    text-align: center;
-    color: var(--text-faint);
-  }
-  .date-group {
+.date-group {
     margin-bottom: 12px;
   }
   .tx-summary {

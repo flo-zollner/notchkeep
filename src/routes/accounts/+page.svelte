@@ -11,6 +11,7 @@
   import KPI from '$lib/components/KPI.svelte';
   import OverflowMenu from '$lib/components/OverflowMenu.svelte';
   import Skeleton from '$lib/components/Skeleton.svelte';
+  import EmptyState from '$lib/components/EmptyState.svelte';
   import { settings, t } from '$lib/settings.svelte';
 
   // i18n lookup without typed property access — missing keys fall back to the default via ??.
@@ -193,13 +194,13 @@
       <Skeleton height={18} marginTop={8} />
     </div>
   {:else if allAccounts.length === 0}
-    <div class="empty empty-cta">
-      <p>{tx().noAccountsYet ?? 'Noch kein Konto angelegt.'}</p>
-      <button class="btn accent" onclick={() => (creating = true)}>
-        <Icon name="plus" size={13} />
-        {t().common.addAccount}
-      </button>
-    </div>
+    <EmptyState
+      icon="accounts"
+      title="Noch keine Konten"
+      description="Lege dein erstes Konto an, um Buchungen zu erfassen."
+      actionLabel={t().common.addAccount}
+      onAction={() => (creating = true)}
+    />
   {:else if groupBy === 'institution'}
     {#each institutionSummaries as inst (inst.id)}
       {@const accountsInGroup = activeTopLevel.filter((a) => a.institution_id === inst.id)}

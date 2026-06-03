@@ -1,5 +1,6 @@
 <script lang="ts">
   import Icon from '$lib/components/Icon.svelte';
+  import EmptyState from '$lib/components/EmptyState.svelte';
   import SpendingHeatmap from '$lib/components/SpendingHeatmap.svelte';
   import BudgetYearOverview from '$lib/components/BudgetYearOverview.svelte';
   import { settings, t, eurDecimals } from '$lib/settings.svelte';
@@ -566,9 +567,11 @@
     {#if loading && monthRows.length === 0}
       <div class="empty">…</div>
     {:else if budgetedRows.length === 0 && unbudgetedRows.length === 0 && nonBudgetedSpentCents === 0}
-      <div class="empty">
-        {t().common.spent}: 0 € · {t().common.ofBudget}: 0 €
-      </div>
+      <EmptyState
+        icon="budget"
+        title="Noch keine Budget-Daten"
+        description="Sobald du Ausgaben in Kategorien erfasst, erscheinen hier deine Budgets."
+      />
     {:else}
       <div class="cat-grid">
         <!-- "Other" card always first -->

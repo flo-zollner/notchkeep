@@ -1,5 +1,6 @@
 <script lang="ts">
   import Icon from '$lib/components/Icon.svelte';
+  import EmptyState from '$lib/components/EmptyState.svelte';
   import SecurityForm from '$lib/components/SecurityForm.svelte';
   import TradeModal from '$lib/components/TradeModal.svelte';
   import HoldingRow from '$lib/components/HoldingRow.svelte';
@@ -178,7 +179,13 @@
   {#if loading && holdings.length === 0}
     <p class="muted">…</p>
   {:else if holdings.length === 0}
-    <div class="empty">{tp.emptyPositions}</div>
+    <EmptyState
+      icon="trending"
+      title="Noch keine Positionen"
+      description="Füge deinen ersten Trade hinzu."
+      actionLabel={t().trade.addTrade}
+      onAction={() => (addingTrade = true)}
+    />
   {:else}
     <ul class="hold-list">
       {#each holdings as h (h.securityId)}

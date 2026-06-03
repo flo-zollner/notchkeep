@@ -1,5 +1,6 @@
 <script lang="ts">
   import Icon from '$lib/components/Icon.svelte';
+  import EmptyState from '$lib/components/EmptyState.svelte';
   import RecurringModal from '$lib/components/RecurringModal.svelte';
   import DetectSuggestionsModal from '$lib/components/DetectSuggestionsModal.svelte';
   import UpcomingRow from '$lib/components/UpcomingRow.svelte';
@@ -113,7 +114,15 @@
         {tr.showArchived}
       </label>
     </div>
-    {#if recurrings.length === 0}
+    {#if recurrings.length === 0 && !showArchived}
+      <EmptyState
+        icon="repeat"
+        title="Keine wiederkehrenden Zahlungen"
+        description="Trag deine erste wiederkehrende Zahlung ein."
+        actionLabel={tr.add}
+        onAction={() => (addingNew = true)}
+      />
+    {:else if recurrings.length === 0}
       <p class="muted">—</p>
     {:else}
       <div class="rec-list">
