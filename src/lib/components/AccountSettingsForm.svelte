@@ -367,5 +367,5 @@
   .inst-create { display: flex; gap: 8px; align-items: center; margin-top: 6px; }
   .inst-create .input { flex: 1 1 auto; min-width: 0; }
   .actions { display: flex; justify-content: flex-end; gap: 8px; }
-  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .mono { font-family: var(--font-mono); }
 </style>

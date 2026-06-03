@@ -106,7 +106,7 @@
 
   .country-badge {
     font-size: 10px;
-    font-family: monospace;
+    font-family: var(--font-mono);
     padding: 2px 6px;
     border-radius: 4px;
     background: var(--surface);
