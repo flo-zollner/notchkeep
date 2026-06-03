@@ -25,7 +25,6 @@
     "scan:secrets-committed": "bash scripts/check-secrets-committed.sh",
     "scan:update-endpoint": "node scripts/check-update-endpoint.mjs",
     "deny": "cd src-tauri && cargo deny check",
-    "sbom": "cargo cyclonedx --manifest-path src-tauri/Cargo.toml -f json && cyclonedx-npm --ignore-npm-errors --output-file sbom-npm.json",
     "verify": "node scripts/verify.mjs"
   },
   "license": "GPL-3.0-or-later",
