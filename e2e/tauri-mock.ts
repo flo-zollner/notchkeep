@@ -120,7 +120,7 @@ export async function mockTauri(page: Page, opts: MockTauriOpts = {}): Promise<v
     // 3. Main invoke handler
     // ------------------------------------------------------------------ //
     async function invoke(cmd: string, args: Record<string, unknown> = {}): Promise<unknown> {
-      // ---------- updater ----------
+      // ---------- updater (legacy JS plugin path — kept for completeness) ----------
       if (cmd === 'plugin:updater|check') {
         if (options.updateVersion) {
           // Return the metadata shape that `new Update(metadata)` expects.
@@ -136,6 +136,19 @@ export async function mockTauri(page: Page, opts: MockTauriOpts = {}): Promise<v
           };
         }
         return null; // no update available
+      }
+
+      // ---------- desktop updater (custom Rust commands, per-channel endpoint) ----------
+      // backend-desktop.ts invokes these instead of the JS plugin so the manifest
+      // endpoint can be chosen per release channel at runtime. updater_check
+      // returns a plain { version, notes } | null (no Resource/rid needed).
+      if (cmd === 'updater_check') {
+        return options.updateVersion
+          ? { version: options.updateVersion, notes: 'Release notes' }
+          : null;
+      }
+      if (cmd === 'updater_download_install') {
+        return null;
       }
 
       // ---------- app version ----------
@@ -188,7 +201,14 @@ export async function mockTauri(page: Page, opts: MockTauriOpts = {}): Promise<v
       if (
         cmd.startsWith('list_') ||
         cmd.startsWith('search_') ||
-        cmd.startsWith('query_')
+        cmd.startsWith('query_') ||
+        // Dashboard/layout array-returning commands. Returning null here makes
+        // the dashboard throw (`.length`/`.filter` on null) during render; that
+        // uncaught error can abort the same Svelte flush that mounts an update
+        // dialog, so the dialog never appears. Keep these as [].
+        cmd === 'get_accounts' ||
+        cmd === 'monthly_cashflow' ||
+        cmd === 'month_overview'
       ) {
         return [];
       }
