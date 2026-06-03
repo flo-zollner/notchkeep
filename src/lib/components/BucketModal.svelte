@@ -121,6 +121,7 @@
     const id = bucket.id;
     try { await api.deleteBucket(id); } catch (e) { error = String(e); return; }
     onDeleted?.(id);
+    onSaved();
     onClose();
     snackbar.showUndo(tc.deleted, tc.undo, async () => {
       await api.restoreBucket(id);
