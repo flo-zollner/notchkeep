@@ -59,7 +59,7 @@
 <Sheet open={true} onClose={() => {}} title="Datenpfad nicht erreichbar" dismissable={false}>
   <p class="path">{badPath}</p>
   <p class="hint">{t().data.startupErrorHint}</p>
-  {#if error}<p class="error">{error}</p>{/if}
+  <p class="error" role="alert" aria-live="assertive">{error ?? ''}</p>
 
   {#snippet footer()}
     <div class="footer-actions">
@@ -72,7 +72,7 @@
 
 <style>
   .path {
-    margin: 0 0 12px 0; font-family: monospace; font-size: 12px;
+    margin: 0 0 12px 0; font-family: var(--font-mono); font-size: 12px;
     color: var(--text-muted); word-break: break-all;
   }
   .hint { font-size: 13px; color: var(--text-muted); margin: 0 0 16px 0; }
@@ -84,7 +84,7 @@
     flex-wrap: wrap;
   }
   button {
-    padding: 10px 14px; border-radius: 6px; border: 1px solid var(--border);
+    padding: 12px 14px; border-radius: var(--r-sm); border: 1px solid var(--border);
     background: var(--surface-2); color: var(--text); cursor: pointer; font: inherit;
     white-space: normal;
   }
@@ -94,6 +94,6 @@
   button:disabled { opacity: 0.5; cursor: wait; }
   @media (max-width: 599px) {
     .footer-actions { flex-direction: column; align-items: stretch; }
-    .footer-actions button { flex: 1 1 0; min-width: 0; min-height: 44px; }
+    .footer-actions button { flex: 1 1 0; min-width: 0; min-height: 48px; }
   }
 </style>

@@ -551,9 +551,11 @@
           {#if applyResult}
             <div class="info">{applyResult}</div>
           {/if}
-          {#if error}
-            <div class="error">{error}</div>
-          {/if}
+          <div class="error" class:visible={!!error} aria-live="polite" role="alert">
+            {#if error}
+              <Icon name="alert-circle" size={14} />{error}
+            {/if}
+          </div>
 
           <div class="actions">
             {#if selectedId !== null}
@@ -724,7 +726,7 @@
   }
   .cond-row {
     display: grid;
-    grid-template-columns: 130px 130px 1fr auto;
+    grid-template-columns: 1fr 1fr 1.5fr auto;
     gap: 6px;
     align-items: center;
   }
@@ -801,11 +803,16 @@
     font-size: 12px;
   }
   .error {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    border-radius: var(--r-sm);
+    font-size: 12px;
+  }
+  .error.visible {
     padding: 8px 10px;
     background: var(--negative-soft);
     color: var(--negative);
-    border-radius: var(--r-sm);
-    font-size: 12px;
   }
   .actions {
     display: flex;
@@ -823,7 +830,7 @@
     background: var(--negative-soft);
   }
   .toggle {
-    width: 38px;
+    width: 40px;
     height: 22px;
     border-radius: 99px;
     background: var(--border-strong);
@@ -849,7 +856,11 @@
     transition: left 0.15s;
   }
   .knob.on {
-    left: 18px;
+    left: 20px;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .toggle { transition: none; }
+    .knob   { transition: none; }
   }
   .muted {
     color: var(--text-muted);

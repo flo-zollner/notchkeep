@@ -161,8 +161,8 @@
   .actions { display: flex; gap: 8px; }
   .actions button {
     background: var(--surface-2); border: 1px solid var(--border);
-    border-radius: 8px; padding: 6px 12px; cursor: pointer;
-    font: inherit; color: var(--text); display: inline-flex; gap: 6px; align-items: center;
+    border-radius: 8px; padding: 8px 12px; cursor: pointer;
+    font: inherit; color: var(--text); display: inline-flex; gap: 8px; align-items: center;
     font-size: 13px;
   }
   .actions .primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
@@ -181,6 +181,6 @@
 
     /* Actions wrap below title */
     .actions { flex-wrap: wrap; gap: 8px; }
-    .actions button { min-height: var(--tap, 44px); }
+    .actions button { min-height: var(--tap, 48px); }
   }
 </style>

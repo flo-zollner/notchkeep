@@ -375,7 +375,7 @@
             <span class="num cat-val">{fmtEur(b.spentCents, { hide: settings.hide, decimals: eurDecimals() })}</span>
             <span class="num cat-pct">{p.toFixed(0)}%</span>
           </div>
-          <div class="bud-bar" style="margin-bottom: 11px;">
+          <div class="bud-bar bud-bar-gap">
             <div class="bud-fill" style:width={`${p}%`} style:background={b.color}></div>
           </div>
         {/each}
@@ -433,9 +433,9 @@
       </div>
     {:else}
       <div class="seg">
-        <button onclick={() => stepPickedMonth(-1)}>◀</button>
+        <button aria-label="Vorheriger Monat" onclick={() => stepPickedMonth(-1)}>◀</button>
         <button>{monthLabel(pickedYear, pickedMonth)}</button>
-        <button onclick={() => stepPickedMonth(1)}>▶</button>
+        <button aria-label="Nächster Monat" onclick={() => stepPickedMonth(1)}>▶</button>
       </div>
     {/if}
   </div>
@@ -462,14 +462,14 @@
           {/each}
         </div>
         <div class="seg agg">
-          <button class:on={!cmpAAvg} onclick={() => (cmpAAvg = false)} title="Summe">Σ</button>
-          <button class:on={cmpAAvg} onclick={() => (cmpAAvg = true)} title="Durchschnitt pro Monat">Ø</button>
+          <button class:on={!cmpAAvg} onclick={() => (cmpAAvg = false)} aria-label="Summe">Σ</button>
+          <button class:on={cmpAAvg} onclick={() => (cmpAAvg = true)} aria-label="Durchschnitt pro Monat">Ø</button>
         </div>
       {:else if cmpAMode === 'month'}
         <div class="seg">
-          <button onclick={() => { const s = stepMonth(cmpAYear, cmpAMonth, -1); cmpAYear = s.y; cmpAMonth = s.m; }}>◀</button>
+          <button aria-label="Vorheriger Monat" onclick={() => { const s = stepMonth(cmpAYear, cmpAMonth, -1); cmpAYear = s.y; cmpAMonth = s.m; }}>◀</button>
           <button>{monthLabel(cmpAYear, cmpAMonth)}</button>
-          <button onclick={() => { const s = stepMonth(cmpAYear, cmpAMonth, 1); cmpAYear = s.y; cmpAMonth = s.m; }}>▶</button>
+          <button aria-label="Nächster Monat" onclick={() => { const s = stepMonth(cmpAYear, cmpAMonth, 1); cmpAYear = s.y; cmpAMonth = s.m; }}>▶</button>
         </div>
       {:else}
         <div class="date-range">
@@ -478,8 +478,8 @@
           <DateField bind:value={cmpACustomTo} min={cmpACustomFrom} />
         </div>
         <div class="seg agg">
-          <button class:on={!cmpAAvg} onclick={() => (cmpAAvg = false)} title="Summe">Σ</button>
-          <button class:on={cmpAAvg} onclick={() => (cmpAAvg = true)} title="Durchschnitt pro Monat">Ø</button>
+          <button class:on={!cmpAAvg} onclick={() => (cmpAAvg = false)} aria-label="Summe">Σ</button>
+          <button class:on={cmpAAvg} onclick={() => (cmpAAvg = true)} aria-label="Durchschnitt pro Monat">Ø</button>
         </div>
       {/if}
     </div>
@@ -497,14 +497,14 @@
           {/each}
         </div>
         <div class="seg agg">
-          <button class:on={!cmpBAvg} onclick={() => (cmpBAvg = false)} title="Summe">Σ</button>
-          <button class:on={cmpBAvg} onclick={() => (cmpBAvg = true)} title="Durchschnitt pro Monat">Ø</button>
+          <button class:on={!cmpBAvg} onclick={() => (cmpBAvg = false)} aria-label="Summe">Σ</button>
+          <button class:on={cmpBAvg} onclick={() => (cmpBAvg = true)} aria-label="Durchschnitt pro Monat">Ø</button>
         </div>
       {:else if cmpBMode === 'month'}
         <div class="seg">
-          <button onclick={() => { const s = stepMonth(cmpBYear, cmpBMonth, -1); cmpBYear = s.y; cmpBMonth = s.m; }}>◀</button>
+          <button aria-label="Vorheriger Monat" onclick={() => { const s = stepMonth(cmpBYear, cmpBMonth, -1); cmpBYear = s.y; cmpBMonth = s.m; }}>◀</button>
           <button>{monthLabel(cmpBYear, cmpBMonth)}</button>
-          <button onclick={() => { const s = stepMonth(cmpBYear, cmpBMonth, 1); cmpBYear = s.y; cmpBMonth = s.m; }}>▶</button>
+          <button aria-label="Nächster Monat" onclick={() => { const s = stepMonth(cmpBYear, cmpBMonth, 1); cmpBYear = s.y; cmpBMonth = s.m; }}>▶</button>
         </div>
       {:else}
         <div class="date-range">
@@ -513,8 +513,8 @@
           <DateField bind:value={cmpBCustomTo} min={cmpBCustomFrom} />
         </div>
         <div class="seg agg">
-          <button class:on={!cmpBAvg} onclick={() => (cmpBAvg = false)} title="Summe">Σ</button>
-          <button class:on={cmpBAvg} onclick={() => (cmpBAvg = true)} title="Durchschnitt pro Monat">Ø</button>
+          <button class:on={!cmpBAvg} onclick={() => (cmpBAvg = false)} aria-label="Summe">Σ</button>
+          <button class:on={cmpBAvg} onclick={() => (cmpBAvg = true)} aria-label="Durchschnitt pro Monat">Ø</button>
         </div>
       {/if}
     </div>
@@ -557,13 +557,13 @@
   .cat-row {
     display: flex;
     align-items: center;
-    gap: 10px;
-    margin-bottom: 6px;
+    gap: 8px;
+    margin-bottom: 8px;
   }
   .cat-ic {
-    width: 26px;
-    height: 26px;
-    border-radius: 7px;
+    width: 24px;
+    height: 24px;
+    border-radius: var(--r-sm);
     background: var(--surface-2);
     display: grid;
     place-items: center;
@@ -580,7 +580,7 @@
   .cat-pct {
     font-size: 11px;
     color: var(--text-faint);
-    width: 36px;
+    width: 32px;
     text-align: right;
   }
   table {
@@ -596,7 +596,7 @@
   }
   th,
   td {
-    padding: 10px 4px;
+    padding: 8px 4px;
     text-align: left;
   }
   th.right,
@@ -620,7 +620,7 @@
   }
   .compare-row {
     display: grid;
-    grid-template-columns: 40px 1fr 1fr 1fr 110px;
+    grid-template-columns: 32px 1fr 1fr 1fr auto;
     align-items: center;
     gap: 14px;
     padding: 12px 0;
@@ -634,6 +634,9 @@
     color: var(--text-faint);
     font-size: 13px;
     padding: 24px;
+  }
+  .bud-bar-gap {
+    margin-bottom: 12px;
   }
 
   .comp-controls {
@@ -653,11 +656,11 @@
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 10px;
-    padding: 10px 14px;
+    gap: 8px;
+    padding: 8px 14px;
     background: var(--surface-2);
     border: 1px solid var(--border);
-    border-radius: 8px;
+    border-radius: var(--r-sm);
   }
   .cmp-picker-h {
     font-size: 12px;
@@ -668,7 +671,7 @@
   .cmp-picker select {
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: 6px;
+    border-radius: var(--r-sm);
     padding: 4px 8px;
     font: inherit;
     color: var(--text);
@@ -678,18 +681,18 @@
     color: var(--text-muted);
     font-size: 11px;
     font-weight: 500;
-    padding: 6px 0 8px;
+    padding: 8px 0 8px;
   }
   .date-range {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
   }
   .date-range input[type='date'] {
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 3px 6px;
+    border-radius: var(--r-sm);
+    padding: 4px 8px;
     font: inherit;
     font-size: 12px;
     color: var(--text);
@@ -707,7 +710,7 @@
   .period-kind select {
     background: var(--surface-2);
     border: 1px solid var(--border);
-    border-radius: 6px;
+    border-radius: var(--r-sm);
     padding: 4px 8px;
     font: inherit;
     color: var(--text);
@@ -720,7 +723,7 @@
   @media (max-width: 599px) {
     /* compare-row: collapse 5-col grid to compact 2-col layout */
     .compare-row {
-      grid-template-columns: 40px 1fr auto;
+      grid-template-columns: 32px 1fr auto;
       grid-template-rows: auto auto;
       gap: 8px;
     }

@@ -45,7 +45,7 @@
   .backdrop {
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.4);
+    background: var(--scrim);
     z-index: 100;
     display: flex;
     align-items: center;
@@ -60,7 +60,7 @@
     border-radius: var(--r-lg);
     display: flex;
     flex-direction: column;
-    max-width: 480px;
+    max-width: 540px;
     width: calc(100% - 2rem);
     max-height: 90vh;
     overflow: hidden;
@@ -146,7 +146,7 @@
       flex: 1;
     }
     .btn {
-      min-height: 44px;
+      min-height: 48px;
       white-space: normal;
     }
     .btn.ghost {

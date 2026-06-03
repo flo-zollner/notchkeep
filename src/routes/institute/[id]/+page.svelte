@@ -89,11 +89,11 @@
 {#if loading}
   <div class="empty">…</div>
 {:else if institution}
-  {@const bg = institution.color ?? 'oklch(0.55 0.13 230)'}
+  {@const bg = institution.color ?? 'var(--institution-default-color)'}
 
   <!-- Header card -->
   <div class="card card-pad-lg header">
-    <div class="inst-logo" style:background={bg} style:color="#fff">
+    <div class="inst-logo" style:background={bg} style:color="var(--accent-fg)">
       {#if institution.icon}
         <Icon name={institution.icon} size={22} />
       {:else}
@@ -238,7 +238,7 @@
     display: inline-block;
     font-size: 10.5px;
     font-weight: 600;
-    padding: 2px 8px;
+    padding: 4px 8px;
     border-radius: 999px;
     text-transform: uppercase;
     letter-spacing: 0.05em;
@@ -268,14 +268,14 @@
     color: var(--text);
     display: inline-flex;
     align-items: center;
-    gap: 5px;
-    padding: 3px 8px;
-    border-radius: 6px;
+    gap: 4px;
+    padding: 4px 8px;
+    border-radius: var(--r-sm);
     font-size: 13px;
-    transition: background 0.12s;
+    transition: opacity 0.12s;
   }
   .bic-copy:hover { background: var(--surface-2); }
-  .mono { font-family: ui-monospace, monospace; letter-spacing: 0.04em; }
+  .mono { font-family: var(--font-mono); letter-spacing: 0.04em; }
 
   /* Note */
   .note {
@@ -289,12 +289,12 @@
     background: var(--surface-2);
     border: 1px solid var(--c-border, transparent);
     color: var(--text);
-    padding: 6px 12px;
+    padding: 8px 12px;
     border-radius: 8px;
     cursor: pointer;
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
     font-size: 13px;
     white-space: nowrap;
   }
@@ -309,13 +309,13 @@
   .account-row {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 12px;
     width: 100%;
-    padding: 10px 12px;
+    padding: 12px 12px;
     border-radius: 8px;
     text-decoration: none;
     color: inherit;
-    transition: background 0.1s;
+    transition: opacity 0.1s;
   }
   .account-row:hover { background: var(--surface-2); }
   .acc-icon {
@@ -343,8 +343,13 @@
   .card-h {
     display: flex;
     align-items: center;
-    gap: 10px;
-    margin-bottom: 10px;
+    gap: 12px;
+    margin-bottom: 12px;
   }
   .card-h h3 { margin: 0; font-size: 14px; flex: 1; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .bic-copy,
+    .account-row { transition: none; }
+  }
 </style>

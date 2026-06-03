@@ -210,6 +210,7 @@
     <p class="muted">…</p>
   {:else if securities.length === 0}
     <div class="empty">
+      <Icon name="briefcase" size={32} />
       <p>{tp.empty}</p>
       <button class="primary" type="button" onclick={() => (addingNew = true)}>
         <Icon name="plus" size={14} /> {tp.newSecurity}
@@ -267,11 +268,11 @@
   .kpi {
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: 10px;
+    border-radius: var(--r-md);
     padding: 12px 14px;
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 8px;
   }
   .kpi .lbl {
     font-size: 11px;
@@ -282,13 +283,13 @@
   .kpi .val {
     font-size: 18px;
     font-weight: 500;
-    font-variant-numeric: tabular-nums;
+    font-family: var(--font-mono);
   }
 
   .chart-card {
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: 10px;
+    border-radius: var(--r-md);
     padding: 14px;
     margin-bottom: 16px;
   }
@@ -308,7 +309,7 @@
     white-space: nowrap;
     background: transparent;
     border: 0;
-    padding: 10px 18px;
+    padding: 8px 18px;
     font-size: 13px;
     font-weight: 500;
     color: var(--text-muted);
@@ -330,17 +331,17 @@
     padding: 0;
     margin: 0;
     display: grid;
-    gap: 6px;
+    gap: 8px;
   }
 
   .sec-head { margin-bottom: 8px; }
-  .toggle { display: flex; gap: 6px; align-items: center; font-size: 13px; color: var(--text-muted); }
+  .toggle { display: flex; gap: 8px; align-items: center; font-size: 13px; color: var(--text-muted); }
   .empty { text-align: center; padding: 32px 16px; color: var(--text-muted); }
   .empty p { margin: 0 0 16px; }
   .sec-list li button.row {
     width: 100%; text-align: left;
     background: var(--surface);
-    border: 1px solid var(--border); border-radius: 10px;
+    border: 1px solid var(--border); border-radius: var(--r-md);
     padding: 12px 14px;
     display: flex; align-items: center; justify-content: space-between;
     cursor: pointer; color: var(--text);
@@ -352,14 +353,17 @@
     border-color: var(--border-strong);
   }
   .sec-list li.archived { opacity: 0.55; }
-  .left { display: flex; flex-direction: column; gap: 2px; }
+  @media (prefers-reduced-motion: reduce) {
+    .sec-list li button.row { transition: none; }
+  }
+  .left { display: flex; flex-direction: column; gap: 4px; }
   .left strong { font-size: 13px; font-weight: 500; }
   .right { display: flex; gap: 12px; align-items: center; }
   .badge {
     background: var(--accent-soft);
     color: var(--accent);
-    border-radius: 6px;
-    padding: 3px 8px;
+    border-radius: var(--r-sm);
+    padding: 4px 8px;
     font-size: 11px;
     font-weight: 500;
   }
@@ -368,7 +372,7 @@
   button.primary {
     background: var(--accent); color: var(--accent-fg); border: 0;
     padding: 8px 12px; border-radius: 8px; cursor: pointer;
-    display: inline-flex; align-items: center; gap: 6px;
+    display: inline-flex; align-items: center; gap: 8px;
     font: inherit;
   }
   button.primary:hover { background: var(--accent-hover); }
@@ -387,11 +391,11 @@
     .kpi-row {
       grid-template-columns: none;
       display: flex;
-      gap: 10px;
+      gap: 8px;
       overflow-x: auto;
       scroll-snap-type: x mandatory;
       margin: 0 -16px 14px;
-      padding: 0 16px 6px;
+      padding: 0 16px 8px;
     }
     .kpi-row > * {
       flex: 0 0 60%;

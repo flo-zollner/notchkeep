@@ -295,7 +295,7 @@
         {t().updates.checkNow}
       </button>
     </div>
-    {#if checkMessage}<p class="muted">{checkMessage}</p>{/if}
+    <p class="muted" aria-live="polite" aria-atomic="true">{checkMessage}</p>
   </div>
 
   <div class="card col-12 card-pad-lg">
@@ -418,7 +418,7 @@
   .toggle {
     width: 38px;
     height: 22px;
-    border-radius: 99px;
+    border-radius: 999px;
     background: var(--border-strong);
     position: relative;
     padding: 0;
@@ -436,10 +436,10 @@
     border-radius: 50%;
     background: var(--surface);
     box-shadow: var(--shadow-sm);
-    transition: left 0.15s;
+    transition: transform 0.15s;
   }
   .knob.on {
-    left: 18px;
+    transform: translateX(16px);
   }
   .export-grid {
     display: grid;
@@ -459,9 +459,9 @@
   }
   .export-grid input,
   .export-grid select {
-    padding: 6px 8px;
+    padding: 8px;
     border: 1px solid var(--border-strong);
-    border-radius: 6px;
+    border-radius: var(--r-sm);
     background: var(--surface);
     color: var(--text);
     font-size: 13px;
@@ -478,11 +478,11 @@
   }
   .link-arrow { color: var(--accent); font-size: 13px; text-decoration: none; background: none; border: 0; padding: 0; cursor: pointer; font-family: inherit; }
   .link-arrow:hover { text-decoration: underline; }
-  .detect-result { font-size: 11px; color: var(--positive); margin-left: 6px; }
+  .detect-result { font-size: 11px; color: var(--positive); margin-left: 8px; }
   .about {
     display: grid;
     grid-template-columns: max-content 1fr;
-    gap: 6px 18px;
+    gap: 8px 18px;
     margin: 4px 0 14px;
     font-size: 13px;
   }
@@ -504,7 +504,7 @@
     color: var(--text-faint);
     line-height: 1.55;
     margin: 0;
-    padding: 10px 12px;
+    padding: 8px 12px;
     border-left: 3px solid var(--border-strong);
     background: var(--surface-2);
     border-radius: 4px;
@@ -518,10 +518,14 @@
     /* export inputs/buttons touch target */
     .export-grid input,
     .export-grid select {
-      min-height: var(--tap, 44px);
+      min-height: var(--tap, 48px);
     }
 
     /* about dl: label-value pairs stay side-by-side but allow wrap */
     .about { grid-template-columns: max-content 1fr; gap: 4px 12px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .toggle, .knob { transition: none; }
   }
 </style>

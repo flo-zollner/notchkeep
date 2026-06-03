@@ -161,16 +161,14 @@
   <span class="back-arrow"><Icon name="chevron-right" size={12} /></span> {t().nav.accounts}
 </button>
 
-{#if error}
-  <div class="card" style="color: var(--negative); margin-bottom: 14px;">Fehler: {error}</div>
-{/if}
+<div aria-live="polite" class="error-region">{error ? 'Fehler: ' + error : ''}</div>
 
 {#if loading || !account}
   <div class="empty">…</div>
 {:else}
   {@const bg = account.color ?? 'oklch(0.55 0.13 230)'}
   <div class="card card-pad-lg header">
-    <div class="acc-logo" style:background={bg} style:color="#fff">
+    <div class="acc-logo" style:background={bg} style:color="var(--accent-fg)">
       {#if account.icon}
         <Icon name={account.icon} size={20} />
       {:else}
@@ -310,6 +308,10 @@
 {/if}
 
 <style>
+  .error-region {
+    color: var(--negative);
+    margin-bottom: 14px;
+  }
   .back {
     margin-bottom: 14px;
     display: inline-flex;
@@ -330,7 +332,7 @@
     flex-shrink: 0;
   }
   .header-body { flex: 1; min-width: 0; }
-  .header-body h1 { margin: 0; display: flex; align-items: center; gap: 10px; }
+  .header-body h1 { margin: 0; display: flex; align-items: center; gap: 8px; }
   .sub { font-size: 12px; color: var(--text-faint); margin-top: 4px; }
   .note { font-size: 13px; color: var(--text-muted); margin-top: 8px; }
   .balance { text-align: right; }
@@ -340,7 +342,7 @@
     display: inline-block;
     font-size: 10.5px;
     font-weight: 500;
-    padding: 2px 8px;
+    padding: 4px 8px;
     border-radius: 999px;
     background: var(--surface-2);
     color: var(--text-muted);
@@ -357,7 +359,6 @@
   }
   .iban-block .label { color: var(--text-muted); }
   .iban-block .iban {
-    font-family: ui-monospace, monospace;
     letter-spacing: 0.02em;
   }
   .iban-block .copy {
@@ -367,16 +368,16 @@
     color: var(--text-muted);
     display: inline-grid;
     place-items: center;
-    padding: 2px 4px;
+    padding: 4px 4px;
     border-radius: 4px;
   }
   .iban-block .copy:hover { color: var(--text); background: var(--surface-2); }
   .subaccount-row {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 12px;
     width: 100%;
-    padding: 10px 12px;
+    padding: 12px 12px;
     cursor: pointer;
     border-radius: 8px;
     background: transparent;
@@ -408,7 +409,7 @@
   .hint {
     font-size: 12px;
     color: var(--text-faint);
-    margin: 10px 4px 0;
+    margin: 8px 4px 0;
   }
   .head-actions {
     display: flex;

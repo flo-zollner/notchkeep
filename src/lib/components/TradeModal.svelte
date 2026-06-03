@@ -242,28 +242,31 @@
     <label class="span2">{tt.note}<textarea rows="2" bind:value={note}></textarea></label>
   </div>
 
-  {#if error}<p class="err">{error}</p>{/if}
+  <p class="err" aria-live="polite" role="status">{error ?? ''}</p>
 </Sheet>
 
 <style>
   .grid {
-    display: grid; grid-template-columns: 1fr 1fr; gap: 10px 12px;
+    display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px;
   }
   @media (max-width: 599px) {
     .grid { grid-template-columns: 1fr; }
   }
   .grid label { display: flex; flex-direction: column; font-size: 12px; gap: 4px; color: var(--text-muted); }
   .grid input, .grid select, .grid textarea {
-    padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px;
+    padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px;
     background: var(--surface-2); color: var(--text);
     font: inherit;
+  }
+  .grid input[inputmode="decimal"], .grid input[inputmode="numeric"], .grid input[readonly] {
+    font-family: var(--font-mono);
   }
   .grid input:focus, .grid select:focus, .grid textarea:focus {
     outline: none; border-color: var(--accent);
   }
   .grid .span2 { grid-column: 1 / -1; }
-  .grid .hint { color: var(--text-faint); font-size: 11px; }
-  .err { color: var(--negative); font-size: 13px; margin: 10px 0 0; }
+  .grid .hint { color: var(--text-faint); font-size: 12px; }
+  .err { color: var(--negative); font-size: 12px; margin: 8px 0 0; }
   /* footer-actions */
   .footer-actions {
     display: flex;

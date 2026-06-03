@@ -1,5 +1,6 @@
 <script lang="ts">
   import Sheet from './Sheet.svelte';
+  import Icon from './Icon.svelte';
   import { api, type SyncConflictFile } from '$lib/api';
 
   interface Props {
@@ -68,9 +69,11 @@
     {/each}
   </div>
 
-  {#if error}
-    <div class="error">{error}</div>
-  {/if}
+  <div class="error" class:visible={!!error} aria-live="polite" role="alert">
+    {#if error}
+      <Icon name="alert-circle" size={14} />{error}
+    {/if}
+  </div>
 
   {#snippet footer()}
     <div class="footer-actions">
@@ -83,7 +86,7 @@
 
 <style>
   .intro {
-    font-size: 13px;
+    font-size: 14px;
     margin: 0 0 12px;
     color: var(--text);
   }
@@ -97,28 +100,27 @@
   .conflicts {
     display: flex;
     flex-direction: column;
-    gap: 6px;
-    margin: 10px 0 6px;
+    gap: 8px;
+    margin: 8px 0 8px;
   }
   .conflict {
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 10px 12px;
+    gap: 8px;
+    padding: 8px 12px;
     border-radius: var(--r-sm);
     background: var(--surface-2);
   }
   .meta { flex: 1; min-width: 0; }
   .name {
-    font-family: var(--font-mono);
-    font-size: 11.5px;
+    font-size: 12px;
     color: var(--text);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
   .time {
-    font-size: 11px;
+    font-size: 12px;
     color: var(--text-muted);
     margin-top: 2px;
   }
@@ -148,11 +150,17 @@
     width: 100%;
   }
   .error {
-    margin-top: 10px;
-    padding: 10px;
+    display: none;
+    font-size: 12px;
+  }
+  .error.visible {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+    padding: 8px;
     background: color-mix(in srgb, var(--negative) 10%, transparent);
     color: var(--negative);
     border-radius: var(--r-sm);
-    font-size: 12px;
   }
 </style>

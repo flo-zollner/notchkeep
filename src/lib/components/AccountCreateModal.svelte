@@ -142,7 +142,7 @@
   @media (max-width: 599px) {
     .footer-actions .btn {
       flex: 1;
-      min-height: 44px;
+      min-height: var(--tap);
     }
   }
 </style>

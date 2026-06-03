@@ -444,7 +444,7 @@
             <button
               type="button"
               class="btn"
-              title="Copy"
+              aria-label="IBAN kopieren"
               onclick={() => navigator.clipboard.writeText(counterpartyIban.replace(/\s+/g, '').toUpperCase())}
             >
               <Icon name="copy" size={13} />
@@ -492,9 +492,7 @@
       </label>
     </div>
 
-    {#if error}
-      <div class="error">{error}</div>
-    {/if}
+    <div class="error" aria-live="polite" role="status">{error ?? ''}</div>
 
   {#snippet footer()}
     <div class="footer-actions">
@@ -521,14 +519,14 @@
     grid-template-columns: 1fr 1fr;
     background: var(--surface-2);
     border-radius: var(--r-sm);
-    padding: 3px;
+    padding: 4px;
     margin-bottom: 16px;
   }
   .dir-btn {
     background: transparent;
     border: 0;
-    padding: 8px 10px;
-    border-radius: 6px;
+    padding: 8px 8px;
+    border-radius: var(--r-sm);
     font: inherit;
     font-size: 13px;
     color: var(--text-muted);
@@ -547,7 +545,7 @@
   .row-2 {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 10px;
+    gap: 8px;
   }
   .field {
     display: flex;
@@ -564,10 +562,10 @@
   }
   .bucket-state {
     display: flex; flex-wrap: wrap; align-items: baseline;
-    gap: 4px 6px; margin-top: 6px;
+    gap: 4px 8px; margin-top: 8px;
     font-size: 11px; color: var(--text-muted);
   }
-  .bucket-state .bs-lbl { margin-right: 2px; }
+  .bucket-state .bs-lbl { margin-right: 4px; }
   .bucket-state .bs-num {
     font-variant-numeric: tabular-nums; color: var(--text);
   }
@@ -578,7 +576,7 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 8px 10px;
+    padding: 8px;
     background: var(--accent-soft);
     border-radius: var(--r-sm);
     font-size: 13px;
@@ -593,16 +591,19 @@
     margin-left: 4px;
   }
   .btn.sm {
-    padding: 4px 10px;
+    padding: 4px 8px;
     font-size: 12px;
   }
   .error {
     margin-top: 12px;
-    padding: 8px 10px;
+    padding: 8px;
     background: var(--negative-soft);
     color: var(--negative);
     border-radius: var(--r-sm);
     font-size: 12px;
+  }
+  .error:empty {
+    display: none;
   }
   .footer-actions {
     display: flex;
@@ -627,7 +628,7 @@
   }
   .cat-row, .inline-new {
     display: flex;
-    gap: 6px;
+    gap: 8px;
     align-items: center;
   }
   .cat-row select {
@@ -640,7 +641,7 @@
   }
   .iban-row {
     display: flex;
-    gap: 6px;
+    gap: 8px;
     align-items: center;
   }
   .iban-row .input {
@@ -650,7 +651,7 @@
     color: var(--negative);
   }
   .input.mono {
-    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-family: var(--font-mono);
     letter-spacing: 0.02em;
   }
 </style>

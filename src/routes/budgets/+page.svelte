@@ -493,12 +493,15 @@
       <h3 class="section-h">{t().common.categoryHeatmap}</h3>
       <span class="mono muted">{monthLabel}</span>
     </div>
-    <SpendingHeatmap
-      daily={dailyEur}
-      offset={heatmapOffset}
-      monthLabel={monthLabel}
-      hide={settings.hide}
-    />
+    <figure>
+      <SpendingHeatmap
+        daily={dailyEur}
+        offset={heatmapOffset}
+        monthLabel={monthLabel}
+        hide={settings.hide}
+      />
+      <figcaption class="sr-only">Tägliche Ausgaben im {monthLabel}</figcaption>
+    </figure>
   </div>
 
   <!-- Category card grid -->
@@ -519,7 +522,7 @@
           <Icon name="plus" size={13} /> {t().common.add}
         </button>
         {#if showAddPopover}
-          <div class="add-popover" role="dialog">
+          <div class="add-popover" role="dialog" aria-modal="true">
             <div class="add-popover-h">Budget hinzufügen</div>
             <label class="add-row">
               <span class="add-label">Kategorie</span>
@@ -598,9 +601,9 @@
               {sonstigeBudgetCents > 0 ? sonstigeP.toFixed(0) + '%' : '—'}
             </span>
             <input
-              type="number"
+              type="text"
+              inputmode="decimal"
               class="input cat-budget-input"
-              min="0" step="10"
               value={sonstigeBudgetEur}
               oninput={(e) => updateSonstigeBudget(Math.round(Number((e.target as HTMLInputElement).value) * 100))}
             />
@@ -641,7 +644,7 @@
                   <Icon name="repeat" size={11}/>
                 </button>
                 {#if (avgSpending6m.get(r.categoryId) ?? 0) > 0}
-                  <button class="iconbtn avg-apply" type="button" title="∅ der letzten 6 Monate als Budget setzen ({fmtEur(avgSpending6m.get(r.categoryId) ?? 0, { hide: settings.hide, decimals: 0 })})" onclick={() => applyAvgToBudget(r.categoryId)}>∅</button>
+                  <button class="iconbtn avg-apply" type="button" title="∅ der letzten 6 Monate als Budget setzen ({fmtEur(avgSpending6m.get(r.categoryId) ?? 0, { hide: settings.hide, decimals: 0 })})" aria-label="Durchschnitt der letzten 6 Monate als Budget setzen" onclick={() => applyAvgToBudget(r.categoryId)}>∅</button>
                 {/if}
               </div>
             </header>
@@ -665,10 +668,9 @@
                 </span>
               {/if}
               <input
-                type="number"
+                type="text"
+                inputmode="decimal"
                 class="input cat-budget-input"
-                min="0"
-                step="10"
                 value={budgetEur}
                 oninput={(e) => debouncedSetBudget(r.categoryId, parseEurCents((e.target as HTMLInputElement).value))}
               />
@@ -727,7 +729,7 @@
                       <Icon name="repeat" size={11}/>
                     </button>
                     {#if (avgSpending6m.get(r.categoryId) ?? 0) > 0}
-                      <button class="iconbtn avg-apply" type="button" title="∅ der letzten 6 Monate als Budget setzen ({fmtEur(avgSpending6m.get(r.categoryId) ?? 0, { hide: settings.hide, decimals: 0 })})" onclick={() => applyAvgToBudget(r.categoryId)}>∅</button>
+                      <button class="iconbtn avg-apply" type="button" title="∅ der letzten 6 Monate als Budget setzen ({fmtEur(avgSpending6m.get(r.categoryId) ?? 0, { hide: settings.hide, decimals: 0 })})" aria-label="Durchschnitt der letzten 6 Monate als Budget setzen" onclick={() => applyAvgToBudget(r.categoryId)}>∅</button>
                     {/if}
                   </div>
                 </header>
@@ -751,10 +753,9 @@
                     </span>
                   {/if}
                   <input
-                    type="number"
+                    type="text"
+                    inputmode="decimal"
                     class="input cat-budget-input"
-                    min="0"
-                    step="10"
                     value={budgetEur}
                     oninput={(e) => debouncedSetBudget(r.categoryId, parseEurCents((e.target as HTMLInputElement).value))}
                   />
@@ -876,7 +877,7 @@
   .kpi-tile {
     background: var(--surface-1, var(--surface-2));
     border: 1px solid var(--border);
-    border-radius: 10px;
+    border-radius: var(--r-md);
     padding: 14px 16px;
     display: flex;
     flex-direction: column;
@@ -900,7 +901,7 @@
   .kpi-positive { color: var(--positive); }
   .kpi-negative { color: var(--negative); }
   .kpi-green    { color: var(--positive); }
-  .kpi-warn     { color: var(--warning, #d97706); }
+  .kpi-warn     { color: var(--warning); }
 
   /* ── Hero Progress Bar ─────────────────────────────────────────── */
   .hero-progress {
@@ -950,12 +951,16 @@
     background: linear-gradient(90deg, var(--positive) 0%, var(--positive) 100%);
   }
 
+  @media (prefers-reduced-motion: reduce) {
+    .bud-fill { transition: none; }
+  }
+
   .bud-fill.warn {
-    background: linear-gradient(90deg, var(--positive) 0%, var(--warning, #d97706) 100%);
+    background: linear-gradient(90deg, var(--positive) 0%, var(--warning) 100%);
   }
 
   .bud-fill.over {
-    background: linear-gradient(90deg, var(--warning, #d97706) 0%, var(--negative) 100%);
+    background: linear-gradient(90deg, var(--warning) 0%, var(--negative) 100%);
   }
 
   /* ── Category Card Grid ────────────────────────────────────────── */
@@ -1074,6 +1079,7 @@
   .cat-budget-of {
     font-size: 13px;
     color: var(--text-faint);
+    font-family: var(--font-mono);
   }
 
   /* Cat bar */
@@ -1092,15 +1098,15 @@
     font-size: 12px;
     font-variant-numeric: tabular-nums;
     color: var(--text-muted);
-    min-width: 34px;
+    min-width: 32px;
   }
 
-  .cat-pct.warn { color: var(--warning, #d97706); }
+  .cat-pct.warn { color: var(--warning); }
   .cat-pct.over { color: var(--negative); }
 
   .cat-budget-input {
     margin-left: auto;
-    width: 88px;
+    width: 80px;
     padding: 4px 8px;
     text-align: right;
     font-size: 13px;
@@ -1190,7 +1196,7 @@
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: 8px;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+    box-shadow: var(--shadow-lg);
     display: flex;
     flex-direction: column;
     gap: 10px;
@@ -1304,5 +1310,22 @@
   .unbudgeted-hint {
     font-size: 12px;
     color: var(--text-faint);
+  }
+
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  figure {
+    margin: 0;
+    padding: 0;
   }
 </style>

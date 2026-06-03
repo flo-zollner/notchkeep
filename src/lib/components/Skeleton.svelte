@@ -41,4 +41,11 @@
     0% { background-position: -100% 0; }
     100% { background-position: 100% 0; }
   }
+  @media (prefers-reduced-motion: reduce) {
+    .skeleton {
+      animation: none;
+      background: var(--surface-2);
+      background-size: unset;
+    }
+  }
 </style>

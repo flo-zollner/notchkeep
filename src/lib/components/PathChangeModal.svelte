@@ -96,7 +96,7 @@
   button:disabled { opacity: 0.5; cursor: wait; }
   @media (max-width: 599px) {
     .footer-actions { flex-direction: column; align-items: stretch; }
-    .footer-actions button { flex: 1 1 0; min-width: 0; min-height: 44px; }
+    .footer-actions button { flex: 1 1 0; min-width: 0; min-height: var(--tap); }
     .footer-actions .btn.ghost { order: -1; }
   }
 </style>

@@ -68,6 +68,7 @@
     else if (action === 'mark-completed') setOnboardingCompleted(true);
   }
 
+  let isAndroid = $state(false);
   let showActivation = $state(false);
   let showUpdate = $state(false);
 
@@ -164,6 +165,7 @@
   });
 
   onMount(() => {
+    isAndroid = document.documentElement.dataset.platform === 'android';
     void initOnboarding();
     if (appSettings.onboardingCompleted) void startUpdaterFlow();
     applyColors();
@@ -243,11 +245,15 @@
   </main>
 </div>
 
-<BottomTabBar {budgetAlertCount} />
-<Fab onClick={onFabClick} />
+{#if isAndroid}
+  <BottomTabBar {budgetAlertCount} />
+  <Fab onClick={onFabClick} />
+{/if}
 
 <OnboardingWizard />
 <TourOverlay />
+
+<div id="live-announcer" aria-live="polite" aria-atomic="true" style="position:absolute;width:1px;height:1px;padding:0;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0"></div>
 
 {#if showActivation}
   <UpdateActivationDialog onEnable={onActivationEnable} onLater={onActivationLater} onNever={onActivationNever} />

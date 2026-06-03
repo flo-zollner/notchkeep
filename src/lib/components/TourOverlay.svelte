@@ -143,7 +143,7 @@
         style:height="{target.height}px"
       ></div>
     {:else}
-      <div class="tour-dim"></div>
+      <div class="tour-dim" role="presentation"></div>
     {/if}
 
     <div
@@ -153,6 +153,7 @@
       style:left={tooltip.centered ? '' : `${tooltip.left}px`}
       style:transform={tooltip.centered ? '' : tooltip.transform}
       role="dialog"
+      aria-modal="true"
       aria-label={o.tourSteps[current.id].title}
     >
       <div class="tour-step">{o.stepOf(onboarding.tourStep + 1, total)}</div>
@@ -175,15 +176,19 @@
 
 <style>
   .tour-root { position: fixed; inset: 0; z-index: 200; }
-  .tour-dim { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.6); }
+  .tour-dim { position: absolute; inset: 0; background: var(--scrim); }
   .tour-spot {
     position: absolute;
     border-radius: var(--r-md);
-    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.6);
+    /* 9999px spread is an accepted spotlight overlay technique — not a magic spacing value */
+    box-shadow: 0 0 0 9999px var(--scrim);
     outline: 2px solid var(--accent);
     outline-offset: 0;
     transition: top 0.25s, left 0.25s, width 0.25s, height 0.25s;
     pointer-events: none;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .tour-spot { transition: none; }
   }
   .tour-tip {
     position: absolute;

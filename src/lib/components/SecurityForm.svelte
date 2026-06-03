@@ -155,11 +155,11 @@
 <svelte:window onkeydown={(e) => e.key === 'Escape' && onClose()} />
 
 <div class="overlay">
-  <button class="backdrop" type="button" aria-label="Dialog schließen" onclick={onClose}></button>
+  <div class="backdrop" role="presentation" onclick={onClose}></div>
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="sec-form-title" tabindex="-1">
     <header>
       <h2 id="sec-form-title">{isEdit ? ts.edit : t().portfolio.newSecurity}</h2>
-      <button type="button" class="icon" onclick={onClose}>
+      <button type="button" class="icon" aria-label="Schließen" onclick={onClose}>
         <Icon name="x" size={16} />
       </button>
     </header>
@@ -219,9 +219,7 @@
       />
     {/if}
 
-    {#if error}
-      <p class="err">{error}</p>
-    {/if}
+    <p class="err" aria-live="polite">{error ?? ''}</p>
 
     <footer>
       {#if isEdit}
@@ -253,18 +251,17 @@
   }
   .backdrop {
     position: absolute; inset: 0;
-    background: rgba(0, 0, 0, 0.4);
+    background: var(--scrim);
     border: 0; padding: 0; margin: 0;
     cursor: pointer;
   }
-  .backdrop:focus-visible { outline: 2px solid var(--accent); outline-offset: -4px; }
   .modal {
     position: relative;
     background: var(--surface);
     color: var(--text);
     border: 1px solid var(--border);
     padding: 18px;
-    border-radius: 14px;
+    border-radius: var(--r-lg);
     width: min(520px, calc(100vw - 32px));
     max-height: calc(100vh - 32px);
     overflow: auto;
@@ -276,7 +273,7 @@
     background: transparent; border: none; cursor: pointer;
     color: var(--text-muted);
     padding: 4px;
-    border-radius: 6px;
+    border-radius: var(--r-sm);
   }
   header button.icon:hover { background: var(--surface-hover); color: var(--text); }
   .tabs { display: flex; gap: 4px; margin-bottom: 14px; border-bottom: 1px solid var(--border); }
@@ -291,7 +288,7 @@
   .grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 10px 12px;
+    gap: 8px 12px;
   }
   .grid label { display: flex; flex-direction: column; font-size: 12px; gap: 4px; color: var(--text-muted); }
   .grid input, .grid select, .grid textarea {
@@ -304,7 +301,7 @@
   }
   .grid .span2 { grid-column: 1 / -1; }
   .grid .toggle { flex-direction: row; align-items: center; gap: 8px; color: var(--text); }
-  .err { color: var(--negative); font-size: 13px; margin: 10px 0 0; }
+  .err { color: var(--negative); font-size: 12px; margin: 8px 0 0; min-height: 1em; }
   footer {
     display: flex; gap: 8px; margin-top: 14px;
     align-items: center;

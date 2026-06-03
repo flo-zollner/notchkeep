@@ -56,7 +56,7 @@
   let runwayWindow = $state<RunwayWindow>(6);
 
   const PALETTE = ['var(--c1)', 'var(--c2)', 'var(--c3)', 'var(--c4)', 'var(--c5)', 'var(--c6)'];
-  const FALLBACK_LOGO_BG = 'oklch(0.55 0.13 230)';
+  const FALLBACK_LOGO_BG = 'var(--fallback-logo-bg)';
 
   let accounts = $state<Account[]>([]);
   let balances = $state<Record<number, number>>({});
@@ -315,9 +315,7 @@
   <button class="btn"><Icon name="refresh" size={14} /> {t().common.synced}</button>
 </div>
 
-{#if error}
-  <div class="card" style="color: var(--negative); margin-bottom: 14px;">Fehler: {error}</div>
-{/if}
+<div class="sr-error" aria-live="polite" aria-atomic="true">{error ? `Fehler: ${error}` : ''}</div>
 
 <div class="kpi-grid">
   <KPI
@@ -377,15 +375,18 @@
     {:else if history.length === 0}
       <div class="empty">—</div>
     {:else}
-      <NetWorthChart history={chartHistory} forecast={chartForecast} height={$bp === 'phone' ? 200 : 260} hide={settings.hide}
-        onPointClick={(year, month) => {
-          const m = String(month).padStart(2, '0');
-          const from = `${year}-${m}-01`;
-          const lastDay = new Date(year, month, 0).getDate();
-          const to = `${year}-${m}-${String(lastDay).padStart(2, '0')}`;
-          goto(`/transactions?from=${from}&to=${to}`);
-        }}
-      />
+      <figure class="chart-figure">
+        <figcaption class="sr-only">{t().common.forecast} — {range === 'all' ? t().common.all : range}</figcaption>
+        <NetWorthChart history={chartHistory} forecast={chartForecast} height={$bp === 'phone' ? 200 : 260} hide={settings.hide}
+          onPointClick={(year, month) => {
+            const m = String(month).padStart(2, '0');
+            const from = `${year}-${m}-01`;
+            const lastDay = new Date(year, month, 0).getDate();
+            const to = `${year}-${m}-${String(lastDay).padStart(2, '0')}`;
+            goto(`/transactions?from=${from}&to=${to}`);
+          }}
+        />
+      </figure>
     {/if}
   </div>
 
@@ -413,7 +414,10 @@
     {#if allocation.length === 0}
       <div class="empty">—</div>
     {:else}
-      <Donut data={allocation} hide={settings.hide} />
+      <figure class="chart-figure">
+        <figcaption class="sr-only">{t().common.breakdown}</figcaption>
+        <Donut data={allocation} hide={settings.hide} />
+      </figure>
     {/if}
   </div>
 
@@ -438,13 +442,16 @@
     {:else if indexChartHistory.length === 0}
       <div class="empty">—</div>
     {:else}
-      <NetWorthIndexChart
-        history={indexChartHistory}
-        height={$bp === 'phone' ? 180 : 220}
-        hide={settings.hide}
-        baselineIdx={indexBaselineIdx}
-        onBaselineChange={(i) => indexBaselineIdx = i}
-      />
+      <figure class="chart-figure">
+        <figcaption class="sr-only">{t().common.relativeChange ?? 'Relative Entwicklung (indexiert)'} — {indexRange === 'all' ? t().common.all : indexRange}</figcaption>
+        <NetWorthIndexChart
+          history={indexChartHistory}
+          height={$bp === 'phone' ? 180 : 220}
+          hide={settings.hide}
+          baselineIdx={indexBaselineIdx}
+          onBaselineChange={(i) => indexBaselineIdx = i}
+        />
+      </figure>
     {/if}
   </div>
 
@@ -469,7 +476,7 @@
               {@const bg = a.color ?? PALETTE[i % PALETTE.length] ?? FALLBACK_LOGO_BG}
               {@const inst = a.institution_id != null ? institutionsById.get(a.institution_id) : null}
               <a class="acc" href={`/accounts/${a.id}`} aria-label={a.name}>
-                <div class="acc-logo" style:background={bg} style:color="#fff">
+                <div class="acc-logo" style:background={bg} style:color="var(--on-logo-bg)">
                   {#if a.icon}
                     <Icon name={a.icon} size={14} />
                   {:else}
@@ -521,7 +528,7 @@
   @media (max-width: 599px) {
     .topbar {
       flex-wrap: wrap;
-      gap: 10px;
+      gap: 8px;
     }
     .topbar h1 {
       font-size: 20px;
@@ -546,9 +553,9 @@
   .acc {
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 10px 12px;
-    border-radius: 12px;
+    gap: 8px;
+    padding: 12px;
+    border-radius: var(--r-md);
     background: var(--surface-2);
     color: inherit;
     text-decoration: none;
@@ -557,9 +564,9 @@
     background: var(--surface-3, var(--surface-2));
   }
   .acc-logo {
-    width: 36px;
-    height: 36px;
-    border-radius: 10px;
+    width: 32px;
+    height: 32px;
+    border-radius: var(--r-md);
     display: grid;
     place-items: center;
     font-weight: 600;
@@ -583,12 +590,12 @@
     color: var(--text-faint);
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 4px;
   }
   .acc-sub .bank-badge {
     font-size: 10px;
-    padding: 1px 6px;
-    border-radius: 3px;
+    padding: 1px 8px;
+    border-radius: var(--r-sm);
     border: 1px solid var(--bank-color, var(--text-faint));
     color: var(--bank-color, var(--text-faint));
     opacity: 0.9;
@@ -612,7 +619,7 @@
     display: flex;
     align-items: baseline;
     justify-content: space-between;
-    margin: 0 4px 6px;
+    margin: 0 4px 8px;
   }
   .kind-h h4 {
     margin: 0;
@@ -638,5 +645,41 @@
     text-align: center;
     color: var(--text-faint);
     font-size: 13px;
+  }
+  .chart-figure {
+    margin: 0;
+    padding: 0;
+  }
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+  .sr-error {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+  .sr-error:not(:empty) {
+    position: static;
+    width: auto;
+    height: auto;
+    padding: 0;
+    margin: 0;
+    overflow: visible;
+    clip: auto;
+    white-space: normal;
   }
 </style>

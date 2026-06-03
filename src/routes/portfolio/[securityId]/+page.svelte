@@ -309,9 +309,7 @@
         <Icon name="pencil" size={12} />
         Preis manuell setzen
       </button>
-      {#if fetchHistoryToast}
-        <span class="toast-inline">{fetchHistoryToast}</span>
-      {/if}
+      <span class="toast-inline" aria-live="polite" aria-atomic="true">{fetchHistoryToast ?? ''}</span>
     </div>
     {#if manualOpen}
       <div class="manual-price-row">
@@ -332,9 +330,7 @@
         <button class="btn-fetch" type="button" onclick={saveManualPrice} disabled={manualBusy}>
           {manualBusy ? 'Speichert…' : 'Speichern'}
         </button>
-        {#if manualMsg}
-          <span class="toast-inline">{manualMsg}</span>
-        {/if}
+        <span class="toast-inline" aria-live="polite" aria-atomic="true">{manualMsg ?? ''}</span>
       </div>
     {/if}
     <SecurityPriceChart {securityId} reloadKey={chartReloadKey} />
@@ -434,7 +430,7 @@
                 <span class="row-value num">
                   ≈ {fmtEur(rowValueCents(row.sharesMicroInput), { hide: settings.hide, decimals: eurDecimals() })}
                 </span>
-                <button class="btn-remove" type="button" onclick={() => removeAllocationRow(i)}>
+                <button class="btn-remove" type="button" onclick={() => removeAllocationRow(i)} aria-label={tp.bucketAllocRemove ?? 'Zeile entfernen'}>
                   <Icon name="x" size={12} />
                 </button>
               </div>
@@ -486,12 +482,10 @@
           </div>
         </div>
 
-        {#if allocError}
-          <p class="error">{allocError}</p>
-        {/if}
-        {#if allocToast}
-          <p class="info">{allocToast}</p>
-        {/if}
+        <p class="error" role="alert" aria-live="assertive" aria-atomic="true">
+          {#if allocError}<Icon name="alert-circle" size={12} /> {allocError}{/if}
+        </p>
+        <p class="info" aria-live="polite" aria-atomic="true">{allocToast ?? ''}</p>
 
         <button class="btn-save" type="button" onclick={saveAllocations} disabled={allocSaving}>
           {tp.bucketAllocSave}
@@ -528,7 +522,7 @@
   button.secondary {
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: 8px;
+    border-radius: var(--r-sm);
     padding: 6px 10px;
     cursor: pointer;
     display: inline-flex;
@@ -551,7 +545,7 @@
   .kpi {
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: 10px;
+    border-radius: var(--r-md);
     padding: 12px 14px;
     display: flex; flex-direction: column; gap: 6px;
   }
@@ -559,28 +553,28 @@
     font-size: 11px; color: var(--text-muted);
     text-transform: uppercase; letter-spacing: 0.04em;
   }
-  .kpi .val { font-size: 18px; font-weight: 500; font-variant-numeric: tabular-nums; }
+  .kpi .val { font-size: 18px; font-weight: 500; font-variant-numeric: tabular-nums; font-family: var(--font-mono); }
   .kpi .pos { color: var(--positive); }
   .kpi .neg { color: var(--negative); }
 
   .chart-card {
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: 10px;
+    border-radius: var(--r-md);
     padding: 14px;
     margin-bottom: 16px;
   }
   .manual-price-row {
     display: flex; flex-wrap: wrap; gap: 10px; align-items: end;
     margin: 8px 0; padding: 8px 10px;
-    background: var(--surface-2); border: 1px solid var(--border); border-radius: 6px;
+    background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--r-sm);
     font-size: 12px;
   }
   .manual-price-row label {
     display: grid; gap: 3px; color: var(--text-muted);
   }
   .manual-price-row input {
-    background: var(--surface); border: 1px solid var(--border); border-radius: 4px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-sm);
     padding: 4px 8px; font: inherit; color: var(--text);
   }
   .chart-actions {
@@ -591,7 +585,7 @@
   }
   .btn-fetch {
     padding: 4px 10px;
-    border-radius: 4px;
+    border-radius: var(--r-sm);
     border: 1px solid var(--border);
     background: var(--surface-2);
     color: var(--text);
@@ -627,7 +621,7 @@
     padding: 8px 12px;
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: 8px;
+    border-radius: var(--r-sm);
     font-size: 12px;
     align-items: center;
     min-width: 480px;
@@ -638,7 +632,7 @@
     font-size: 11px;
     font-weight: 500;
     padding: 2px 6px;
-    border-radius: 4px;
+    border-radius: var(--r-sm);
     background: var(--surface-2);
     text-align: center;
   }
@@ -655,7 +649,7 @@
   .bd-card {
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: 10px;
+    border-radius: var(--r-md);
     padding: 14px;
   }
   .bd-card h4 { margin: 0 0 8px; font-size: 13px; font-weight: 500; }
@@ -688,14 +682,14 @@
   .alloc-row-wrap .bucket-state .done { color: var(--positive); }
   .alloc-row-wrap .bucket-state .done .bs-lbl { color: var(--positive); }
   .alloc-row select, .alloc-row input {
-    padding: 4px 8px; border: 1px solid var(--border); border-radius: 4px;
+    padding: 4px 8px; border: 1px solid var(--border); border-radius: var(--r-sm);
     background: var(--surface-2); color: var(--text); font: inherit; font-size: 13px;
   }
   .btn-remove {
     background: transparent; border: 0; color: var(--text-muted); cursor: pointer; padding: 4px;
   }
   .btn-add, .btn-save {
-    padding: 6px 14px; border-radius: 4px; border: 1px solid var(--border);
+    padding: 6px 14px; border-radius: var(--r-sm); border: 1px solid var(--border);
     background: var(--surface-2); color: var(--text); cursor: pointer; font: inherit; font-size: 12px;
     align-self: flex-start;
   }

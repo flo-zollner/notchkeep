@@ -383,7 +383,9 @@
     </div>
   {/if}
 
-  <svg viewBox="0 0 {W} {H}" class="chart" preserveAspectRatio="xMidYMid meet">
+  <figure class="chart-figure">
+  <figcaption class="chart-caption">{tc.income ?? 'Einnahmen'}: {fmtAmountShort(totalIncome)} · {tc.expenses ?? 'Ausgaben'}: {fmtAmountShort(totalExpense)} · {tc.balance}: {fmtEur(balance, { hide: settings.hide, signed: true, decimals: eurDecimals() })}</figcaption>
+  <svg viewBox="0 0 {W} {H}" class="chart" preserveAspectRatio="xMidYMid meet" role="img" aria-hidden="true">
     <!-- Column headers with totals -->
     <text
       x={COL_W / 2}
@@ -486,6 +488,7 @@
       />
     {/if}
   </svg>
+  </figure>
 
   <div class="foot">
     <span class="lbl">{tc.balance}:</span>
@@ -521,6 +524,22 @@
     color: var(--text);
     border-color: var(--accent);
   }
+  .chart-figure {
+    margin: 0;
+    padding: 0;
+    border: none;
+  }
+  .chart-caption {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
   .chart {
     width: 100%;
     height: auto;
@@ -528,6 +547,11 @@
   }
   .link {
     transition: opacity 0.15s ease;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .link {
+      transition: none;
+    }
   }
   .node.expandable,
   .node.navigable {
@@ -554,7 +578,7 @@
   .node-amount {
     font-size: 10px;
     fill: var(--text-muted);
-    font-variant-numeric: tabular-nums;
+    font-family: var(--font-mono);
     pointer-events: none;
   }
   .col-header {
@@ -572,7 +596,7 @@
     font-size: 14px;
   }
   .foot .lbl { color: var(--text-muted); }
-  .foot .num { font-variant-numeric: tabular-nums; font-weight: 500; }
+  .foot .num { font-family: var(--font-mono); font-weight: 500; }
   .foot .pos { color: var(--positive); }
   .foot .neg { color: var(--negative); }
 </style>

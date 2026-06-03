@@ -76,7 +76,7 @@
     if (typeof picked !== 'string') return;
     const v = await api.validateBackup(picked);
     if (!v.ok) {
-      toast = v.error ?? 'invalid';
+      toast = v.error ?? 'Backup-Datei konnte nicht gelesen werden';
       setTimeout(() => (toast = null), 3000);
       return;
     }
@@ -181,7 +181,7 @@
             <h4>Trade-Tx ohne Trade-Details ({integrityReport.tradeKindWithoutTradeRow.length})</h4>
             <ul class="issue-list">
               {#each integrityReport.tradeKindWithoutTradeRow as o (o.id)}
-                <li>Tx #{o.id}: {o.kind} · {o.bookingDate} · {o.counterparty ?? '—'} · {fmtEur(o.amountCents, { hide: settings.hide, signed: true, decimals: 0 })}</li>
+                <li>Tx #{o.id}: {o.kind} · {o.bookingDate} · {o.counterparty ?? '—'} · <span class="mono">{fmtEur(o.amountCents, { hide: settings.hide, signed: true, decimals: 0 })}</span></li>
               {/each}
             </ul>
             <p class="hint">Lösung: Tx löschen + CSV neu importieren, oder manuell Trade-Daten ergänzen.</p>
@@ -210,9 +210,7 @@
   </div>
 </div>
 
-{#if toast}
-  <div class="toast">{toast}</div>
-{/if}
+<div class="toast" aria-live="polite" aria-atomic="true" class:visible={toast !== null}>{toast ?? ''}</div>
 
 {#if pathChangeContext}
   <PathChangeModal
@@ -242,7 +240,7 @@
 <style>
   .force-lock {
     margin-left: 8px;
-    padding: 2px 8px;
+    padding: 4px 8px;
     border-radius: 4px;
     border: 1px solid var(--warning);
     background: transparent;
@@ -257,14 +255,14 @@
   .force-lock:disabled { opacity: 0.5; cursor: wait; }
   h1 { margin: 0 0 18px 0; }
   .grid { display: grid; gap: 16px; max-width: 700px; }
-  dl { display: grid; grid-template-columns: 140px minmax(0, 1fr); gap: 6px 14px; font-size: 13px; margin: 0 0 14px 0; }
+  dl { display: grid; grid-template-columns: 140px minmax(0, 1fr); gap: 4px 14px; font-size: 13px; margin: 0 0 14px 0; }
   @media (max-width: 599px) {
-    dl { grid-template-columns: 1fr; gap: 2px 0; }
-    dt { margin-top: 6px; }
+    dl { grid-template-columns: 1fr; gap: 4px 0; }
+    dt { margin-top: 4px; }
   }
   dt { color: var(--text-muted); }
   dd { margin: 0; word-break: break-all; }
-  .mono { font-family: monospace; font-size: 11px; }
+  .mono { font-family: var(--font-mono); font-size: 11px; }
   .muted { color: var(--text-muted); font-size: 13px; margin: 0 0 12px 0; }
   button {
     padding: 8px 14px; border-radius: 6px; border: 1px solid var(--border);
@@ -278,16 +276,18 @@
     position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
     background: var(--surface); padding: 10px 16px; border-radius: 6px;
     border: 1px solid var(--border); font-size: 13px;
+    visibility: hidden;
   }
+  .toast.visible { visibility: visible; }
   .integrity-results {
     margin-top: 12px;
     display: grid;
-    gap: 10px;
+    gap: 8px;
     font-size: 13px;
   }
   .integrity-results .ok { color: var(--positive); font-weight: 500; }
   .integrity-results h4 {
-    margin: 6px 0 4px 0;
+    margin: 8px 0 4px 0;
     font-size: 12px;
     font-weight: 500;
     color: var(--text);
@@ -298,7 +298,7 @@
     margin: 0; padding: 0 0 0 18px;
     color: var(--text-muted); font-size: 12px;
   }
-  .issue-list li { margin-bottom: 2px; }
+  .issue-list li { margin-bottom: 4px; }
   .integrity-results .hint {
     color: var(--text-faint); font-size: 11px; margin: 4px 0 0 0;
   }
