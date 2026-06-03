@@ -127,36 +127,13 @@ jobs:
             file \
             wget
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v6
+      # Shared setup (pnpm, Node, Rust toolchain + cache, frontend deps).
+      # Cache-Key nach Plattform getrennt.
+      - name: Setup build environment
+        uses: ./.github/actions/setup
         with:
-          # Muss zur lokal genutzten pnpm-Major passen. pnpm 9 brach im CI mit
-          # "packages field missing or empty" ab (pnpm-workspace.yaml nutzt
-          # `allowBuilds`, das pnpm 9 nicht kennt) → setup-node pnpm-Cache
-          # schlug fehl. 11 = lokale Version.
-          version: 11
-
-      - name: Setup Node
-        uses: actions/setup-node@v6
-        with:
-          # pnpm 11 verlangt Node >= 22.13. 22 entspricht der lokalen Umgebung.
-          node-version: 22
-          cache: pnpm
-
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: ${{ matrix.rust_targets }}
-
-      # Cargo-Build-Cache, key u. a. nach Plattform getrennt.
-      - name: Rust cache
-        uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: src-tauri -> target
-          key: ${{ matrix.platform }}
-
-      - name: Install frontend dependencies
-        run: pnpm install --frozen-lockfile
+          rust-targets: ${{ matrix.rust_targets }}
+          cache-key: ${{ matrix.platform }}
 
       # Lizenz-Drift wird bereits im test-Gate geprüft — hier nicht erneut nötig.
       # Build lädt seine Bundles in das von create-release angelegte Draft-
@@ -181,16 +158,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v6
+      # Shared setup (pnpm, Node, Rust toolchain + cache, frontend deps).
+      # Android-Cross-Compile-Targets + eigener Cache-Key.
+      - name: Setup build environment
+        uses: ./.github/actions/setup
         with:
-          version: 11
-
-      - name: Setup Node
-        uses: actions/setup-node@v6
-        with:
-          node-version: 22
-          cache: pnpm
+          rust-targets: aarch64-linux-android,armv7-linux-androideabi,i686-linux-android,x86_64-linux-android
+          cache-key: android
 
       - name: Setup Java
         uses: actions/setup-java@v5
@@ -203,21 +177,6 @@ jobs:
 
       - name: Install Android NDK
         run: sdkmanager "ndk;26.1.10909125"
-
-      - name: Setup Rust (Android targets)
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: aarch64-linux-android,armv7-linux-androideabi,i686-linux-android,x86_64-linux-android
-
-      # Rust-Build-Cache für Android-Cross-Compile-Targets.
-      - name: Rust cache
-        uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: src-tauri -> target
-          key: android
-
-      - name: Install frontend dependencies
-        run: pnpm install --frozen-lockfile
 
       # Keystore aus Secret decodieren; landet nur im Runner-Temp, nie im Repo.
       - name: Decode keystore
