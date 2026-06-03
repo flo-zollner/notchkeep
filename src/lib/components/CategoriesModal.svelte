@@ -290,7 +290,7 @@
             </select>
           </label>
 
-          <div class="error" aria-live="polite">{#if error}{error}{/if}</div>
+          <div class="error" aria-live="polite">{#if error}<Icon name="warning" size={14} aria-hidden="true" /> {error}{/if}</div>
 
           <div class="actions">
             {#if selectedId !== null}
@@ -319,7 +319,7 @@
                   <option value={c.id}>{c.name}</option>
                 {/each}
               </select>
-              <p class="error" aria-live="polite">{#if mergeError}{mergeError}{/if}</p>
+              <p class="error" aria-live="polite">{#if mergeError}<Icon name="warning" size={14} aria-hidden="true" /> {mergeError}{/if}</p>
               <div style="display: flex; gap: 8px; margin-top: 6px;">
                 <button class="btn ghost" type="button" onclick={() => { merging = false; mergeTarget = 0; mergeError = null; }}>
                   Abbrechen
@@ -496,6 +496,9 @@
     box-shadow: 0 0 0 2px var(--surface);
   }
   .error {
+    display: flex;
+    align-items: center;
+    gap: 6px;
     padding: 8px 10px;
     background: var(--negative-soft);
     color: var(--negative);

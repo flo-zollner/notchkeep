@@ -351,7 +351,7 @@
   {/if}
 </div>
 
-<div aria-live="polite" role="status">{#if error}<div class="card" style="color:var(--negative); margin-bottom: 14px;"><Icon name="alert-circle" size={14} /> Fehler: {error}</div>{/if}</div>
+<div aria-live="polite" role="status">{#if error}<div class="card error-banner" style="margin-bottom: 14px;"><Icon name="alert-circle" size={14} aria-hidden="true" /> Fehler: {error}</div>{/if}</div>
 
 <div class="range-bar">
   <div class="seg" role="tablist" aria-label="Zeitraum">
@@ -584,6 +584,12 @@
 />
 
 <style>
+  .error-banner {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--negative);
+  }
   .sav-toggle {
     padding: 1px;
   }

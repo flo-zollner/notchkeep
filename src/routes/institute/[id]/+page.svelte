@@ -82,7 +82,7 @@
   <Icon name="chevron-right" size={12} /> {ti.title ?? 'Institute'}
 </button>
 
-<div class="card error-card" aria-live="polite">{#if error}Fehler: {error}{/if}</div>
+<div class="card error-card" aria-live="polite">{#if error}<Icon name="warning" size={14} aria-hidden="true" /> Fehler: {error}{/if}</div>
 
 {#if loading}
   <div class="empty">…</div>
@@ -198,6 +198,9 @@
     gap: 4px;
   }
   .error-card {
+    display: flex;
+    align-items: center;
+    gap: 6px;
     color: var(--negative);
     margin-bottom: 14px;
   }

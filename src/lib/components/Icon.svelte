@@ -10,18 +10,21 @@
     | 'heart' | 'repeat' | 'plane' | 'shield' | 'briefcase' | 'wallet'
     | 'lock' | 'globe' | 'download' | 'refresh' | 'dots'
     | 'eye' | 'eye-off' | 'pencil' | 'tag' | 'target' | 'trending' | 'goal'
-    | 'copy' | 'warning';
+    | 'copy' | 'warning' | 'alert-circle';
 
   interface Props {
     name: IconName | string;
     size?: number;
     stroke?: number;
+    /** Forwarded to the <svg> (e.g. aria-hidden, aria-label, class). */
+    [key: string]: unknown;
   }
 
-  let { name, size = 16, stroke = 1.5 }: Props = $props();
+  let { name, size = 16, stroke = 1.5, ...rest }: Props = $props();
 </script>
 
 <svg
+  {...rest}
   width={size}
   height={size}
   viewBox="0 0 24 24"
@@ -177,6 +180,10 @@
     <path d="M12 3L2 20h20L12 3z" />
     <path d="M12 9v5" />
     <path d="M12 18h.01" />
+  {:else if name === 'alert-circle'}
+    <circle cx="12" cy="12" r="9" />
+    <path d="M12 8v4" />
+    <path d="M12 16h.01" />
   {:else}
     <circle cx="12" cy="12" r="3" />
   {/if}

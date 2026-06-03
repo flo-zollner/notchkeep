@@ -233,7 +233,7 @@
     {/if}
   </div>
 
-  <p class="err" aria-live="polite">{#if error}{error}{/if}</p>
+  <p class="err" aria-live="polite">{#if error}<Icon name="warning" size={14} aria-hidden="true" /> {error}{/if}</p>
 </Sheet>
 
 <style>
@@ -285,7 +285,7 @@
     display: grid; place-items: center;
     font-size: 12px;
   }
-  .err { margin: 0; font-size: 12px; color: var(--danger, #ef4444); }
+  .err { display: flex; align-items: center; gap: 6px; margin: 0; font-size: 12px; color: var(--danger, #ef4444); }
   .err:empty { display: none; }
   /* footer-actions */
   .footer-actions {

@@ -3,6 +3,7 @@
   import { invalidateAll } from '$app/navigation';
   import { api, errMsg} from '$lib/api';
   import Sheet from './Sheet.svelte';
+  import Icon from './Icon.svelte';
   import { t } from '$lib/settings.svelte';
 
   interface Props {
@@ -59,7 +60,7 @@
 <Sheet open={true} onClose={() => {}} title="Datenpfad nicht erreichbar" dismissable={false}>
   <p class="path">{badPath}</p>
   <p class="hint">{t().data.startupErrorHint}</p>
-  <p class="error" role="alert" aria-live="assertive">{error ?? ''}</p>
+  <p class="error" role="alert" aria-live="assertive">{#if error}<Icon name="warning" size={18} aria-hidden="true" /> {error}{/if}</p>
 
   {#snippet footer()}
     <div class="footer-actions">
@@ -76,7 +77,8 @@
     color: var(--text-muted); word-break: break-all;
   }
   .hint { font-size: 13px; color: var(--text-muted); margin: 0 0 16px 0; }
-  .error { color: var(--negative); font-size: 12px; }
+  .error { display: flex; align-items: center; gap: 6px; color: var(--negative); font-size: 12px; }
+  .error:empty { display: none; }
   .footer-actions {
     display: flex;
     justify-content: flex-end;

@@ -1,6 +1,7 @@
 <script lang="ts">
   import { api, type PathCheckResult, type ChangePathAction, errMsg} from '$lib/api';
   import Sheet from './Sheet.svelte';
+  import Icon from './Icon.svelte';
   import { t } from '$lib/settings.svelte';
 
   interface Props {
@@ -41,7 +42,7 @@
     </p>
   {/if}
 
-  <p class="error" aria-live="polite">{#if error}{error}{/if}</p>
+  <p class="error" aria-live="polite">{#if error}<Icon name="warning" size={14} aria-hidden="true" /> {error}{/if}</p>
 
   {#snippet footer()}
     <div class="footer-actions">
@@ -76,7 +77,7 @@
     color: var(--text-muted); word-break: break-all;
   }
   .hint { font-size: 12px; color: var(--text-muted); margin: 0 0 16px 0; }
-  .error { color: var(--negative); font-size: 12px; }
+  .error { display: flex; align-items: center; gap: 6px; color: var(--negative); font-size: 12px; }
   .error:empty { display: none; }
   .footer-actions {
     display: flex;

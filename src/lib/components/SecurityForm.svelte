@@ -219,7 +219,7 @@
       />
     {/if}
 
-    <p class="err" aria-live="polite">{error ?? ''}</p>
+    <p class="err" aria-live="polite">{#if error}<Icon name="warning" size={14} aria-hidden="true" /> {error}{/if}</p>
 
     <footer>
       {#if isEdit}
@@ -301,7 +301,8 @@
   }
   .grid .span2 { grid-column: 1 / -1; }
   .grid .toggle { flex-direction: row; align-items: center; gap: 8px; color: var(--text); }
-  .err { color: var(--negative); font-size: 12px; margin: 8px 0 0; min-height: 1em; }
+  .err { display: flex; align-items: center; gap: 6px; color: var(--negative); font-size: 12px; margin: 8px 0 0; }
+  .err:empty { display: none; }
   footer {
     display: flex; gap: 8px; margin-top: 14px;
     align-items: center;

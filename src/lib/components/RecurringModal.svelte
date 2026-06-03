@@ -231,7 +231,7 @@
   .sign-toggle button:last-child { border-radius: 0 var(--r-sm) var(--r-sm) 0; }
   .sign-toggle button.on { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
   .field.amount-field input { font-family: var(--font-mono); }
-  .err { color: var(--negative); font-size: 12px; margin: 0; }
+  .err { display: flex; align-items: center; gap: 6px; color: var(--negative); font-size: 12px; margin: 0; }
   /* footer-actions */
   .footer-actions {
     display: flex;

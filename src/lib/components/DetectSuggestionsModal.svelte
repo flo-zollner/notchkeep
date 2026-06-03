@@ -5,6 +5,7 @@
   import { fmtEur } from '$lib/format';
   import { settings, t } from '$lib/settings.svelte';
   import Sheet from './Sheet.svelte';
+  import Icon from './Icon.svelte';
 
   interface Props {
     accounts: Account[];
@@ -115,7 +116,7 @@
     </ul>
   {/if}
 
-  <p class="err" aria-live="polite">{#if error}{error}{/if}</p>
+  <p class="err" aria-live="polite">{#if error}<Icon name="warning" size={14} aria-hidden="true" /> {error}{/if}</p>
 </Sheet>
 
 <style>
@@ -135,7 +136,7 @@
   .acc, .freq, .samples { color: var(--text-muted); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .amt { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
   .amt.neg { color: var(--negative); }
-  .err { color: var(--negative); font-size: 12px; margin: 0; }
+  .err { display: flex; align-items: center; gap: 6px; color: var(--negative); font-size: 12px; margin: 0; }
   .err:empty { display: none; }
   @media (max-width: 599px) {
     .list li {

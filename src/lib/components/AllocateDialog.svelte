@@ -1,6 +1,7 @@
 <script lang="ts">
   import { untrack } from 'svelte';
   import Sheet from './Sheet.svelte';
+  import Icon from './Icon.svelte';
   import DateField from './DateField.svelte';
   import { t } from '$lib/settings.svelte';
   import { api, type Bucket, todayIso } from '$lib/api';
@@ -141,7 +142,7 @@
     </label>
   </div>
 
-  <p class="err" aria-live="polite">{#if sameEndpoint}{tb.errSameEndpoint}{/if}</p>
+  <p class="err" aria-live="polite">{#if sameEndpoint}<Icon name="warning" size={14} aria-hidden="true" /> {tb.errSameEndpoint}{/if}</p>
 
   {#if previewAfter !== null}
     <div class="preview" class:warn={wouldGoNegative}>
@@ -156,7 +157,7 @@
     </div>
   {/if}
 
-  <p class="err" aria-live="polite">{#if error}{error}{/if}</p>
+  <p class="err" aria-live="polite">{#if error}<Icon name="warning" size={14} aria-hidden="true" /> {error}{/if}</p>
 </Sheet>
 
 <style>
@@ -201,6 +202,9 @@
     margin: 8px 0 0;
     font-size: 12px;
     color: var(--negative, #ef4444);
+    display: flex;
+    align-items: center;
+    gap: 6px;
   }
   .err:empty { display: none; }
   .footer-actions {

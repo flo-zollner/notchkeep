@@ -242,7 +242,7 @@
     <label class="span2">{tt.note}<textarea rows="2" bind:value={note}></textarea></label>
   </div>
 
-  <p class="err" aria-live="polite" role="status">{error ?? ''}</p>
+  <p class="err" aria-live="polite" role="status">{#if error}<Icon name="warning" size={14} aria-hidden="true" /> {error}{/if}</p>
 </Sheet>
 
 <style>
@@ -266,7 +266,8 @@
   }
   .grid .span2 { grid-column: 1 / -1; }
   .grid .hint { color: var(--text-faint); font-size: 12px; }
-  .err { color: var(--negative); font-size: 12px; margin: 8px 0 0; }
+  .err { display: flex; align-items: center; gap: 6px; color: var(--negative); font-size: 12px; margin: 8px 0 0; }
+  .err:empty { display: none; }
   /* footer-actions */
   .footer-actions {
     display: flex;

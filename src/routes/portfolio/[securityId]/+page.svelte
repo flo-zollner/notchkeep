@@ -697,6 +697,6 @@
   .alloc-summary { display: grid; gap: 4px; font-size: 13px; }
   .alloc-summary .warn { color: var(--negative); }
   .alloc-summary .warn .num { color: var(--negative); font-weight: 500; }
-  .error { color: var(--negative); font-size: 12px; margin: 0; }
+  .error { display: flex; align-items: center; gap: 6px; color: var(--negative); font-size: 12px; margin: 0; }
   .info { color: var(--text-muted); font-size: 12px; margin: 0; }
 </style>
