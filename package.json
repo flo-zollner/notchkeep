@@ -16,7 +16,16 @@
     "test:ui": "vitest --ui",
     "gen:licenses": "cd src-tauri && cargo about generate about.hbs -o ../static/licenses.html && cd .. && node scripts/append-js-licenses.mjs",
     "gen:licenses:check": "cd src-tauri && cargo about generate about.hbs -o /dev/null",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "lint": "eslint . && prettier --check .",
+    "lint:fix": "eslint . --fix && prettier --write .",
+    "scan:pii": "bash scripts/scan-pii.sh",
+    "scan:versions": "node scripts/check-versions.mjs",
+    "scan:capabilities": "node scripts/audit-capabilities.mjs",
+    "scan:secrets-committed": "bash scripts/check-secrets-committed.sh",
+    "scan:update-endpoint": "node scripts/check-update-endpoint.mjs",
+    "deny": "cd src-tauri && cargo deny check",
+    "sbom": "cargo cyclonedx --manifest-path src-tauri/Cargo.toml -f json && cyclonedx-npm --output-file sbom-npm.json"
   },
   "license": "GPL-3.0-or-later",
   "dependencies": {
