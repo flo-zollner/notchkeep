@@ -82,7 +82,7 @@
   .field input {
     padding: 8px 10px; background: var(--surface-2);
     border: 1px solid var(--border); border-radius: 6px;
-    color: var(--text); font-family: ui-monospace, monospace;
+    color: var(--text); font-family: var(--font-mono);
     text-transform: uppercase; letter-spacing: 0.1em;
     font-size: 16px;
   }

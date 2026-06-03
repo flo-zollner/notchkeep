@@ -73,7 +73,7 @@
 
 <style>
   .target {
-    margin: 0 0 12px 0; font-family: monospace; font-size: 12px;
+    margin: 0 0 12px 0; font-family: var(--font-mono); font-size: 12px;
     color: var(--text-muted); word-break: break-all;
   }
   .hint { font-size: 12px; color: var(--text-muted); margin: 0 0 16px 0; }
