@@ -34,7 +34,9 @@ jobs:
         run: bash scripts/scan-pii.sh tree
       - name: Secret scan
         uses: gitleaks/gitleaks-action@v2
-        env: { GITLEAKS_CONFIG: .gitleaks.toml }
+        env:
+          GITLEAKS_CONFIG: .gitleaks.toml
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   build-smoke:
     runs-on: ubuntu-latest
     steps:
