@@ -268,6 +268,18 @@ jobs:
           tmp="$(mktemp -d)"
           gh release download "$TAG" -p 'latest.json' -p 'android-latest.json' -D "$tmp" --clobber
 
+          # tauri-action schreibt die Desktop-Asset-URLs als
+          # `…/releases/latest/download/…`. Das funktioniert nur für den
+          # STABLE-Kanal (dort IST das getaggte Release das "latest"). Für den
+          # Beta-Kanal löst `/releases/latest/` aber auf das neueste STABLE auf —
+          # die Prerelease-Dateien liegen dort nicht → 404 beim Download. Daher
+          # die URLs auf den versionsspezifischen Pfad dieses Tags umschreiben.
+          # (android-latest.json nutzt bereits `/releases/download/<tag>/` und
+          # enthält das Muster nicht, bleibt also unberührt.)
+          if [ -f "$tmp/latest.json" ]; then
+            sed -i "s#releases/latest/download/#releases/download/${TAG}/#g" "$tmp/latest.json"
+          fi
+
           # Rolling-Release idempotent anlegen (Prerelease → nicht "Latest" auf
           # der Releases-Seite). Es trägt nur die zwei Manifest-JSONs.
           if ! gh release view "$ROLLING" >/dev/null 2>&1; then
