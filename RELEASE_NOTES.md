@@ -1,4 +1,4 @@
-# Notchkeep v0.2.4-rc.1 — Release Candidate (CI-Sicherheit & Release-Tuning)
+# Notchkeep v0.2.4-rc.2 — Release Candidate (Update-Channel: Stable/Beta)
 
 **Simple Personal Networth.**
 
@@ -8,18 +8,32 @@
 > installieren. Keine Breaking Changes, keine Datenmigration — der bestehende
 > lokale Datenbestand bleibt unverändert.
 
-## Änderungen (intern)
+## Neu
 
-- **Security-/Quality-Pipeline in der CI:** statische Analyse, CVE-/Advisory-Scan
-  (cargo-deny, OSV), Pentest-Checks (Dateirechte, Logfile-PII, Zertifikats-,
-  Versions- und Update-Endpoint-Prüfung), SBOM-Erzeugung und ein SARIF-Report.
-  Lokale Check-Skripte und ein ESLint-Bug-Gate ergänzen das bestehende Testgate.
-- **DB-Dateirechte:** lokale SQLite-Datei wird mit `0600` (nur Eigentümer) angelegt.
-- **Schlankere Release-Artefakte:** die Windows-`.msi` (WiX) entfällt — die
-  NSIS-`.exe` deckt Installation **und** Update ab. Die redundanten standalone
-  `.sig`-Assets werden entfernt (die Signatur liegt inline im Update-Manifest).
-- **RC-Kanal:** Tags der Form `vX.Y.Z-rc.N` werden als Prerelease veröffentlicht
-  und vom Updater nie an stabile Nutzer ausgeliefert.
+- **Wählbarer Update-Channel (Stable / Beta).** In den Einstellungen lässt sich
+  der Release-Channel umstellen:
+  - **Stable** (Default): nur stabile Updates.
+  - **Beta**: erhält zusätzlich Release Candidates (Vorabversionen).
+
+  Der Wechsel **zu Beta** zeigt jedes Mal eine Warnung mit Bestätigung — inkl.
+  Hinweis, dass man auf einer Vorabversion bleibt, bis Stable sie überholt (es
+  gibt kein automatisches Zurückstufen). Zurück auf Stable ist ohne Nachfrage.
+
+## Technisch
+
+- **Channel-spezifische Update-Quelle:** Stable liest GitHub `/releases/latest/`
+  (immer das neueste Nicht-Prerelease), Beta ein fortlaufendes Manifest inkl.
+  Vorabversionen. Desktop schaltet die Quelle zur Laufzeit über die offizielle
+  Updater-Maschinerie um (Signaturprüfung und Download/Install bleiben
+  unverändert); Android über den bestehenden APK-Updater. **Keine neuen
+  Abhängigkeiten.**
+- **Korrektere Versions-Reihenfolge:** Prerelease-Präzedenz nach SemVer
+  (`0.3.0` ist neuer als `0.3.0-rc.2`, `rc.2` neuer als `rc.1`).
+
+## Hinweise
+
+- Der Beta-Channel wird erst ab dem ersten regulären Release scharf, das das
+  fortlaufende Update-Manifest erzeugt; **Stable funktioniert sofort.**
 
 Die in **v0.2.2** eingeführten Auto-Updates (Desktop via Tauri-Updater,
 Android via signiertem In-App-APK-Updater) sind unverändert enthalten.
