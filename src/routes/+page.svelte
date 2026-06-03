@@ -351,9 +351,7 @@
   {/if}
 </div>
 
-{#if error}
-  <div class="card" style="color:var(--negative); margin-bottom: 14px;">Fehler: {error}</div>
-{/if}
+<div aria-live="polite" role="status">{#if error}<div class="card error-banner" style="margin-bottom: 14px;"><Icon name="alert-circle" size={14} aria-hidden="true" /> Fehler: {error}</div>{/if}</div>
 
 <div class="range-bar">
   <div class="seg" role="tablist" aria-label="Zeitraum">
@@ -586,6 +584,12 @@
 />
 
 <style>
+  .error-banner {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--negative);
+  }
   .sav-toggle {
     padding: 1px;
   }
@@ -599,7 +603,7 @@
     flex-direction: column;
     gap: 14px;
   }
-  .skel-list { display: grid; gap: 6px; padding: 8px 0; }
+  .skel-list { display: grid; gap: 8px; padding: 8px 0; }
   .muted { color: var(--text-muted); font-size: 12px; font-variant-numeric: tabular-nums; }
   .head-right {
     display: flex;
@@ -609,7 +613,7 @@
   .seg {
     display: inline-flex;
     background: var(--surface-2);
-    border-radius: 8px;
+    border-radius: var(--r-sm);
     padding: 2px;
     gap: 2px;
   }
@@ -621,7 +625,7 @@
     font-size: 11px;
     font-weight: 500;
     padding: 4px 10px;
-    border-radius: 6px;
+    border-radius: var(--r-sm);
     cursor: pointer;
     transition: background 0.12s, color 0.12s;
   }
@@ -631,7 +635,7 @@
   .seg button.active {
     background: var(--surface);
     color: var(--text);
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+    box-shadow: var(--shadow-sm);
   }
   .range-bar {
     display: flex;
@@ -648,13 +652,13 @@
   .custom-dates {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
   }
   .custom-dates input[type="date"] {
     appearance: none;
     background: var(--surface-2);
     border: 1px solid var(--border);
-    border-radius: 6px;
+    border-radius: var(--r-sm);
     padding: 4px 8px;
     font-size: 12px;
     color: var(--text);
@@ -680,13 +684,13 @@
   .cat-row {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
     padding: 8px 0;
   }
   .cat-icon {
-    width: 26px;
-    height: 26px;
-    border-radius: 7px;
+    width: 24px;
+    height: 24px;
+    border-radius: var(--r-sm);
     background: var(--surface-2);
     display: grid;
     place-items: center;
@@ -711,7 +715,7 @@
   .inst-row {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
     padding: 8px 0;
     text-decoration: none;
     color: inherit;
@@ -738,5 +742,11 @@
     font-size: 13px;
     font-weight: 500;
     font-variant-numeric: tabular-nums;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .seg button,
+    .inst-name {
+      transition: none;
+    }
   }
 </style>

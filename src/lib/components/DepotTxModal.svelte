@@ -4,6 +4,7 @@
   import Icon from './Icon.svelte';
   import SecurityPicker from './SecurityPicker.svelte';
   import { settings, t } from '$lib/settings.svelte';
+  import { snackbar } from '$lib/snackbar.svelte';
   import Sheet from './Sheet.svelte';
 
   interface Props {
@@ -24,7 +25,7 @@
   let loading = $state(true);
   let saving = $state(false);
   let error = $state<string | null>(null);
-  let confirmDelete = $state(false);
+  const tc = $derived(t().common);
 
   $effect(() => {
     loading = true;
@@ -139,7 +140,6 @@
         holding_account_id: payload.accountId ?? tx.holding_account_id,
       };
       onSaved(updated);
-      confirmDelete = false;
       onClose();
     } catch (e) {
       error = errMsg(e);
@@ -149,16 +149,17 @@
   }
 
   async function deleteTx() {
-    if (!confirmDelete) {
-      confirmDelete = true;
-      return;
-    }
+    const id = tx.id;
     saving = true;
     error = null;
     try {
-      await api.deleteTrade(tx.id);
-      onDeleted?.(tx.id);
+      await api.deleteTrade(id);
+      onDeleted?.(id);
       onClose();
+      snackbar.showUndo(tc.deleted, tc.undo, async () => {
+        await api.restoreTransaction(id);
+        onDeleted?.(id);
+      });
     } catch (e) {
       error = errMsg(e);
       saving = false;
@@ -166,15 +167,15 @@
   }
 </script>
 
-<Sheet open={true} onClose={() => { confirmDelete = false; onClose(); }} title={security?.name ?? 'Depot-Transaktion'}>
+<Sheet open={true} onClose={onClose} title={security?.name ?? 'Depot-Transaktion'}>
   {#snippet footer()}
     <div class="footer-actions">
       {#if onDeleted}
         <button type="button" class="btn danger" onclick={deleteTx} disabled={saving}>
-          {confirmDelete ? 'Wirklich löschen?' : '🗑 Löschen'}
+          🗑 Löschen
         </button>
       {/if}
-      <button type="button" class="btn" onclick={() => { confirmDelete = false; onClose(); }} disabled={saving}>Abbrechen</button>
+      <button type="button" class="btn" onclick={onClose} disabled={saving}>Abbrechen</button>
       <button type="button" class="btn accent" onclick={save} disabled={saving}>
         {saving ? 'Speichert …' : 'Speichern'}
       </button>

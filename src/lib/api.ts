@@ -729,6 +729,7 @@ export const api = {
   updateTransaction: (tx: UpdateTransactionPayload) =>
     invoke<Transaction>('update_transaction', { tx }),
   deleteTransaction: (id: number) => invoke<void>('delete_transaction', { id }),
+  restoreTransaction: (id: number) => invoke<boolean>('restore_transaction', { id }),
   detectTransfers: () => invoke<number>('detect_transfers'),
   cleanupPhantomMirrors: () => invoke<number>('cleanup_phantom_mirrors'),
   assignCategory: (transactionId: number, categoryId: number | null) =>
@@ -755,6 +756,7 @@ export const api = {
   createRule: (rule: NewRulePayload) => invoke<Rule>('create_rule', { rule }),
   updateRule: (rule: Rule) => invoke<Rule>('update_rule', { rule }),
   deleteRule: (id: number) => invoke<void>('delete_rule', { id }),
+  restoreRule: (id: number) => invoke<boolean>('restore_rule', { id }),
   applyRuleToExisting: (ruleId: number) =>
     invoke<number>('apply_rule_to_existing', { ruleId }),
   previewRuleMatch: (rule: NewRulePayload) =>
@@ -814,6 +816,7 @@ export const api = {
   updateBucket: (id: number, payload: UpdateBucketPayload) =>
     invoke<Bucket>('update_bucket', { id, payload }),
   deleteBucket: (id: number) => invoke<boolean>('delete_bucket', { id }),
+  restoreBucket: (id: number) => invoke<boolean>('restore_bucket', { id }),
   bucketBalance: (id: number) => invoke<number>('bucket_balance', { id }),
   listBucketProgress: () =>
     invoke<BucketProgress[]>('list_bucket_progress'),
@@ -926,6 +929,8 @@ export const api = {
     invoke<RecurringPayment>('update_recurring', { id, payload }),
   deleteRecurring: (id: number) =>
     invoke<boolean>('delete_recurring', { id }),
+  restoreRecurring: (id: number) =>
+    invoke<boolean>('restore_recurring', { id }),
   recurringOverview: (monthsAhead: number) =>
     invoke<RecurringOverview[]>('recurring_overview', { monthsAhead }),
   detectRecurring: () =>

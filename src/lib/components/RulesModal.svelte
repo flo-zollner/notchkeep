@@ -12,6 +12,7 @@
   import { parseEur, fmtEurInput } from '$lib/format';
   import Icon from './Icon.svelte';
   import { t } from '$lib/settings.svelte';
+  import { snackbar } from '$lib/snackbar.svelte';
   import Sheet from './Sheet.svelte';
 
   interface Props {
@@ -126,8 +127,8 @@
   let selectedId = $state<number | null>(null);
   let dirty = $state(false);
   let saving = $state(false);
-  let confirmingDelete = $state(false);
   let error = $state<string | null>(null);
+  const tc = $derived(t().common);
   let applyResult = $state<string | null>(null);
 
   // Form fields
@@ -165,7 +166,6 @@
     formTargetCategoryId = categories[0]?.id ?? null;
     formPriority = 100;
     formEnabled = true;
-    confirmingDelete = false;
     error = null;
     applyResult = null;
     previewCount = null;
@@ -184,7 +184,6 @@
     formTargetCategoryId = r.targetCategoryId;
     formPriority = r.priority;
     formEnabled = r.enabled;
-    confirmingDelete = false;
     error = null;
     applyResult = null;
     dirty = false;
@@ -299,16 +298,17 @@
 
   async function remove() {
     if (selectedId === null) return;
-    if (!confirmingDelete) {
-      confirmingDelete = true;
-      return;
-    }
+    const id = selectedId;
     try {
-      await api.deleteRule(selectedId);
+      await api.deleteRule(id);
       selectedId = null;
       dirty = false;
       previewCount = null;
       rules = await api.listRules();
+      snackbar.showUndo(tc.deleted, tc.undo, async () => {
+        await api.restoreRule(id);
+        rules = await api.listRules();
+      });
     } catch (e) {
       error = errMsg(e);
     }
@@ -551,14 +551,16 @@
           {#if applyResult}
             <div class="info">{applyResult}</div>
           {/if}
-          {#if error}
-            <div class="error">{error}</div>
-          {/if}
+          <div class="error" class:visible={!!error} aria-live="polite" role="alert">
+            {#if error}
+              <Icon name="alert-circle" size={14} />{error}
+            {/if}
+          </div>
 
           <div class="actions">
             {#if selectedId !== null}
               <button class="btn delete" onclick={remove} type="button">
-                {confirmingDelete ? t().common.confirmDelete : t().common.delete}
+                {tc.delete}
               </button>
             {/if}
             <div class="spacer"></div>
@@ -724,7 +726,7 @@
   }
   .cond-row {
     display: grid;
-    grid-template-columns: 130px 130px 1fr auto;
+    grid-template-columns: 1fr 1fr 1.5fr auto;
     gap: 6px;
     align-items: center;
   }
@@ -801,11 +803,16 @@
     font-size: 12px;
   }
   .error {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    border-radius: var(--r-sm);
+    font-size: 12px;
+  }
+  .error.visible {
     padding: 8px 10px;
     background: var(--negative-soft);
     color: var(--negative);
-    border-radius: var(--r-sm);
-    font-size: 12px;
   }
   .actions {
     display: flex;
@@ -823,7 +830,7 @@
     background: var(--negative-soft);
   }
   .toggle {
-    width: 38px;
+    width: 40px;
     height: 22px;
     border-radius: 99px;
     background: var(--border-strong);
@@ -849,7 +856,11 @@
     transition: left 0.15s;
   }
   .knob.on {
-    left: 18px;
+    left: 20px;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .toggle { transition: none; }
+    .knob   { transition: none; }
   }
   .muted {
     color: var(--text-muted);

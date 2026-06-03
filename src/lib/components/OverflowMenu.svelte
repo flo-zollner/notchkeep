@@ -99,7 +99,7 @@
     align-items: center;
     gap: 10px;
     width: 100%;
-    min-height: 44px;
+    min-height: var(--tap);
     padding: 8px 10px;
     border-radius: var(--r-sm, 6px);
     background: none;

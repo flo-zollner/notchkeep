@@ -46,15 +46,19 @@
 
 <style>
   .row {
+    --date-col: 120px;
+    --date-col-sm: 92px;
+    --fs-row: 13px;
+    --fs-status: 11px;
     display: grid;
-    grid-template-columns: 120px 1fr auto auto;
+    grid-template-columns: var(--date-col) 1fr auto auto;
     gap: 12px;
     align-items: center;
     padding: 8px 12px;
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: 8px;
-    font-size: 13px;
+    font-size: var(--fs-row);
     cursor: pointer;
     color: var(--text);
     text-align: left;
@@ -64,14 +68,14 @@
   .row:hover { background: var(--surface-hover); }
   .date { color: var(--text-muted); }
   .name { font-weight: 500; }
-  .amount { font-variant-numeric: tabular-nums; }
+  .amount { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
   .amount.neg { color: var(--negative); }
-  .status { font-size: 11px; padding: 2px 6px; border-radius: 4px;
+  .status { font-size: var(--fs-status); padding: 4px 8px; border-radius: 4px;
             background: var(--surface-2); color: var(--text-muted); }
   .status.paid { color: var(--positive); background: var(--positive-soft, var(--surface-2)); }
   @media (max-width: 600px) {
     .row {
-      grid-template-columns: 92px minmax(0, 1fr) auto auto;
+      grid-template-columns: var(--date-col-sm) minmax(0, 1fr) auto auto;
       gap: 8px;
     }
   }

@@ -79,6 +79,11 @@ pub async fn delete_bucket(state: State<'_, DbState>, id: i64) -> Result<bool, C
 }
 
 #[tauri::command]
+pub async fn restore_bucket(state: State<'_, DbState>, id: i64) -> Result<bool, CommandError> {
+    Ok(db_buckets::restore_bucket(&state.pool(), id).await?)
+}
+
+#[tauri::command]
 pub async fn bucket_balance(state: State<'_, DbState>, id: i64) -> Result<i64, CommandError> {
     Ok(db_buckets::bucket_balance(&state.pool(), id).await?)
 }

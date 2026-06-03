@@ -1,5 +1,6 @@
 <script lang="ts">
   import Icon from '$lib/components/Icon.svelte';
+  import EmptyState from '$lib/components/EmptyState.svelte';
   import RecurringModal from '$lib/components/RecurringModal.svelte';
   import DetectSuggestionsModal from '$lib/components/DetectSuggestionsModal.svelte';
   import UpcomingRow from '$lib/components/UpcomingRow.svelte';
@@ -113,7 +114,15 @@
         {tr.showArchived}
       </label>
     </div>
-    {#if recurrings.length === 0}
+    {#if recurrings.length === 0 && !showArchived}
+      <EmptyState
+        icon="repeat"
+        title="Keine wiederkehrenden Zahlungen"
+        description="Trag deine erste wiederkehrende Zahlung ein."
+        actionLabel={tr.add}
+        onAction={() => (addingNew = true)}
+      />
+    {:else if recurrings.length === 0}
       <p class="muted">—</p>
     {:else}
       <div class="rec-list">
@@ -161,8 +170,8 @@
   .actions { display: flex; gap: 8px; }
   .actions button {
     background: var(--surface-2); border: 1px solid var(--border);
-    border-radius: 8px; padding: 6px 12px; cursor: pointer;
-    font: inherit; color: var(--text); display: inline-flex; gap: 6px; align-items: center;
+    border-radius: 8px; padding: 8px 12px; cursor: pointer;
+    font: inherit; color: var(--text); display: inline-flex; gap: 8px; align-items: center;
     font-size: 13px;
   }
   .actions .primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
@@ -181,6 +190,6 @@
 
     /* Actions wrap below title */
     .actions { flex-wrap: wrap; gap: 8px; }
-    .actions button { min-height: var(--tap, 44px); }
+    .actions button { min-height: var(--tap, 48px); }
   }
 </style>

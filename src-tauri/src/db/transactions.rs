@@ -120,6 +120,120 @@ pub async fn set_transaction_bucket(
     Ok(())
 }
 
+/// Soft-delete a transaction by physically moving it — and its securities_trades
+/// child, if any — into the trash tables (migration 0005), preserving the
+/// original id. Restorable via [`restore_transaction`]. Returns false if no live
+/// transaction with that id exists. This keeps soft-delete out of the ~60 read
+/// queries on `transactions`: the row is simply absent until restored.
+pub async fn move_transaction_to_trash(pool: &SqlitePool, id: i64) -> DbResult<bool> {
+    let mut tx = pool.begin().await?;
+    let moved = sqlx::query(
+        "INSERT INTO deleted_transactions
+            (id, account_id, booking_date, value_date, amount_cents, currency, counterparty,
+             purpose, raw_ref, category_id, source, source_file_hash, imported_at, manual_note,
+             bucket_id, kind, counterparty_iban, paired_tx_id)
+         SELECT id, account_id, booking_date, value_date, amount_cents, currency, counterparty,
+             purpose, raw_ref, category_id, source, source_file_hash, imported_at, manual_note,
+             bucket_id, kind, counterparty_iban, paired_tx_id
+           FROM transactions WHERE id = ?1",
+    )
+    .bind(id)
+    .execute(&mut *tx)
+    .await?;
+    if moved.rows_affected() == 0 {
+        tx.rollback().await?;
+        return Ok(false);
+    }
+    sqlx::query(
+        "INSERT INTO deleted_securities_trades
+            (tx_id, security_id, side, shares_micro, unit_price_micro, fee_cents, tax_cents,
+             fx_rate_micro, account_id, kest_cents, withholding_tax_cents, fusion_group)
+         SELECT tx_id, security_id, side, shares_micro, unit_price_micro, fee_cents, tax_cents,
+             fx_rate_micro, account_id, kest_cents, withholding_tax_cents, fusion_group
+           FROM securities_trades WHERE tx_id = ?1",
+    )
+    .bind(id)
+    .execute(&mut *tx)
+    .await?;
+    // CASCADE removes the live securities_trades child together with the parent.
+    sqlx::query("DELETE FROM transactions WHERE id = ?1")
+        .bind(id)
+        .execute(&mut *tx)
+        .await?;
+    // A partner that referenced this tx loses the link (re-established on restore).
+    sqlx::query("UPDATE transactions SET paired_tx_id = NULL WHERE paired_tx_id = ?1")
+        .bind(id)
+        .execute(&mut *tx)
+        .await?;
+    tx.commit().await?;
+    Ok(true)
+}
+
+/// Move a previously trashed transaction (and its trade child) back into the
+/// live tables with its original id. References that became dangling while in
+/// the trash (partner / category / bucket hard-removed) are dropped to NULL so
+/// FK constraints hold. Returns false if nothing with that id is in the trash.
+pub async fn restore_transaction(pool: &SqlitePool, id: i64) -> DbResult<bool> {
+    let mut tx = pool.begin().await?;
+    let moved = sqlx::query(
+        "INSERT INTO transactions
+            (id, account_id, booking_date, value_date, amount_cents, currency, counterparty,
+             purpose, raw_ref, category_id, source, source_file_hash, imported_at, manual_note,
+             bucket_id, kind, counterparty_iban, paired_tx_id)
+         SELECT id, account_id, booking_date, value_date, amount_cents, currency, counterparty,
+             purpose, raw_ref,
+             CASE WHEN category_id IS NOT NULL
+                       AND EXISTS (SELECT 1 FROM categories c WHERE c.id = dt.category_id)
+                  THEN category_id ELSE NULL END,
+             source, source_file_hash, imported_at, manual_note,
+             CASE WHEN bucket_id IS NOT NULL
+                       AND EXISTS (SELECT 1 FROM buckets b WHERE b.id = dt.bucket_id)
+                  THEN bucket_id ELSE NULL END,
+             kind, counterparty_iban,
+             CASE WHEN paired_tx_id IS NOT NULL
+                       AND EXISTS (SELECT 1 FROM transactions t WHERE t.id = dt.paired_tx_id)
+                  THEN paired_tx_id ELSE NULL END
+           FROM deleted_transactions dt WHERE dt.id = ?1",
+    )
+    .bind(id)
+    .execute(&mut *tx)
+    .await?;
+    if moved.rows_affected() == 0 {
+        tx.rollback().await?;
+        return Ok(false);
+    }
+    sqlx::query(
+        "INSERT INTO securities_trades
+            (tx_id, security_id, side, shares_micro, unit_price_micro, fee_cents, tax_cents,
+             fx_rate_micro, account_id, kest_cents, withholding_tax_cents, fusion_group)
+         SELECT tx_id, security_id, side, shares_micro, unit_price_micro, fee_cents, tax_cents,
+             fx_rate_micro, account_id, kest_cents, withholding_tax_cents, fusion_group
+           FROM deleted_securities_trades WHERE tx_id = ?1",
+    )
+    .bind(id)
+    .execute(&mut *tx)
+    .await?;
+    sqlx::query("DELETE FROM deleted_transactions WHERE id = ?1")
+        .bind(id)
+        .execute(&mut *tx)
+        .await?;
+    sqlx::query("DELETE FROM deleted_securities_trades WHERE tx_id = ?1")
+        .bind(id)
+        .execute(&mut *tx)
+        .await?;
+    // Re-establish the pairing from the partner's side if it still exists.
+    sqlx::query(
+        "UPDATE transactions SET paired_tx_id = ?1
+          WHERE id = (SELECT paired_tx_id FROM transactions WHERE id = ?1)
+            AND paired_tx_id IS NULL",
+    )
+    .bind(id)
+    .execute(&mut *tx)
+    .await?;
+    tx.commit().await?;
+    Ok(true)
+}
+
 #[cfg(test)]
 mod tests {
     use crate::db::connect_memory;
@@ -412,6 +526,168 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(kind2, "expense");
+    }
+
+    #[tokio::test]
+    async fn trash_and_restore_plain_transaction_round_trips() {
+        let pool = connect_memory().await.unwrap();
+        let account_id = seed_account(&pool, "Giro").await;
+        let (tx_id,): (i64,) = sqlx::query_as(
+            "INSERT INTO transactions
+                (account_id, booking_date, amount_cents, currency, counterparty, source, kind)
+             VALUES (?1, '2026-05-01', -1000, 'EUR', 'REWE', 'manual', 'expense') RETURNING id",
+        )
+        .bind(account_id)
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+
+        // move to trash
+        let moved = crate::db::transactions::move_transaction_to_trash(&pool, tx_id)
+            .await
+            .unwrap();
+        assert!(moved, "should report moved=true");
+
+        let (live,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM transactions")
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+        assert_eq!(live, 0, "live table must be empty after trash");
+
+        let (deleted,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM deleted_transactions")
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+        assert_eq!(deleted, 1, "trash table must hold 1 row");
+
+        // restore
+        let restored = crate::db::transactions::restore_transaction(&pool, tx_id)
+            .await
+            .unwrap();
+        assert!(restored, "should report restored=true");
+
+        let (live2,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM transactions")
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+        assert_eq!(live2, 1, "live table must hold 1 row after restore");
+
+        let (deleted2,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM deleted_transactions")
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+        assert_eq!(deleted2, 0, "trash table must be empty after restore");
+
+        // id is preserved
+        let (id_back,): (i64,) = sqlx::query_as("SELECT id FROM transactions WHERE id = ?1")
+            .bind(tx_id)
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+        assert_eq!(id_back, tx_id, "restored row must have original id");
+    }
+
+    #[tokio::test]
+    async fn move_unknown_returns_false() {
+        let pool = connect_memory().await.unwrap();
+        let result = crate::db::transactions::move_transaction_to_trash(&pool, 99_999)
+            .await
+            .unwrap();
+        assert!(!result);
+    }
+
+    #[tokio::test]
+    async fn restore_unknown_returns_false() {
+        let pool = connect_memory().await.unwrap();
+        let result = crate::db::transactions::restore_transaction(&pool, 99_999)
+            .await
+            .unwrap();
+        assert!(!result);
+    }
+
+    #[tokio::test]
+    async fn paired_transactions_unlink_on_trash_and_relink_on_restore() {
+        let pool = connect_memory().await.unwrap();
+        let account_id = seed_account(&pool, "Giro").await;
+
+        let (tx_a,): (i64,) = sqlx::query_as(
+            "INSERT INTO transactions
+                (account_id, booking_date, amount_cents, currency, counterparty, source, kind)
+             VALUES (?1, '2026-05-02', -2000, 'EUR', 'Transfer', 'manual', 'expense') RETURNING id",
+        )
+        .bind(account_id)
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+
+        let (tx_b,): (i64,) = sqlx::query_as(
+            "INSERT INTO transactions
+                (account_id, booking_date, amount_cents, currency, counterparty, source, kind)
+             VALUES (?1, '2026-05-02', 2000, 'EUR', 'Transfer', 'manual', 'income') RETURNING id",
+        )
+        .bind(account_id)
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+
+        // link both sides
+        sqlx::query("UPDATE transactions SET paired_tx_id = ?1 WHERE id = ?2")
+            .bind(tx_b)
+            .bind(tx_a)
+            .execute(&pool)
+            .await
+            .unwrap();
+        sqlx::query("UPDATE transactions SET paired_tx_id = ?1 WHERE id = ?2")
+            .bind(tx_a)
+            .bind(tx_b)
+            .execute(&pool)
+            .await
+            .unwrap();
+
+        // trash tx_a — partner's paired_tx_id should become NULL
+        crate::db::transactions::move_transaction_to_trash(&pool, tx_a)
+            .await
+            .unwrap();
+
+        let (partner_pair,): (Option<i64>,) =
+            sqlx::query_as("SELECT paired_tx_id FROM transactions WHERE id = ?1")
+                .bind(tx_b)
+                .fetch_one(&pool)
+                .await
+                .unwrap();
+        assert!(
+            partner_pair.is_none(),
+            "partner's paired_tx_id must be NULL while tx_a is in trash"
+        );
+
+        // restore tx_a — pairing should be re-established on partner's side
+        crate::db::transactions::restore_transaction(&pool, tx_a)
+            .await
+            .unwrap();
+
+        let (partner_pair2,): (Option<i64>,) =
+            sqlx::query_as("SELECT paired_tx_id FROM transactions WHERE id = ?1")
+                .bind(tx_b)
+                .fetch_one(&pool)
+                .await
+                .unwrap();
+        assert_eq!(
+            partner_pair2,
+            Some(tx_a),
+            "partner's paired_tx_id must be restored to tx_a"
+        );
+
+        let (self_pair,): (Option<i64>,) =
+            sqlx::query_as("SELECT paired_tx_id FROM transactions WHERE id = ?1")
+                .bind(tx_a)
+                .fetch_one(&pool)
+                .await
+                .unwrap();
+        assert_eq!(
+            self_pair,
+            Some(tx_b),
+            "tx_a's own paired_tx_id must still point to tx_b after restore"
+        );
     }
 
     #[tokio::test]

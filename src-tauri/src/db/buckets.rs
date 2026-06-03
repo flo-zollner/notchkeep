@@ -72,7 +72,7 @@ pub async fn create_bucket(pool: &SqlitePool, p: NewBucketPayload) -> DbResult<B
 }
 
 pub async fn get_bucket(pool: &SqlitePool, id: i64) -> DbResult<Bucket> {
-    let sql = format!("SELECT {BUCKET_COLUMNS} FROM buckets WHERE id = ?1");
+    let sql = format!("SELECT {BUCKET_COLUMNS} FROM buckets WHERE id = ?1 AND deleted_at IS NULL");
     Ok(sqlx::query_as::<_, Bucket>(&sql)
         .bind(id)
         .fetch_one(pool)
@@ -83,12 +83,13 @@ pub async fn list_buckets(pool: &SqlitePool, include_archived: bool) -> DbResult
     let sql = if include_archived {
         format!(
             "SELECT {BUCKET_COLUMNS} FROM buckets \
+             WHERE deleted_at IS NULL \
              ORDER BY archived ASC, created_at DESC"
         )
     } else {
         format!(
             "SELECT {BUCKET_COLUMNS} FROM buckets \
-             WHERE archived = 0 \
+             WHERE archived = 0 AND deleted_at IS NULL \
              ORDER BY created_at DESC"
         )
     };
@@ -96,10 +97,22 @@ pub async fn list_buckets(pool: &SqlitePool, include_archived: bool) -> DbResult
 }
 
 pub async fn delete_bucket(pool: &SqlitePool, id: i64) -> DbResult<bool> {
-    let res = sqlx::query("DELETE FROM buckets WHERE id = ?1")
-        .bind(id)
-        .execute(pool)
-        .await?;
+    let res = sqlx::query(
+        "UPDATE buckets SET deleted_at = datetime('now') WHERE id = ?1 AND deleted_at IS NULL",
+    )
+    .bind(id)
+    .execute(pool)
+    .await?;
+    Ok(res.rows_affected() > 0)
+}
+
+pub async fn restore_bucket(pool: &SqlitePool, id: i64) -> DbResult<bool> {
+    let res = sqlx::query(
+        "UPDATE buckets SET deleted_at = NULL WHERE id = ?1 AND deleted_at IS NOT NULL",
+    )
+    .bind(id)
+    .execute(pool)
+    .await?;
     Ok(res.rows_affected() > 0)
 }
 
@@ -311,7 +324,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn delete_bucket_sets_tx_bucket_id_to_null() {
+    async fn soft_delete_bucket_hides_it_but_keeps_tx_link() {
         let pool = connect_memory().await.unwrap();
         let acc = crate::db::accounts::create_account(&pool, "A", "bank", "EUR", None, None, None)
             .await
@@ -343,23 +356,55 @@ mod tests {
 
         assert!(delete_bucket(&pool, b.id).await.unwrap());
 
+        // Soft-delete: bucket is hidden from list (both variants) and get.
+        assert!(list_buckets(&pool, false).await.unwrap().is_empty());
+        assert!(list_buckets(&pool, true).await.unwrap().is_empty());
+        assert!(get_bucket(&pool, b.id).await.is_err());
+
+        // The transaction still points to bucket_id (no hard DELETE, no CASCADE).
         let (cnt,): (i64,) =
-            sqlx::query_as("SELECT COUNT(*) FROM transactions WHERE bucket_id IS NOT NULL")
+            sqlx::query_as("SELECT COUNT(*) FROM transactions WHERE bucket_id = ?1")
+                .bind(b.id)
                 .fetch_one(&pool)
                 .await
                 .unwrap();
-        assert_eq!(cnt, 0);
-        let (still_there,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM transactions")
-            .fetch_one(&pool)
-            .await
-            .unwrap();
-        assert_eq!(still_there, 1, "Tx itself must be preserved");
+        assert_eq!(cnt, 1, "Tx must retain bucket_id after soft-delete");
     }
 
     #[tokio::test]
     async fn delete_bucket_returns_false_for_unknown_id() {
         let pool = connect_memory().await.unwrap();
         assert!(!delete_bucket(&pool, 9_999).await.unwrap());
+    }
+
+    #[tokio::test]
+    async fn restore_bucket_brings_it_back() {
+        let pool = connect_memory().await.unwrap();
+        let b = create_bucket(
+            &pool,
+            NewBucketPayload {
+                name: "restore-me".into(),
+                icon: None,
+                color: None,
+                note: None,
+                target_cents: None,
+                start_date: None,
+                target_date: None,
+            },
+        )
+        .await
+        .unwrap();
+
+        assert!(delete_bucket(&pool, b.id).await.unwrap());
+        assert!(list_buckets(&pool, true).await.unwrap().is_empty());
+
+        assert!(restore_bucket(&pool, b.id).await.unwrap());
+        let listed = list_buckets(&pool, true).await.unwrap();
+        assert_eq!(listed.len(), 1);
+        assert_eq!(listed[0].id, b.id);
+
+        // Double-restore returns false (already active).
+        assert!(!restore_bucket(&pool, b.id).await.unwrap());
     }
 
     #[tokio::test]

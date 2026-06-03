@@ -24,10 +24,15 @@
   --positive-soft: oklch(0.94 0.045 150);
   --negative: oklch(0.58 0.18 25);
   --negative-soft: oklch(0.95 0.04 25);
+  --on-negative: oklch(1 0 0);
+  --fallback-logo-bg: oklch(0.55 0.13 230);
+  --on-logo-bg: oklch(1 0 0);
   --warning: oklch(0.72 0.13 75);
   --warning-soft: oklch(0.95 0.05 75);
   --info: oklch(0.6 0.11 230);
   --info-soft: oklch(0.94 0.04 230);
+
+  --institution-default-color: oklch(0.55 0.13 230);
 
   --c1: oklch(0.55 0.13 165);
   --c2: oklch(0.6 0.13 230);
@@ -40,6 +45,8 @@
   --shadow-md: 0 4px 14px -4px rgba(20, 20, 20, 0.08), 0 1px 3px rgba(20, 20, 20, 0.04);
   --shadow-lg: 0 24px 48px -16px rgba(20, 20, 20, 0.18);
 
+  --scrim: rgba(0, 0, 0, 0.4);
+
   --r-sm: 8px;
   --r-md: 12px;
   --r-lg: 16px;
@@ -48,7 +55,7 @@
   --bp-phone: 600px;
   --bp-tablet: 1024px;
   --bp-desktop: 1600px;
-  --tap: 44px;
+  --tap: 48px;
   --tabbar-height: 56px;
   accent-color: auto;
   scrollbar-color: auto;
@@ -76,6 +83,9 @@
   --positive-soft: oklch(0.3 0.06 150);
   --negative: oklch(0.72 0.16 25);
   --negative-soft: oklch(0.3 0.07 25);
+  --on-negative: oklch(0.1 0 0);
+  --fallback-logo-bg: oklch(0.55 0.13 230);
+  --on-logo-bg: oklch(1 0 0);
   --warning: oklch(0.82 0.13 75);
   --warning-soft: oklch(0.32 0.06 75);
   --info: oklch(0.75 0.12 230);
@@ -91,6 +101,8 @@
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4), 0 0 0 0.5px rgba(255, 255, 255, 0.04);
   --shadow-md: 0 4px 14px -4px rgba(0, 0, 0, 0.5), 0 1px 3px rgba(0, 0, 0, 0.3);
   --shadow-lg: 0 24px 48px -16px rgba(0, 0, 0, 0.7);
+
+  --scrim: rgba(0, 0, 0, 0.6);
 }
 
 /* Auto-mode dark tokens — keep in sync with the [data-theme='dark'] block above */
@@ -116,6 +128,9 @@
     --positive-soft: oklch(0.3 0.06 150);
     --negative: oklch(0.72 0.16 25);
     --negative-soft: oklch(0.3 0.07 25);
+    --on-negative: oklch(0.1 0 0);
+    --fallback-logo-bg: oklch(0.55 0.13 230);
+    --on-logo-bg: oklch(1 0 0);
     --warning: oklch(0.82 0.13 75);
     --warning-soft: oklch(0.32 0.06 75);
     --info: oklch(0.75 0.12 230);
@@ -131,6 +146,8 @@
     --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4), 0 0 0 0.5px rgba(255, 255, 255, 0.04);
     --shadow-md: 0 4px 14px -4px rgba(0, 0, 0, 0.5), 0 1px 3px rgba(0, 0, 0, 0.3);
     --shadow-lg: 0 24px 48px -16px rgba(0, 0, 0, 0.7);
+
+    --scrim: rgba(0, 0, 0, 0.6);
   }
 }
 
@@ -924,9 +941,8 @@ html[data-platform='android'] {
   }
 }
 
-/* ── MD3 shared element styling (phone viewport on Android) ── */
-@media (max-width: 599px) {
-  /* Cards → tonal surface, no hard border, large (16dp) corners */
+/* ── MD3 shared element styling — gilt auf ALLEN Android-Viewports (§2: nur data-platform, nicht max-width) ── */
+/* Cards → tonal surface, no hard border, large (16dp) corners */
   html[data-platform='android'] .card {
     background: var(--md-sys-color-surface-container-low);
     border-color: transparent;
@@ -970,4 +986,3 @@ html[data-platform='android'] {
   html[data-platform='android'] .seg button {
     border-radius: 999px;
   }
-}

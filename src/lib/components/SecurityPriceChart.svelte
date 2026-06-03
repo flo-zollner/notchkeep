@@ -158,6 +158,8 @@
       viewBox="0 0 {W} {H}"
       class="chart"
       preserveAspectRatio="xMidYMid meet"
+      role="img"
+      aria-label={tp.priceHistoryTitle}
       onpointermove={handlePointerMove}
       onpointerleave={handlePointerLeave}
     >
@@ -204,12 +206,12 @@
     border-right: 0;
     color: var(--text-muted);
     font-size: 11px;
-    padding: 4px 10px;
+    padding: 4px 8px;
     cursor: pointer;
     font: inherit;
   }
-  .seg button:first-child { border-top-left-radius: 6px; border-bottom-left-radius: 6px; }
-  .seg button:last-child { border-right: 1px solid var(--border); border-top-right-radius: 6px; border-bottom-right-radius: 6px; }
+  .seg button:first-child { border-top-left-radius: var(--r-sm); border-bottom-left-radius: var(--r-sm); }
+  .seg button:last-child { border-right: 1px solid var(--border); border-top-right-radius: var(--r-sm); border-bottom-right-radius: var(--r-sm); }
   .seg button.on { color: var(--text); background: var(--surface-2); }
   .empty { padding: 24px; text-align: center; color: var(--text-faint); font-size: 13px; }
   .chart-wrap {
@@ -217,7 +219,7 @@
   }
   .chart { width: 100%; height: 200px; display: block; cursor: crosshair; }
   .foot { display: flex; align-items: baseline; gap: 8px; margin-top: 4px; }
-  .foot .num { font-size: 18px; font-weight: 500; font-variant-numeric: tabular-nums; }
+  .foot .num { font-size: 18px; font-weight: 500; font-variant-numeric: tabular-nums; font-family: var(--font-mono); }
   .muted { color: var(--text-muted); font-size: 12px; }
   .manual-controls {
     display: flex;
@@ -229,13 +231,13 @@
   .manual-controls label {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
   }
   .manual-controls input {
     background: var(--surface-2);
     border: 1px solid var(--border);
-    border-radius: 4px;
-    padding: 2px 6px;
+    border-radius: var(--r-sm);
+    padding: 4px 8px;
     font: inherit;
     color: var(--text);
   }
@@ -243,14 +245,14 @@
     position: absolute;
     background: var(--surface-2);
     border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 6px 10px;
+    border-radius: var(--r-sm);
+    padding: 8px 12px;
     font-size: 12px;
     color: var(--text);
     pointer-events: none;
     white-space: nowrap;
     z-index: 10;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+    box-shadow: var(--shadow-md);
     transform: translate(-50%, calc(-100% - 10px));
   }
   .chart-tooltip .label { color: var(--text-faint); font-size: 11px; display: block; }

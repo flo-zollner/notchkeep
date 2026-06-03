@@ -184,9 +184,11 @@ export async function mockTauri(page: Page, opts: MockTauriOpts = {}): Promise<v
       // ---------- app DB commands (list_accounts, list_transactions, etc.) ----------
       // Return benign empty values so the app boots without errors.
       // These are the commands defined in src-tauri/src/commands/*.rs
+      // List read commands return [] so `{#each}` over them never iterates null.
       if (
-        cmd === 'list_accounts' ||
-        cmd === 'list_institutions'
+        cmd.startsWith('list_') ||
+        cmd.startsWith('search_') ||
+        cmd.startsWith('query_')
       ) {
         return [];
       }

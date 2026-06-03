@@ -34,7 +34,20 @@
   const sum = $derived(daily.reduce((s, v) => s + v, 0));
 </script>
 
-<div>
+<figure aria-describedby="heatmap-long-desc">
+  <figcaption class="heatmap-caption">
+    {monthLabel ? monthLabel + ': ' : ''}{hide ? '•• €' : fmtEUR(sum)}
+  </figcaption>
+  <div id="heatmap-long-desc" class="sr-only">
+    {#if hide}
+      {t().common.spent}: ••
+    {:else}
+      {t().common.spent}: {fmtEUR(sum)}.
+      {#each daily as v, i (i)}
+        {i + 1}.: {fmtEUR(v)}{i < daily.length - 1 ? ' ' : ''}
+      {/each}
+    {/if}
+  </div>
   <div class="weekdays">
     {#each t().weekdays as w (w)}
       <div>{w}</div>
@@ -66,14 +79,30 @@
       <span>+</span>
     </div>
   </div>
-</div>
+</figure>
 
 <style>
+  .heatmap-caption {
+    font-size: 11px;
+    color: var(--text-faint);
+    margin-bottom: 4px;
+  }
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
   .weekdays {
     display: grid;
     grid-template-columns: repeat(7, 1fr);
     gap: 4px;
-    font-size: 9.5px;
+    font-size: 10px;
     color: var(--text-faint);
     margin-bottom: 4px;
     text-align: center;
@@ -88,14 +117,14 @@
     border-radius: 4px;
     display: grid;
     place-items: center;
-    font-size: 9.5px;
+    font-size: 10px;
     font-family: var(--font-mono);
     font-weight: 500;
   }
   .footer {
     display: flex;
     justify-content: space-between;
-    margin-top: 10px;
+    margin-top: 8px;
     font-size: 11px;
     color: var(--text-faint);
   }
@@ -105,9 +134,9 @@
     gap: 4px;
   }
   .legend-cell {
-    width: 10px;
-    height: 10px;
-    border-radius: 2px;
+    width: 8px;
+    height: 8px;
+    border-radius: 4px;
   }
   .muted {
     color: var(--text-muted);

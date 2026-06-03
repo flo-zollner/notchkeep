@@ -4,7 +4,7 @@ use crate::categorization::rules::{Combinator, MatchField, MatchOp, Rule, RuleCo
 use crate::commands::accounts::{CommandError, DbState};
 use crate::db::rules::{
     delete_rule as db_delete_rule, insert_rule as db_insert_rule, list_rules as db_list_rules,
-    update_rule as db_update_rule, NewRule,
+    restore_rule as db_restore_rule, update_rule as db_update_rule, NewRule,
 };
 use crate::import_flow::{
     bulk_assign_category_by_rule as bulk_assign_impl, count_matching_transactions,
@@ -60,6 +60,11 @@ pub async fn update_rule(
 pub async fn delete_rule(state: State<'_, DbState>, id: i64) -> Result<(), CommandError> {
     db_delete_rule(&state.pool(), id).await?;
     Ok(())
+}
+
+#[tauri::command]
+pub async fn restore_rule(state: State<'_, DbState>, id: i64) -> Result<bool, CommandError> {
+    Ok(db_restore_rule(&state.pool(), id).await?)
 }
 
 #[tauri::command]

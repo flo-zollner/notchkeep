@@ -213,7 +213,7 @@
   .ob-skip {
     font-size: 13px; color: var(--text-muted); background: none; border: 0;
     padding: 4px 8px; cursor: pointer; border-radius: var(--r-sm);
-    min-height: 44px;
+    min-height: var(--tap);
   }
   .ob-skip:hover { color: var(--text); }
   .ob-bar { display: flex; gap: 4px; padding: 0 18px 4px; }
@@ -278,6 +278,6 @@
     .ob-cards { grid-template-columns: 1fr; }
     .ob-body { min-height: auto; }
     .ob-footer-right { flex: 1; }
-    .ob-footer-right .btn.primary { flex: 1; min-height: 44px; white-space: normal; }
+    .ob-footer-right .btn.primary { flex: 1; min-height: var(--tap); white-space: normal; }
   }
 </style>

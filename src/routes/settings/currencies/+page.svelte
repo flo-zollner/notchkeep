@@ -151,9 +151,9 @@
   </div>
 </div>
 
-{#if error}
-  <div class="err-banner">{error}</div>
-{/if}
+<div aria-live="polite" aria-atomic="true" class="err-banner" class:hidden={!error}>
+  {#if error}<Icon name="alert-circle" size={12} />{error}{/if}
+</div>
 
 <div class="card card-pad-lg">
   {#if loading}
@@ -189,11 +189,11 @@
                     if (e.key === 'Escape') cancelEdit();
                   }}
                 />
-                {#if editError}<small class="err">{editError}</small>{/if}
+                {#if editError}<small class="err"><Icon name="alert-circle" size={12} />{editError}</small>{/if}
               {:else}
                 <span class="mono">{fmtRate(c.rateMicro)}</span>
                 {#if rowErrors[c.code]}
-                  <small class="row-err">{rowErrors[c.code]}</small>
+                  <small class="row-err"><Icon name="alert-circle" size={12} />{rowErrors[c.code]}</small>
                 {/if}
               {/if}
             </td>
@@ -247,31 +247,34 @@
   .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
   .header h1 { margin: 0; font-size: 22px; }
   .actions { display: flex; gap: 8px; }
-  .btn { padding: 6px 12px; border-radius: 6px; border: 0; cursor: pointer; font-size: 13px; display: inline-flex; align-items: center; gap: 4px; }
+  .btn { padding: 8px 12px; border-radius: var(--r-sm); border: 0; cursor: pointer; font-size: 13px; display: inline-flex; align-items: center; gap: 4px; }
   .btn.primary { background: var(--accent, var(--positive)); color: white; }
   .btn.ghost { background: transparent; border: 1px solid var(--border); color: var(--text); }
   .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
   .err-banner {
     background: var(--negative-soft); color: var(--negative);
-    padding: 10px 14px; border-radius: 6px; margin-bottom: 12px; font-size: 13px;
+    padding: 8px 14px; border-radius: var(--r-sm); margin-bottom: 12px; font-size: 13px;
+    display: flex; align-items: center; gap: 4px;
   }
+  .err-banner.hidden { display: none; }
   .empty { padding: 24px; text-align: center; color: var(--text-faint); }
 
   table { width: 100%; border-collapse: collapse; font-size: 13px; }
-  th, td { padding: 8px 10px; border-bottom: 1px solid var(--border); text-align: left; }
+  th, td { padding: 8px; border-bottom: 1px solid var(--border); text-align: left; }
   th { font-weight: 500; color: var(--text-faint); font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; }
-  td.mono, .mono { font-family: ui-monospace, monospace; }
-  .rate input { width: 130px; padding: 4px 6px; background: var(--surface-2); border: 1px solid var(--accent); border-radius: 4px; font-family: ui-monospace, monospace; }
-  .rate .err { color: var(--negative); display: block; font-size: 11px; }
-  .row-err { color: var(--negative); display: block; font-size: 11px; margin-top: 2px; }
+  td.mono, .mono { font-family: var(--font-mono); }
+  .rate input { width: 130px; padding: 4px 6px; background: var(--surface-2); border: 1px solid var(--accent); border-radius: 4px; font-family: var(--font-mono); }
+  .rate .err { color: var(--negative); display: flex; align-items: center; gap: 4px; font-size: 11px; }
+  .row-err { color: var(--negative); display: flex; align-items: center; gap: 4px; font-size: 11px; margin-top: 4px; }
   .actions-cell { display: flex; gap: 4px; justify-content: flex-end; }
-  .iconbtn { background: transparent; border: 0; cursor: pointer; padding: 4px; border-radius: 4px; color: var(--text-muted); }
+  .iconbtn { background: transparent; border: 0; cursor: pointer; padding: 4px; border-radius: 4px; color: var(--text-muted); display: inline-flex; align-items: center; justify-content: center; }
   .iconbtn:hover { color: var(--text); background: var(--surface-2); }
   .iconbtn:disabled { opacity: 0.4; cursor: not-allowed; }
+  html[data-platform='android'] .iconbtn { min-width: 48px; min-height: 48px; }
   .badge {
-    margin-left: 6px; padding: 1px 6px;
+    margin-left: 8px; padding: 1px 8px;
     background: var(--surface-2); color: var(--text-faint);
-    border-radius: 999px; font-size: 10px;
+    border-radius: 999px; font-size: 11px;
   }
 </style>

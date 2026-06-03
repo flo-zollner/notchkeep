@@ -24,6 +24,7 @@ export interface I18N {
     all: string; month: string; week: string; day: string;
     search: string; add: string; addTx: string; filter: string;
     cancel: string; close: string; save: string; delete: string;
+    undo: string; deleted: string;
     vs: string; from: string; to: string; compare: string;
     remaining: string; spent: string; ofBudget: string;
     forecast: string; actual: string; planned: string;
@@ -600,6 +601,7 @@ export const I18N: Record<Lang, I18N> = {
       all: 'Alle', month: 'Monat', week: 'Woche', day: 'Tag',
       search: 'Suchen…', add: 'Hinzufügen', addTx: 'Transaktion',
       filter: 'Filter', cancel: 'Abbrechen', close: 'Schließen', save: 'Speichern', delete: 'Löschen',
+      undo: 'Rückgängig', deleted: 'Gelöscht',
       vs: 'vs.', from: 'von', to: 'bis', compare: 'Vergleich',
       remaining: 'Verbleibend', spent: 'Ausgegeben', ofBudget: 'des Budgets',
       forecast: 'Prognose', actual: 'Ist', planned: 'Plan',
@@ -689,7 +691,7 @@ export const I18N: Record<Lang, I18N> = {
       pickAccount: '— Konto wählen —', pickCategory: '— Kategorie wählen —',
       parentAccount: 'Eltern-Konto',
       topLevelDash: '— Top-Level —',
-      invalidIban: 'IBAN ungültig (z.B. DE89 3704 0044 0532 0130 00)',
+      invalidIban: 'Die IBAN sieht nicht vollständig aus (z.B. DE89 3704 0044 …)',
       bucket: 'Topf', bucketAll: 'Alle Töpfe', bucketNone: '— kein Topf —',
       bucketCurrent: 'Bereits', bucketTarget: 'Ziel', bucketRemaining: 'Noch', bucketReached: 'erreicht ✓',
       kindBank: 'Bank', kindBroker: 'Depot', kindSavings: 'Tagesgeld',
@@ -703,8 +705,8 @@ export const I18N: Record<Lang, I18N> = {
       institutionNone: '— Kein Institut —',
       bic: 'BIC',
       country: 'Land',
-      invalidBic: 'Ungültige BIC (8 oder 11 Zeichen)',
-      invalidCountry: 'Ungültiger Ländercode (2 Buchstaben)',
+      invalidBic: 'BIC bitte prüfen (8 oder 11 Zeichen)',
+      invalidCountry: 'Ländercode bitte prüfen (2 Buchstaben)',
       flatexPdf: 'Flatex-PDF',
       importFlatex: 'Flatex-PDFs importieren',
       kest: 'KESt',
@@ -894,8 +896,8 @@ export const I18N: Record<Lang, I18N> = {
       cancel: 'Abbrechen',
       confirmDelete: 'Wirklich löschen?',
       errNameRequired: 'Name erforderlich',
-      errIsinInvalid: 'ISIN-Format ungültig (12 Zeichen, AA##…X).',
-      errAssetTypeInvalid: 'Ungültiger Typ',
+      errIsinInvalid: 'Die ISIN sieht nicht vollständig aus (12 Zeichen, AA##…X).',
+      errAssetTypeInvalid: 'Bitte einen Typ auswählen',
       types: {
         stock: 'Aktie',
         etf_equity: 'ETF (Aktien)',
@@ -1211,6 +1213,7 @@ export const I18N: Record<Lang, I18N> = {
       all: 'All', month: 'Month', week: 'Week', day: 'Day',
       search: 'Search…', add: 'Add', addTx: 'Transaction',
       filter: 'Filter', cancel: 'Cancel', close: 'Close', save: 'Save', delete: 'Delete',
+      undo: 'Undo', deleted: 'Deleted',
       vs: 'vs.', from: 'from', to: 'to', compare: 'Compare',
       remaining: 'Remaining', spent: 'Spent', ofBudget: 'of budget',
       forecast: 'Forecast', actual: 'Actual', planned: 'Planned',
@@ -1300,7 +1303,7 @@ export const I18N: Record<Lang, I18N> = {
       pickAccount: '— Pick account —', pickCategory: '— Pick category —',
       parentAccount: 'Parent account',
       topLevelDash: '— Top-level —',
-      invalidIban: 'IBAN invalid (e.g. DE89 3704 0044 0532 0130 00)',
+      invalidIban: 'This IBAN doesn\'t look complete (e.g. DE89 3704 0044 …)',
       bucket: 'Bucket', bucketAll: 'All buckets', bucketNone: '— no bucket —',
       bucketCurrent: 'Current', bucketTarget: 'Target', bucketRemaining: 'Remaining', bucketReached: 'reached ✓',
       kindBank: 'Bank', kindBroker: 'Brokerage', kindSavings: 'Savings',
@@ -1314,8 +1317,8 @@ export const I18N: Record<Lang, I18N> = {
       institutionNone: '— No institution —',
       bic: 'BIC',
       country: 'Country',
-      invalidBic: 'Invalid BIC (8 or 11 characters)',
-      invalidCountry: 'Invalid country code (2 letters)',
+      invalidBic: 'Please check the BIC (8 or 11 characters)',
+      invalidCountry: 'Please check the country code (2 letters)',
       flatexPdf: 'Flatex PDF',
       importFlatex: 'Import Flatex PDFs',
       kest: 'KESt',
@@ -1505,8 +1508,8 @@ export const I18N: Record<Lang, I18N> = {
       cancel: 'Cancel',
       confirmDelete: 'Really delete?',
       errNameRequired: 'Name required',
-      errIsinInvalid: 'Invalid ISIN format (12 chars, AA##…X).',
-      errAssetTypeInvalid: 'Invalid type',
+      errIsinInvalid: 'This ISIN doesn\'t look complete (12 chars, AA##…X).',
+      errAssetTypeInvalid: 'Please select a type',
       types: {
         stock: 'Stock',
         etf_equity: 'ETF (Equity)',

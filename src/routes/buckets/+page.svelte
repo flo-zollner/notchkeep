@@ -204,8 +204,8 @@
   }
   .page-h h1 { flex: 1; margin: 0; font-size: 22px; }
   .actions { display: flex; align-items: center; gap: 12px; }
-  .toggle { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted); }
-  .primary { background: var(--accent); color: var(--accent-fg, white); border: 0; padding: 8px 12px; border-radius: 8px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+  .toggle { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-muted); }
+  .primary { background: var(--accent); color: var(--accent-fg, white); border: 0; padding: 8px 12px; border-radius: 8px; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; }
 
   /* Ready-to-Assign card */
   .rta-card {
@@ -243,15 +243,15 @@
   .rta-warn {
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 4px;
     font-size: 12px;
     color: var(--negative);
   }
   .rta-warn strong { font-weight: 600; }
   .rta-fix-btn {
     align-self: flex-start;
-    padding: 5px 12px;
-    border-radius: 6px;
+    padding: 4px 12px;
+    border-radius: var(--r-sm);
     border: 1px solid var(--negative);
     color: var(--negative);
     background: transparent;
@@ -262,6 +262,9 @@
   .rta-fix-btn:hover {
     background: color-mix(in srgb, var(--negative) 10%, transparent);
   }
+  :global(html[data-platform='android']) .rta-fix-btn {
+    min-height: 48px;
+  }
 
   .grid {
     display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -271,10 +274,10 @@
   .section-h {
     font-size: 13px; font-weight: 500; color: var(--text-muted);
     text-transform: uppercase; letter-spacing: 0.04em;
-    margin: 0 0 10px 0; display: flex; align-items: center; gap: 8px;
+    margin: 0 0 8px 0; display: flex; align-items: center; gap: 8px;
   }
   .section-h .count {
-    font-size: 11px; font-weight: 400; padding: 1px 6px;
+    font-size: 11px; font-weight: 400; padding: 4px 8px;
     background: var(--surface-2); border-radius: 999px; color: var(--text-muted);
     text-transform: none; letter-spacing: 0;
   }

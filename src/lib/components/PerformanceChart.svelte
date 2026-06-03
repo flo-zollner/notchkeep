@@ -163,11 +163,14 @@
 {:else if data.length === 0}
   <div class="empty">{tp.emptyPositions}</div>
 {:else}
-  <div class="chart-wrap">
+  <figure class="chart-wrap">
     <svg
       bind:this={svgEl}
       viewBox="0 0 {W} {H}"
       class="chart"
+      role="img"
+      aria-label={tp.performanceTitle}
+      aria-describedby="perf-chart-desc"
       preserveAspectRatio="xMidYMid meet"
       onpointermove={handlePointerMove}
       onpointerleave={handlePointerLeave}
@@ -205,7 +208,8 @@
         <span class="label">Einstandswert: {fmtEur(hover.costV, { hide: settings.hide, decimals: eurDecimals() })}</span>
       </div>
     {/if}
-  </div>
+    <figcaption id="perf-chart-desc" class="sr-only">{tp.performanceTitle}: {tp.kpiMarketValue}</figcaption>
+  </figure>
   <div class="foot">
     <span class="num">{fmtEur(latestMarket, { hide: settings.hide, decimals: eurDecimals() })}</span>
     <span class="muted">{tp.kpiMarketValue}</span>
@@ -243,12 +247,12 @@
     border-right: 0;
     color: var(--text-muted);
     font-size: 11px;
-    padding: 4px 10px;
+    padding: 4px 8px;
     cursor: pointer;
     font: inherit;
   }
-  .seg button:first-child { border-top-left-radius: 6px; border-bottom-left-radius: 6px; }
-  .seg button:last-child  { border-right: 1px solid var(--border); border-top-right-radius: 6px; border-bottom-right-radius: 6px; }
+  .seg button:first-child { border-top-left-radius: var(--r-sm); border-bottom-left-radius: var(--r-sm); }
+  .seg button:last-child  { border-right: 1px solid var(--border); border-top-right-radius: var(--r-sm); border-bottom-right-radius: var(--r-sm); }
   .seg button.on {
     color: var(--text);
     background: var(--surface-2);
@@ -261,11 +265,23 @@
   }
   .chart-wrap {
     position: relative;
+    margin: 0;
+    padding: 0;
+  }
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
   }
   .chart {
     width: 100%;
     height: auto;
-    max-height: 200px;
     display: block;
     cursor: crosshair;
   }
@@ -278,7 +294,7 @@
   .foot .num {
     font-size: 18px;
     font-weight: 500;
-    font-variant-numeric: tabular-nums;
+    font-family: var(--font-mono);
   }
   .muted {
     color: var(--text-muted);
@@ -294,13 +310,13 @@
   .manual-controls label {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
   }
   .manual-controls input {
     background: var(--surface-2);
     border: 1px solid var(--border);
     border-radius: 4px;
-    padding: 2px 6px;
+    padding: 4px 8px;
     font: inherit;
     color: var(--text);
   }
@@ -308,14 +324,14 @@
     position: absolute;
     background: var(--surface-2);
     border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 6px 10px;
+    border-radius: var(--r-sm);
+    padding: 8px 12px;
     font-size: 12px;
     color: var(--text);
     pointer-events: none;
     white-space: nowrap;
     z-index: 10;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+    box-shadow: var(--shadow-sm);
     transform: translate(-50%, calc(-100% - 10px));
   }
   .chart-tooltip .label { color: var(--text-faint); font-size: 11px; display: block; }

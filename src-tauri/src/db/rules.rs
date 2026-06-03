@@ -154,6 +154,7 @@ pub async fn list_rules(pool: &SqlitePool) -> DbResult<Vec<Rule>> {
     let rule_rows: Vec<(i64, i32, String, String, i64, i32)> = sqlx::query_as(
         "SELECT id, priority, name, combinator, target_category_id, enabled
          FROM rules
+         WHERE deleted_at IS NULL
          ORDER BY priority, id",
     )
     .fetch_all(pool)
@@ -245,18 +246,31 @@ pub async fn update_rule(pool: &SqlitePool, rule: &Rule) -> DbResult<()> {
 }
 
 pub async fn delete_rule(pool: &SqlitePool, id: i64) -> DbResult<()> {
-    sqlx::query("DELETE FROM rules WHERE id = ?1")
-        .bind(id)
-        .execute(pool)
-        .await?;
+    sqlx::query(
+        "UPDATE rules SET deleted_at = datetime('now') WHERE id = ?1 AND deleted_at IS NULL",
+    )
+    .bind(id)
+    .execute(pool)
+    .await?;
     Ok(())
+}
+
+pub async fn restore_rule(pool: &SqlitePool, id: i64) -> DbResult<bool> {
+    let res =
+        sqlx::query("UPDATE rules SET deleted_at = NULL WHERE id = ?1 AND deleted_at IS NOT NULL")
+            .bind(id)
+            .execute(pool)
+            .await?;
+    Ok(res.rows_affected() > 0)
 }
 
 #[cfg(test)]
 mod tests {
     use crate::categorization::rules::{Combinator, MatchField, MatchOp, Rule, RuleCondition};
     use crate::db::connect_memory;
-    use crate::db::rules::{delete_rule, insert_rule, list_rules, update_rule, NewRule};
+    use crate::db::rules::{
+        delete_rule, insert_rule, list_rules, restore_rule, update_rule, NewRule,
+    };
     use sqlx::SqlitePool;
 
     async fn seed_category(pool: &SqlitePool, name: &str) -> i64 {
@@ -456,7 +470,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn delete_removes_rule_and_conditions() {
+    async fn soft_delete_hides_rule_from_list() {
         let pool = connect_memory().await.unwrap();
         let cat = seed_category(&pool, "Cat").await;
         let id = insert_rule(
@@ -474,10 +488,39 @@ mod tests {
         delete_rule(&pool, id).await.unwrap();
         assert!(list_rules(&pool).await.unwrap().is_empty());
 
+        // Conditions are retained in DB (soft-delete does not cascade).
         let (count,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM rule_conditions")
             .fetch_one(&pool)
             .await
             .unwrap();
-        assert_eq!(count, 0);
+        assert_eq!(count, 1, "conditions must be preserved after soft-delete");
+    }
+
+    #[tokio::test]
+    async fn restore_rule_brings_it_back() {
+        let pool = connect_memory().await.unwrap();
+        let cat = seed_category(&pool, "Cat").await;
+        let id = insert_rule(
+            &pool,
+            &new_single_rule(
+                cat,
+                MatchField::Counterparty,
+                MatchOp::Contains("REWE".into()),
+                "REWE",
+            ),
+        )
+        .await
+        .unwrap();
+
+        delete_rule(&pool, id).await.unwrap();
+        assert!(list_rules(&pool).await.unwrap().is_empty());
+
+        assert!(restore_rule(&pool, id).await.unwrap());
+        let rules = list_rules(&pool).await.unwrap();
+        assert_eq!(rules.len(), 1);
+        assert_eq!(rules[0].id, id);
+
+        // Double-restore returns false (already active).
+        assert!(!restore_rule(&pool, id).await.unwrap());
     }
 }

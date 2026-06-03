@@ -68,7 +68,7 @@
       <div class="body">
         <div class="progress-wrap" role="progressbar" aria-valuenow={percent} aria-valuemin={0} aria-valuemax={100} aria-label={u.downloading}>
           <div class="progress-bar">
-            <div class="progress-fill" style:width="{percent}%"></div>
+            <div class="progress-fill" style:--pct="{percent / 100}"></div>
           </div>
           <span class="progress-label">{percent}%</span>
         </div>
@@ -121,7 +121,7 @@
     border-radius: var(--r-lg);
     display: flex;
     flex-direction: column;
-    max-width: 480px;
+    max-width: 540px;
     width: calc(100% - 2rem);
     max-height: 90vh;
     overflow: hidden;
@@ -146,7 +146,7 @@
   }
 
   .body p {
-    margin: 0 0 10px;
+    margin: 0 0 8px;
     font-size: 13px;
     color: var(--text-muted);
     line-height: 1.5;
@@ -157,8 +157,8 @@
   }
 
   .notes {
-    margin: 10px 0 0;
-    padding: 10px 12px;
+    margin: 8px 0 0;
+    padding: 8px 12px;
     background: var(--surface-2);
     border: 1px solid var(--border);
     border-radius: var(--r-sm, 6px);
@@ -173,14 +173,14 @@
   .progress-wrap {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
     padding: 4px 0;
   }
 
   .progress-bar {
     flex: 1;
     height: 6px;
-    border-radius: 3px;
+    border-radius: 4px;
     background: var(--surface-2);
     overflow: hidden;
   }
@@ -188,14 +188,21 @@
   .progress-fill {
     height: 100%;
     background: var(--accent);
-    border-radius: 3px;
-    transition: width 0.2s ease;
+    transform-origin: left;
+    transform: scaleX(var(--pct, 0));
+    transition: transform 0.2s ease;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .progress-fill {
+      transition: none;
+    }
   }
 
   .progress-label {
     font-size: 12px;
     color: var(--text-muted);
-    min-width: 36px;
+    min-width: 3ch;
     text-align: right;
   }
 
@@ -256,7 +263,7 @@
       flex: 1;
     }
     .btn {
-      min-height: 44px;
+      min-height: var(--tap, 48px);
       white-space: normal;
     }
     .btn.ghost {

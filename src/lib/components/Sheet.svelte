@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
+  import { focusTrap } from '$lib/actions/focusTrap';
 
   interface Props {
     open: boolean;
@@ -59,6 +60,7 @@
       class="sheet-panel"
       bind:this={panel}
       style:transform={isDragging ? `translateY(${dragDelta}px)` : ''}
+      use:focusTrap
       role="dialog"
       aria-modal="true"
       aria-label={title ?? 'Dialog'}
@@ -91,7 +93,7 @@
 <style>
   .sheet-backdrop {
     position: fixed; inset: 0;
-    background: rgba(0, 0, 0, 0.4);
+    background: var(--scrim);
     z-index: 100;
     display: flex; align-items: center; justify-content: center;
     backdrop-filter: blur(2px);
@@ -107,7 +109,7 @@
     max-height: 90vh;
   }
   .sheet-handle-wrap { display: none; padding: 8px 0 4px; cursor: grab; touch-action: none; }
-  .sheet-handle { width: 38px; height: 4px; border-radius: 2px; background: var(--border-strong); margin: 0 auto; }
+  .sheet-handle { width: 32px; height: 4px; border-radius: 4px; background: var(--border-strong); margin: 0 auto; }
   .sheet-header {
     display: flex; align-items: center; justify-content: space-between;
     padding: 14px 18px;
@@ -142,13 +144,11 @@
   }
   :global(html[data-platform='android']) .sheet-panel {
     border: none;
-    background: var(--md-sys-color-surface-container-low);
+    background: var(--surface);
+    border-radius: 28px 28px 0 0;
+    animation: md-sheet-up var(--md-dur-medium) var(--md-ease-emphasized);
   }
   @media (max-width: 599px) {
-    :global(html[data-platform='android']) .sheet-panel {
-      border-radius: 28px 28px 0 0;
-      animation: md-sheet-up var(--md-dur-medium) var(--md-ease-emphasized);
-    }
     :global(html[data-platform='android']) .sheet-handle {
       width: 32px;
       height: 4px;

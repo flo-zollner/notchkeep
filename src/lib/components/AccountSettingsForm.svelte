@@ -1,8 +1,7 @@
 <script lang="ts">
   import Icon from '$lib/components/Icon.svelte';
-  import { errMsg, listInstitutions, type Account, type Institution } from '$lib/api';
+  import { errMsg, listInstitutions, createInstitution, type Account, type Institution } from '$lib/api';
   import { t } from '$lib/settings.svelte';
-  import InstitutionModal from './InstitutionModal.svelte';
 
   // i18n lookup without typed property access — missing keys fall back to the default via ??.
   const tx = () => t().common as unknown as Record<string, string | undefined>;
@@ -23,7 +22,13 @@
 
   // Institution dropdown
   let institutions = $state<Institution[]>([]);
-  let showInstModal = $state(false);
+  // Inline "create institution" row — replaces a nested modal (guide §11: no
+  // modal-in-modal). Only the name is needed; other fields are editable later
+  // on the institutes page.
+  let creatingInst = $state(false);
+  let newInstName = $state('');
+  let instError = $state<string | null>(null);
+  let instSaving = $state(false);
 
   async function refreshInstitutions() {
     const visible = await listInstitutions(false);
@@ -39,18 +44,45 @@
   function onInstitutionCreated(inst: Institution) {
     draft.institution_id = inst.id;
     refreshInstitutions();
-    showInstModal = false;
   }
 
   function handleInstitutionSelect(value: string) {
     if (value === '__create__') {
-      showInstModal = true;
-      // Dropdown value stays on the current institution_id on the next render
+      newInstName = '';
+      instError = null;
+      creatingInst = true;
+      // Dropdown value stays on the current institution_id on the next render.
     } else if (value === '') {
       draft.institution_id = null;
     } else {
       draft.institution_id = Number(value);
     }
+  }
+
+  async function confirmCreateInst() {
+    const name = newInstName.trim();
+    if (!name) {
+      instError = (tx().name ?? 'Name') + ' erforderlich';
+      return;
+    }
+    instSaving = true;
+    instError = null;
+    try {
+      const inst = await createInstitution({ name });
+      onInstitutionCreated(inst);
+      creatingInst = false;
+      newInstName = '';
+    } catch (e) {
+      instError = errMsg(e);
+    } finally {
+      instSaving = false;
+    }
+  }
+
+  function cancelCreateInst() {
+    creatingInst = false;
+    newInstName = '';
+    instError = null;
   }
 
   function descendantsAndSelf(id: number, all: Account[]): Set<number> {
@@ -162,12 +194,26 @@
     </select>
   </label>
 
-  {#if showInstModal}
-    <InstitutionModal
-      institution={null}
-      onClose={() => (showInstModal = false)}
-      onSaved={onInstitutionCreated}
-    />
+  {#if creatingInst}
+    <div class="inst-create">
+      <!-- svelte-ignore a11y_autofocus -->
+      <input
+        class="input"
+        type="text"
+        bind:value={newInstName}
+        autofocus
+        placeholder={(t() as Record<string, any>).institutions?.namePlaceholder ?? 'Name des Instituts'}
+        aria-label={tx().name ?? 'Name'}
+        onkeydown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void confirmCreateInst(); } }}
+      />
+      <button type="button" class="btn primary" onclick={confirmCreateInst} disabled={instSaving}>
+        {tx().add ?? 'Anlegen'}
+      </button>
+      <button type="button" class="btn" onclick={cancelCreateInst} disabled={instSaving}>
+        {t().common.cancel}
+      </button>
+    </div>
+    <p class="error" aria-live="polite">{#if instError}<Icon name="warning" size={14} aria-hidden="true" /> {instError}{/if}</p>
   {/if}
 
   <div class="row">
@@ -265,9 +311,7 @@
     <span>{tx().archived ?? 'Archiviert (in Dropdowns ausblenden)'}</span>
   </label>
 
-  {#if error}
-    <div class="error">{error}</div>
-  {/if}
+  <div class="error" aria-live="polite">{#if error}<Icon name="warning" size={14} aria-hidden="true" /> {error}{/if}</div>
 
   <div class="actions">
     {#if onCancel}
@@ -318,7 +362,10 @@
     font-size: 12px;
   }
   .toggle { display: flex; align-items: center; gap: 8px; font-size: 13px; }
-  .error { color: var(--negative); font-size: 12px; }
+  .error { color: var(--negative); font-size: 12px; display: flex; align-items: center; gap: 6px; }
+  .error:empty { display: none; }
+  .inst-create { display: flex; gap: 8px; align-items: center; margin-top: 6px; }
+  .inst-create .input { flex: 1 1 auto; min-width: 0; }
   .actions { display: flex; justify-content: flex-end; gap: 8px; }
   .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 </style>

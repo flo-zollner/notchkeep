@@ -1,6 +1,7 @@
 <script lang="ts">
   import { api, type BackupValidation, errMsg} from '$lib/api';
   import Sheet from './Sheet.svelte';
+  import Icon from './Icon.svelte';
   import { t } from '$lib/settings.svelte';
 
   interface Props {
@@ -51,7 +52,7 @@
     <input bind:value={typed} disabled={busy} autocomplete="off" />
   </label>
 
-  {#if error}<p class="error">{error}</p>{/if}
+  <p class="error" aria-live="polite" role="status">{#if error}<span aria-hidden="true"><Icon name="alert-circle" size={14} /></span> {error}{/if}</p>
 
   {#snippet footer()}
     <div class="footer-actions">
@@ -68,16 +69,16 @@
   .counts {
     font-size: 11px; color: var(--text-muted);
     display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px;
-    border: 1px solid var(--border); border-radius: 6px;
-    padding: 10px; margin-bottom: 12px;
+    border: 1px solid var(--border); border-radius: var(--r-sm);
+    padding: 8px; margin-bottom: 12px;
   }
   .counts span { font-weight: 500; color: var(--text); }
   label { display: grid; gap: 4px; font-size: 12px; color: var(--text-muted); }
   input {
     background: var(--surface-2); border: 1px solid var(--border);
-    border-radius: 6px; padding: 6px 10px; font: inherit; color: var(--text);
+    border-radius: var(--r-sm); padding: 4px 8px; font: inherit; color: var(--text);
   }
-  .error { color: var(--negative); font-size: 12px; }
+  .error { color: var(--negative); font-size: 12px; display: flex; align-items: center; gap: 4px; min-height: 1em; }
   .footer-actions {
     display: flex;
     justify-content: flex-end;
@@ -88,7 +89,7 @@
     .footer-actions button { flex: 1 1 0; min-width: 0; }
   }
   .btn {
-    padding: 8px 14px; border-radius: 6px; border: 1px solid var(--border);
+    padding: 8px 14px; border-radius: var(--r-sm); border: 1px solid var(--border);
     background: var(--surface-2); color: var(--text); cursor: pointer;
     font: inherit;
   }

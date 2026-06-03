@@ -1,6 +1,7 @@
 <script lang="ts">
   import { api, type CurrencyStatus, errMsg } from '$lib/api';
   import Sheet from './Sheet.svelte';
+  import Icon from './Icon.svelte';
   import { t } from '$lib/settings.svelte';
 
   interface Props {
@@ -57,9 +58,7 @@
     <small class="hint">{tc.addModalCodeHint}</small>
   </label>
 
-  {#if error}
-    <div class="err">{error}</div>
-  {/if}
+  <div class="err" aria-live="polite">{#if error}<Icon name="warning" size={14} aria-hidden="true" /> {error}{/if}</div>
 
   {#snippet footer()}
     <div class="footer-actions">
@@ -92,7 +91,9 @@
     color: var(--negative); font-size: 13px;
     padding: 10px; background: var(--negative-soft);
     border-radius: 6px; margin-bottom: 12px;
+    display: flex; align-items: center; gap: 6px;
   }
+  .err:empty { display: none; }
   .footer-actions {
     display: flex;
     justify-content: flex-end;

@@ -18,6 +18,7 @@
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
   import { groupByDay } from '$lib/tx-grouping';
+  import EmptyState from '$lib/components/EmptyState.svelte';
 
   let transactions = $state<Transaction[]>([]);
   let accounts = $state<Account[]>([]);
@@ -445,9 +446,14 @@
   </div>
 </div>
 
-{#if error}
-  <div class="card" style="color:var(--negative); margin-bottom: 14px;">Fehler: {error}</div>
-{/if}
+<div class="error-banner" role="status" aria-live="polite" aria-atomic="true">
+  {#if error}
+    <div class="card error-banner-inner">
+      <Icon name="alert-circle" size={14} />
+      Fehler: {error}
+    </div>
+  {/if}
+</div>
 
 <div class="card card-pad-lg tx-summary">
   <div class="tx-summary-col">
@@ -473,7 +479,7 @@
     <div class="filter-bar-row">
       <div class="search-wrap">
         <span class="search-icon"><Icon name="search" size={14} /></span>
-        <input class="input" placeholder={t().common.search} bind:value={search} style="padding-left: 34px;" />
+        <input class="input search-input" placeholder={t().common.search} bind:value={search} />
       </div>
       <button
         type="button"
@@ -605,7 +611,23 @@
       {/each}
     </div>
   {:else if groupedFiltered.length === 0}
-    <div class="empty">—</div>
+    {#if hasFilter}
+      <EmptyState
+        icon="search"
+        title="Keine Treffer"
+        description="Für die aktuellen Filter gibt es keine Buchungen."
+        actionLabel="Filter zurücksetzen"
+        onAction={clearFilters}
+      />
+    {:else}
+      <EmptyState
+        icon="tx"
+        title="Noch keine Buchungen"
+        description="Erfasse deine erste Transaktion über das + unten."
+        actionLabel="Neue Transaktion"
+        onAction={openNewCash}
+      />
+    {/if}
   {:else}
     {#if selectedIds.size > 0}
       <div class="bulk-bar">
@@ -629,9 +651,7 @@
         <button class="btn ghost" type="button" onclick={clearSelection} disabled={bulkBusy}>
           Abwählen
         </button>
-        {#if bulkError}
-          <span class="bulk-err">{bulkError}</span>
-        {/if}
+        <span class="bulk-err" aria-live="polite">{bulkError ?? ''}</span>
       </div>
     {/if}
 
@@ -766,8 +786,8 @@
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: 8px;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.15);
-    min-width: 200px;
+    box-shadow: var(--shadow-md);
+    min-width: 192px;
     z-index: 50;
   }
   .new-menu li { display: block; }
@@ -905,12 +925,7 @@
     color: var(--text-faint);
     display: inline-flex;
   }
-  .empty {
-    padding: 40px 0;
-    text-align: center;
-    color: var(--text-faint);
-  }
-  .date-group {
+.date-group {
     margin-bottom: 12px;
   }
   .tx-summary {
@@ -1064,5 +1079,24 @@
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.04em;
+  }
+  .search-input {
+    padding-left: 32px;
+  }
+  .error-banner-inner {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--negative);
+    margin-bottom: 14px;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .chev {
+      transition: none;
+    }
+    .select-cell input[type="checkbox"],
+    .select-all input[type="checkbox"] {
+      transition: none;
+    }
   }
 </style>

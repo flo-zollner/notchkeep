@@ -68,19 +68,19 @@
     margin-top: auto;
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 8px;
   }
   .refresh-status {
     margin-top: auto;
     margin-bottom: 8px;
-    padding: 6px 10px;
+    padding: 8px 12px;
     font-size: 11px;
     color: var(--text-muted);
     background: var(--surface-2);
     border-radius: 6px;
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
   }
   .refresh-status.err {
     color: var(--negative);
@@ -88,7 +88,7 @@
   }
   .spinner {
     display: inline-block;
-    width: 10px; height: 10px;
+    width: 12px; height: 12px;
     border: 1.5px solid var(--text-muted);
     border-top-color: transparent;
     border-radius: 50%;
@@ -97,12 +97,15 @@
   @keyframes spin { to { transform: rotate(360deg); } }
   .alert-badge {
     margin-left: auto;
-    min-width: 18px; height: 18px; padding: 0 5px;
-    border-radius: 9px;
+    min-width: 18px; height: 18px; padding: 0 4px;
+    border-radius: 999px;
     background: var(--negative);
-    color: white;
+    color: var(--on-negative);
     font-size: 10px; font-weight: 600;
     display: inline-flex; align-items: center; justify-content: center;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .spinner { animation: none; }
   }
   @media (max-width: 1023px) {
     .sidebar { display: none; }

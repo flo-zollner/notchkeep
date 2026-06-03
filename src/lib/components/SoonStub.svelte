@@ -33,7 +33,7 @@
     align-items: center;
     justify-content: center;
     gap: 12px;
-    padding: 60px 22px;
+    padding: 64px 22px;
     color: var(--text-muted);
     text-align: center;
   }
@@ -43,7 +43,7 @@
     color: var(--text);
   }
   .soon-body {
-    font-size: 13px;
-    max-width: 480px;
+    font-size: 14px;
+    max-width: 540px;
   }
 </style>

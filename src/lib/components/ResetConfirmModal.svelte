@@ -42,7 +42,7 @@
     <input bind:value={typed} disabled={busy} autocomplete="off" />
   </label>
 
-  {#if error}<p class="error">{error}</p>{/if}
+  <p class="error" aria-live="polite">{error ?? ''}</p>
 
   {#snippet footer()}
     <div class="footer-actions">
@@ -59,7 +59,7 @@
   label { display: grid; gap: 4px; font-size: 12px; color: var(--text-muted); }
   input {
     background: var(--surface-2); border: 1px solid var(--border);
-    border-radius: 6px; padding: 6px 10px; font: inherit; color: var(--text);
+    border-radius: var(--r-sm); padding: 8px 12px; font: inherit; color: var(--text);
   }
   .error { color: var(--negative); font-size: 12px; }
   .footer-actions {
@@ -69,7 +69,7 @@
     flex-wrap: wrap;
   }
   .btn {
-    padding: 8px 14px; border-radius: 6px; border: 1px solid var(--border);
+    padding: 8px 14px; border-radius: var(--r-sm); border: 1px solid var(--border);
     background: var(--surface-2); color: var(--text); cursor: pointer;
     font: inherit;
   }

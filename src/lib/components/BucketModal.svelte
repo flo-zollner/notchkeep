@@ -10,6 +10,7 @@
     type UpdateBucketPayload,
   } from '$lib/api';
   import { fmtEurInput, parseEur } from '$lib/format';
+  import { snackbar } from '$lib/snackbar.svelte';
 
   interface Props {
     bucket: Bucket | null;
@@ -56,7 +57,6 @@
   let archived = $state(bucket?.archived ?? false);
   let saving = $state(false);
   let error = $state<string | null>(null);
-  let confirmingDelete = $state(false);
 
   async function save() {
     error = null;
@@ -118,49 +118,33 @@
 
   async function remove() {
     if (!bucket) return;
-    saving = true;
-    try {
-      await api.deleteBucket(bucket.id);
-      onDeleted?.(bucket.id);
+    const id = bucket.id;
+    try { await api.deleteBucket(id); } catch (e) { error = String(e); return; }
+    onDeleted?.(id);
+    onSaved();
+    onClose();
+    snackbar.showUndo(tc.deleted, tc.undo, async () => {
+      await api.restoreBucket(id);
       onSaved();
-      onClose();
-    } catch (e) {
-      error = (e as Error).message ?? String(e);
-      confirmingDelete = false;
-    } finally {
-      saving = false;
-    }
+    });
   }
 </script>
 
 <Sheet open={true} {onClose} title={isEdit ? tb.edit : tb.add}>
   {#snippet footer()}
     <div class="footer-actions">
-      {#if confirmingDelete}
-        <div class="confirm-row">
-          <span class="confirm-msg">{tb.confirmDelete}</span>
-          <div class="spacer"></div>
-          <button type="button" onclick={() => (confirmingDelete = false)} disabled={saving}>
-            {tc.cancel}
-          </button>
-          <button type="button" class="btn danger" onclick={remove} disabled={saving}>
-            {tb.delete}
-          </button>
-        </div>
-      {:else}
-        {#if isEdit}
-          <button
-            type="button"
-            class="btn danger"
-            onclick={() => (confirmingDelete = true)}
-            disabled={saving}
-          >
-            {tb.delete}
-          </button>
-        {/if}
-        <button type="button" class="btn" onclick={onClose} disabled={saving}>{tc.cancel}</button>
-        <button type="button" class="btn primary" onclick={save} disabled={saving}>{tc.save}</button>
+      {#if isEdit}
+        <button
+          type="button"
+          class="btn danger"
+          onclick={remove}
+          disabled={saving}
+        >
+          {tb.delete}
+        </button>
       {/if}
+      <button type="button" class="btn" onclick={onClose} disabled={saving}>{tc.cancel}</button>
+      <button type="button" class="btn primary" onclick={save} disabled={saving}>{tc.save}</button>
     </div>
   {/snippet}
 
@@ -245,9 +229,7 @@
     {/if}
   </div>
 
-  {#if error}
-    <p class="err">{error}</p>
-  {/if}
+  <p class="err" aria-live="polite">{#if error}<Icon name="warning" size={14} aria-hidden="true" /> {error}{/if}</p>
 </Sheet>
 
 <style>
@@ -298,7 +280,8 @@
     display: grid; place-items: center;
     font-size: 12px;
   }
-  .err { margin: 0; font-size: 12px; color: var(--danger, #ef4444); }
+  .err { margin: 0; font-size: 12px; color: var(--danger, #ef4444); display: flex; align-items: center; gap: 6px; }
+  .err:empty { display: none; }
   /* footer-actions */
   .footer-actions {
     display: flex;
@@ -323,19 +306,4 @@
   .btn.primary { background: var(--accent); color: var(--accent-fg, white); border: 0; }
   .btn.primary:disabled { opacity: .5; cursor: not-allowed; }
   .btn:disabled { opacity: .5; cursor: not-allowed; }
-  .confirm-row {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    width: 100%;
-    padding: 10px 12px;
-    background: var(--negative-soft, var(--surface-2));
-    border: 1px solid var(--border);
-    border-radius: 10px;
-  }
-  .confirm-msg {
-    font-size: 13px;
-    color: var(--text);
-  }
-  .spacer { flex: 1; }
 </style>

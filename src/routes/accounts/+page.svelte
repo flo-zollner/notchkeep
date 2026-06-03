@@ -10,6 +10,8 @@
   import Icon from '$lib/components/Icon.svelte';
   import KPI from '$lib/components/KPI.svelte';
   import OverflowMenu from '$lib/components/OverflowMenu.svelte';
+  import Skeleton from '$lib/components/Skeleton.svelte';
+  import EmptyState from '$lib/components/EmptyState.svelte';
   import { settings, t } from '$lib/settings.svelte';
 
   // i18n lookup without typed property access — missing keys fall back to the default via ??.
@@ -168,9 +170,11 @@
   </button>
 </div>
 
-{#if error}
-  <div class="card" style="color:var(--negative); margin-bottom: 14px;">Fehler: {error}</div>
-{/if}
+<div aria-live="polite" aria-atomic="true">
+  {#if error}
+    <div class="card error-banner"><Icon name="alert-circle" size={16} /> Fehler: {error}</div>
+  {/if}
+</div>
 
 <div class="kpi-grid" style="grid-template-columns: repeat(2, 1fr);">
   <KPI label={t().common.assets} value={fmtEur(totalCents, { hide: settings.hide })} />
@@ -183,15 +187,20 @@
   </div>
 
   {#if loading}
-    <div class="empty">…</div>
-  {:else if allAccounts.length === 0}
-    <div class="empty empty-cta">
-      <p>{tx().noAccountsYet ?? 'Noch kein Konto angelegt.'}</p>
-      <button class="btn accent" onclick={() => (creating = true)}>
-        <Icon name="plus" size={13} />
-        {t().common.addAccount}
-      </button>
+    <div class="skeleton-list">
+      <Skeleton height={18} marginTop={0} />
+      <Skeleton height={18} marginTop={8} />
+      <Skeleton height={18} marginTop={8} />
+      <Skeleton height={18} marginTop={8} />
     </div>
+  {:else if allAccounts.length === 0}
+    <EmptyState
+      icon="accounts"
+      title="Noch keine Konten"
+      description="Lege dein erstes Konto an, um Buchungen zu erfassen."
+      actionLabel={t().common.addAccount}
+      onAction={() => (creating = true)}
+    />
   {:else if groupBy === 'institution'}
     {#each institutionSummaries as inst (inst.id)}
       {@const accountsInGroup = activeTopLevel.filter((a) => a.institution_id === inst.id)}
@@ -312,6 +321,16 @@
 {/if}
 
 <style>
+  .error-banner {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--negative);
+    margin-bottom: 14px;
+  }
+  .skeleton-list {
+    padding: 16px 0;
+  }
   .empty {
     padding: 32px 0;
     text-align: center;
@@ -329,12 +348,12 @@
   .tree {
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 4px;
   }
   .account-group { margin-bottom: 14px; }
   .account-group:last-child { margin-bottom: 0; }
   .group-h {
-    margin: 0 0 6px 0;
+    margin: 0 0 8px 0;
     font-size: 11px;
     font-weight: 500;
     color: var(--text-muted);
@@ -343,14 +362,14 @@
     display: flex; align-items: center; gap: 8px;
   }
   .group-count {
-    font-size: 10px; font-weight: 400; padding: 1px 6px;
+    font-size: 10px; font-weight: 400; padding: 4px 8px;
     background: var(--surface-2); border-radius: 999px; color: var(--text-muted);
     text-transform: none; letter-spacing: 0;
   }
   .archive-toggle {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
     background: none;
     border: 0;
     color: var(--text-muted);
@@ -365,8 +384,8 @@
     display: flex;
     flex-direction: column;
     gap: 4px;
-    padding: 8px 10px;
-    min-height: 44px;
+    padding: 8px;
+    min-height: 48px;
     justify-content: center;
   }
   .overflow-group-label {
@@ -380,9 +399,9 @@
     font-size: 13px;
     background: var(--surface-2);
     border: 1px solid var(--border);
-    border-radius: 6px;
+    border-radius: var(--r-sm);
     color: var(--text);
-    padding: 3px 6px;
+    padding: 4px 8px;
     cursor: pointer;
     width: 100%;
   }

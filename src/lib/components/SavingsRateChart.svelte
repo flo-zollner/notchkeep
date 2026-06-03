@@ -384,7 +384,7 @@
     pointer-events: none;
   }
   .bar {
-    transition: opacity 0.15s, y 0.25s cubic-bezier(0.22, 1, 0.36, 1), height 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+    transition: opacity 0.15s;
   }
   .bar-pos { fill: var(--positive); opacity: 0.85; }
   .bar-neg { fill: var(--negative); opacity: 0.85; }
@@ -421,13 +421,13 @@
 
   .tooltip {
     position: absolute;
-    top: 6px;
+    top: 8px;
     transform: translateX(12px);
     background: var(--surface);
     border: 1px solid var(--border-strong);
     border-radius: 8px;
-    box-shadow: 0 6px 22px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.06);
-    padding: 9px 11px;
+    box-shadow: var(--shadow-md);
+    padding: 8px 12px;
     min-width: 168px;
     font-size: 12px;
     color: var(--text);
@@ -455,19 +455,19 @@
     color: var(--text-muted);
     text-transform: uppercase;
     letter-spacing: 0.04em;
-    margin-bottom: 6px;
+    margin-bottom: 8px;
   }
   .tt-row {
     display: grid;
-    grid-template-columns: 10px 1fr auto;
+    grid-template-columns: 8px 1fr auto;
     align-items: center;
     gap: 8px;
-    padding: 2px 0;
+    padding: 4px 0;
   }
   .tt-row.net {
     border-top: 1px dashed var(--border);
     margin-top: 4px;
-    padding-top: 5px;
+    padding-top: 4px;
   }
   .tt-dot {
     width: 8px;
@@ -489,8 +489,8 @@
     display: flex;
     justify-content: space-between;
     align-items: baseline;
-    margin-top: 6px;
-    padding-top: 6px;
+    margin-top: 8px;
+    padding-top: 8px;
     border-top: 1px solid var(--border);
   }
   .tt-q-v {
@@ -500,4 +500,15 @@
   }
   .tt-q-v.pos { color: var(--positive); }
   .tt-q-v.neg { color: var(--negative); }
+
+  @media (prefers-reduced-motion: reduce) {
+    .bar,
+    .dot,
+    .x-label {
+      transition: none;
+    }
+    .tooltip {
+      animation: none;
+    }
+  }
 </style>

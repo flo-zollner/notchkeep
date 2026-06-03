@@ -56,7 +56,7 @@ pub async fn find_data_issues(pool: &SqlitePool) -> DbResult<IntegrityReport> {
            FROM security_bucket_allocations sba
            JOIN securities s ON s.id = sba.security_id
            JOIN buckets b ON b.id = sba.bucket_id
-          WHERE b.archived = 1
+          WHERE b.archived = 1 AND b.deleted_at IS NULL
           ORDER BY s.name",
     )
     .fetch_all(pool)

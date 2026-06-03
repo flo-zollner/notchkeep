@@ -57,6 +57,11 @@ pub async fn delete_recurring(state: State<'_, DbState>, id: i64) -> Result<bool
 }
 
 #[tauri::command]
+pub async fn restore_recurring(state: State<'_, DbState>, id: i64) -> Result<bool, CommandError> {
+    Ok(db_recurring::restore_recurring(&state.pool(), id).await?)
+}
+
+#[tauri::command]
 pub async fn recurring_overview(
     state: State<'_, DbState>,
     months_ahead: u32,

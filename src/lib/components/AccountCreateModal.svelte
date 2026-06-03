@@ -2,6 +2,7 @@
   import { api, listInstitutionsWithSummary, type InstitutionSummary, errMsg } from '$lib/api';
   import { t } from '$lib/settings.svelte';
   import Sheet from './Sheet.svelte';
+  import Icon from './Icon.svelte';
 
   interface Props {
     open: boolean;
@@ -66,9 +67,7 @@
       void submit();
     }}
   >
-    {#if error}
-      <div class="form-error">{error}</div>
-    {/if}
+    <div class="form-error" aria-live="polite">{#if error}<Icon name="warning" size={14} aria-hidden="true" /> {error}{/if}</div>
     <div class="field">
       <div class="field-label">{t().common.name}</div>
       <!-- svelte-ignore a11y_autofocus -->
@@ -123,7 +122,11 @@
   .form-error {
     color: var(--negative);
     font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
   }
+  .form-error:empty { display: none; }
   .footer-actions {
     display: flex;
     justify-content: flex-end;
@@ -142,7 +145,7 @@
   @media (max-width: 599px) {
     .footer-actions .btn {
       flex: 1;
-      min-height: 44px;
+      min-height: var(--tap);
     }
   }
 </style>

@@ -259,9 +259,7 @@
         {/if}
       {/if}
 
-      {#if error}
-        <p class="err">{error}</p>
-      {/if}
+      <p class="err" aria-live="polite">{#if error}<Icon name="warning" size={14} aria-hidden="true" /> {error}{/if}</p>
     </div>
 </Sheet>
 
@@ -337,11 +335,13 @@
     display: flex; flex-wrap: wrap; gap: 6px;
   }
   .err {
+    display: flex; align-items: center; gap: 6px;
     margin: 0; padding: 10px 12px;
     background: var(--negative-soft);
     color: var(--negative);
     border-radius: 8px; font-size: 13px;
   }
+  .err:empty { display: none; }
   .footer-actions {
     display: flex;
     justify-content: flex-end;

@@ -32,8 +32,7 @@ impl AppConfig {
         std::fs::create_dir_all(data_dir)?;
         let target = data_dir.join("app-config.json");
         let tmp = data_dir.join("app-config.json.tmp");
-        let raw = serde_json::to_string_pretty(self)
-            .map_err(std::io::Error::other)?;
+        let raw = serde_json::to_string_pretty(self).map_err(std::io::Error::other)?;
         std::fs::write(&tmp, raw)?;
         std::fs::rename(&tmp, &target)?;
         Ok(())

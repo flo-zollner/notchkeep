@@ -8,6 +8,7 @@
     type RecurringPayment, type Account, type Category,
     type NewRecurringPayload, type UpdateRecurringPayload, errMsg} from '$lib/api';
   import { fmtEurInput, parseEur } from '$lib/format';
+  import { snackbar } from '$lib/snackbar.svelte';
 
   interface Props {
     recurring: RecurringPayment | null;
@@ -45,10 +46,10 @@
   let formNote = $state(recurring?.note ?? '');
 
   let saving = $state(false);
-  let confirmingDelete = $state(false);
   let error = $state<string | null>(null);
 
   const tr = $derived(t().recurring);
+  const tc = $derived(t().common);
 
   function parseAmountCents(): number | null {
     const n = parseEur(formAmount);
@@ -104,16 +105,18 @@
 
   async function remove() {
     if (!recurring) return;
-    if (!confirmingDelete) {
-      confirmingDelete = true;
-      return;
-    }
+    const id = recurring.id;
     try {
-      await api.deleteRecurring(recurring.id);
-      onDeleted?.();
+      await api.deleteRecurring(id);
     } catch (e) {
       error = errMsg(e);
+      return;
     }
+    onDeleted?.();
+    snackbar.showUndo(tc.deleted, tc.undo, async () => {
+      await api.restoreRecurring(id);
+      onSaved();
+    });
   }
 </script>
 
@@ -122,7 +125,7 @@
     <div class="footer-actions">
       {#if isEdit}
         <button type="button" class="btn danger" onclick={remove}>
-          {confirmingDelete ? tr.confirmDelete : t().common.delete}
+          {t().common.delete}
         </button>
       {/if}
       <button type="button" class="btn" onclick={onClose}>{t().common.cancel}</button>
@@ -157,7 +160,7 @@
   </label>
 
   <div class="row-2">
-    <label class="field">
+    <label class="field amount-field">
       <span>{tr.amount} (€)</span>
       <input type="text" inputmode="decimal" bind:value={formAmount} placeholder="0.00" />
     </label>
@@ -199,9 +202,7 @@
     <textarea bind:value={formNote} rows="2"></textarea>
   </label>
 
-  {#if error}
-    <p class="err">{error}</p>
-  {/if}
+  <p class="err" aria-live="polite">{#if error}<Icon name="alert-circle" size={14} /> {error}{/if}</p>
 </Sheet>
 
 <style>
@@ -209,27 +210,28 @@
   .field input, .field select, .field textarea {
     background: var(--surface-2);
     border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 6px 10px;
+    border-radius: var(--r-sm);
+    padding: 8px 12px;
     font: inherit;
     color: var(--text);
   }
-  .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
   .sign-toggle { display: flex; gap: 0; }
   .sign-toggle button {
     flex: 1;
     background: var(--surface-2);
     border: 1px solid var(--border);
     color: var(--text-muted);
-    padding: 6px 8px;
+    padding: 8px 8px;
     cursor: pointer;
     font: inherit;
     font-size: 12px;
   }
-  .sign-toggle button:first-child { border-radius: 6px 0 0 6px; border-right: 0; }
-  .sign-toggle button:last-child { border-radius: 0 6px 6px 0; }
+  .sign-toggle button:first-child { border-radius: var(--r-sm) 0 0 var(--r-sm); border-right: 0; }
+  .sign-toggle button:last-child { border-radius: 0 var(--r-sm) var(--r-sm) 0; }
   .sign-toggle button.on { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
-  .err { color: var(--negative); font-size: 12px; margin: 0; }
+  .field.amount-field input { font-family: var(--font-mono); }
+  .err { display: flex; align-items: center; gap: 6px; color: var(--negative); font-size: 12px; margin: 0; }
   /* footer-actions */
   .footer-actions {
     display: flex;
@@ -245,8 +247,8 @@
   .btn {
     background: var(--surface-2);
     border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 6px 12px;
+    border-radius: var(--r-sm);
+    padding: 8px 12px;
     cursor: pointer;
     font: inherit;
     color: var(--text);
