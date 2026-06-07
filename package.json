@@ -50,7 +50,7 @@
     "jsdom": "^29.1.1",
     "svelte": "^5.0.0",
     "svelte-check": "^4.5.0",
-    "svelte-eslint-parser": "^1.7.1",
+    "svelte-eslint-parser": "^1.8.0",
     "typescript": "~6.0.3",
     "typescript-eslint": "^8.60.1",
     "vite": "^6.0.3",
