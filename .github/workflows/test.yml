@@ -10,7 +10,7 @@ jobs:
     name: Rust (test, licenses)
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       # Linux-Systembibliotheken für Tauri 2 (WebKitGTK 4.1 etc.) — nötig, damit
       # die App-Crate kompiliert/getestet werden kann.
@@ -55,7 +55,7 @@ jobs:
     name: Frontend (check, vitest, e2e)
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       # Shared setup, frontend only (no Rust toolchain).
       - name: Setup build environment
