@@ -63,7 +63,7 @@ jobs:
     outputs:
       release_id: ${{ steps.create.outputs.release_id }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - name: Create draft release (idempotent)
         id: create
         env:
@@ -107,7 +107,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       # Linux-Systembibliotheken für Tauri 2 (WebKitGTK 4.1, AppIndicator,
       # rsvg, patchelf für AppImage).
@@ -156,7 +156,7 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       # Shared setup (pnpm, Node, Rust toolchain + cache, frontend deps).
       # Android-Cross-Compile-Targets + eigener Cache-Key.
